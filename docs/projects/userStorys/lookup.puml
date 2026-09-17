@@ -1,0 +1,38 @@
+@startuml
+autonumber
+
+actor "ผู้ใช้งาน\n(Student / Staff)" as User
+participant "Frontend Web\n(Client)" as FE
+participant "Backend API\n(Server)" as BE
+database "Database\n(TU Borrow DB)" as DB
+
+User -> FE : เข้าสู่หน้ารายการสิ่งของที่เปิดให้ยืม\n(Home / Browse Items Page)
+activate FE
+
+FE -> BE : GET /api/v1/items?status=Available\nHeader: Authorization: Bearer <token>(end_span)
+activate BE
+
+BE -> BE : ตรวจสอบความถูกต้องของ Session Token
+alt Token หมดอายุหรือไม่ถูกต้อง
+    BE --> FE : 401 Unauthorized
+    FE --> User : แจ้งเตือนและเปลี่ยนเส้นทางไปยังหน้า Login
+else ยืนยันตัวตนสำเร็จ
+    BE -> DB : SELECT item_id, title, category, description, image_url, status, created_at\nFROM items\nWHERE status = 'Available' AND deleted_at IS NULL\nORDER BY created_at DESC
+    activate DB
+    DB --> BE : ส่งคืนชุดข้อมูลรายการสิ่งของ
+    deactivate DB
+
+    BE --> FE : 200 OK
+    deactivate BE
+
+    alt กรณีที่ 1: พบรายการสิ่งของที่พร้อมให้ยืม (data.length > 0)
+        FE -> FE : Render การ์ดรายการสิ่งของ (รูปภาพ, ชื่อ, หมวดหมู่, เจ้าของ)
+        FE --> User : แสดงผลรายการสิ่งของทั้งหมดที่มีสถานะ Available
+    else กรณีที่ 2: ไม่มีสิ่งของพร้อมให้ยืมในระบบ (data.length == 0)
+        FE -> FE : Render คอมโพเนนต์หน้าว่าง (Empty State)
+        FE --> User : แสดงข้อความ "ขณะนี้ยังไม่มีสิ่งของที่พร้อมให้ยืม
+    end
+end
+deactivate FE
+
+@enduml

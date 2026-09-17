@@ -1,0 +1,61 @@
+@startuml
+title Domain Model (Conceptual Class Diagram)
+hide methods
+skinparam classAttributeIconSize 0
+skinparam style strictuml
+
+class User {
+  studentId / employeeId
+  fullName
+  email
+  role
+  accountStatus
+}
+
+class Item {
+  itemId
+  title
+  description
+  category
+  status: Available | Reserved | Borrowed
+  createdAt
+}
+
+class BorrowRequest {
+  requestId
+  borrowDate
+  returnDate
+  reason
+  requestStatus: Pending | Accepted | Rejected | Cancelled
+  createdAt
+}
+
+class LoanTransaction {
+  transactionId
+  handoverDate
+  actualReturnDate
+  loanStatus: Borrowed | Returned
+}
+
+class HandoverEvidence {
+  evidenceId
+  imageUrl
+  conditionNote
+  recordedTimestamp
+}
+
+class ReturnEvidence {
+  evidenceId
+  imageUrl
+  conditionNote
+  recordedTimestamp
+}
+
+User "1" -- "0..*" Item : เป็นเจ้าของ (owns) >
+User "1" -- "0..*" BorrowRequest : ส่งคำขอ (requests) >
+Item "1" -- "0..*" BorrowRequest : ถูกร้องขอ (requested for) >
+
+BorrowRequest "1" -- "0..1" LoanTransaction : ก่อให้เกิด (results in) >
+LoanTransaction "1" -- "1" HandoverEvidence : มีหลักฐานส่งมอบ >
+LoanTransaction "1" -- "0..1" ReturnEvidence : มีหลักฐานส่งคืน >
+@enduml

@@ -1,0 +1,13 @@
+*
+!*.*
+!**/**
+
+# System and OS
+.DS_Store
+
+# Tools
+.vscode/
+
+# Private
+.env
+**/[Pp]rivate/**

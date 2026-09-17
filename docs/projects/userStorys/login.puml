@@ -1,0 +1,54 @@
+@startuml
+autonumber
+
+actor "ผู้ใช้งาน\n(Student / Staff)" as User
+participant "Frontend Web\n(Client)" as FE
+participant "Backend API\n(Server)" as BE
+database "Database\n(TU Borrow DB)" as DB
+participant "TU Open API\n(Active Directory)" as TUAPI
+
+User -> FE : กรอก Username & Password\nและกดยืนยัน Login
+activate FE
+
+FE -> BE : POST /api/v1/auth/login
+activate BE
+
+BE -> TUAPI : POST /api/v1/auth/Ad/verify
+activate TUAPI
+
+alt กรณีที่ 1: ข้อมูลบัญชีไม่ถูกต้อง หรือระบบภายนอกปฏิเสธ
+    TUAPI --> BE : 200 OK
+    BE --> FE : 401 Unauthorized
+    FE --> User : แสดงข้อความแจ้งเตือนข้อผิดพลาด
+
+else กรณีที่ 2: บัญชีถูกต้อง แต่สถานะบัญชีไม่ปกติ (Not Active)
+    TUAPI --> BE : 200 OK
+    BE --> FE : 403 Forbidden
+    FE --> User : แจ้งเตือนสถานะบัญชีไม่พร้อมใช้งาน
+
+else กรณีที่ 3: ตรวจสอบสำเร็จ (Active Account)
+    TUAPI --> BE : 200 OK
+    deactivate TUAPI
+
+    BE -> DB : ค้นหา User ด้วย userName
+    activate DB
+
+    alt ยังไม่มีข้อมูล User ในระบบ (First-time Login)
+        BE -> DB : INSERT User (userName, displayname_th, email, type, role)
+    else มีข้อมูล User อยู่แล้ว
+        BE -> DB : UPDATE ข้อมูลโปรไฟล์ล่าสุด (displayname_th, email, department)
+    end
+    DB --> BE : บันทึกข้อมูลสำเร็จ
+    deactivate DB
+
+    BE -> BE : ออก Session Token / JWT\n(กำหนด Payload: userId, role, permissions)
+    
+    BE --> FE : 200 OK\nSet-Cookie หรือ Response Body { token, userProfile }
+    deactivate BE
+
+    FE -> FE : จัดเก็บ Session ใน Client Storage
+    FE --> User : แสดงผลหน้าจอหลักตามสิทธิ์ (Role) สำเร็จ
+    deactivate FE
+end
+
+@enduml

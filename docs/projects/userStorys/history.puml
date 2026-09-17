@@ -1,0 +1,74 @@
+@startuml
+autonumber
+
+actor "ผู้ใช้งานคู่กรณี\n(Lender / Borrower)" as User
+participant "Frontend Web\n(Client)" as FE
+participant "Backend API\n(Server)" as BE
+database "Database\n(TU Borrow DB)" as DB
+box "File Storage" #F9F9F9
+participant "Storage Service\n(S3 / Local Storage)" as Storage
+end box
+
+User -> FE : อยู่ที่หน้ารายการยืม (สถานะ Accepted)\nแนบไฟล์รูปภาพสภาพสิ่งของและกรอกหมายเหตุสภาพของ
+activate FE
+
+User -> FE : กดยืนยันการบันทึกหลักฐานส่งมอบ
+
+alt กรณีตรวจสอบข้อมูลฝั่ง Client ไม่ผ่าน (Validation Failed)
+    FE -> FE : ตรวจพบไม่มีการแนบรูปภาพ หรือข้อมูลบังคับไม่ครบ
+    FE --> User : แจ้งเตือนข้อผิดพลาด: กรุณาแนบรูปภาพสภาพสิ่งของ
+else ข้อมูลครบถ้วนเบื้องต้น
+    FE -> BE : POST /api/v1/loans/{requestId}/handover-evidence\nHeader: Authorization: Bearer <token>\nBody: multipart/form-data (imageFile, conditionNote)
+    activate BE
+
+    BE -> BE : ตรวจสอบสิทธิ์ Session / Token ของ User
+    alt Token ไม่ถูกต้อง หรือหมดอายุ
+        BE --> FE : 401 Unauthorized
+        FE --> User : แจ้งเตือนให้เข้าสู่ระบบใหม่อีกครั้ง
+    else Token ถูกต้อง
+        BE -> DB : SELECT r.id, r.status, r.borrower_id, i.item_id, i.owner_id\nFROM borrow_requests r\nJOIN items i ON r.item_id = i.item_id\nWHERE r.id = requestId
+        activate DB
+        DB --> BE : ข้อมูลคำขอและคู่กรณี (borrower_id, owner_id, status)
+        deactivate DB
+
+        alt กรณีที่ 1: ผู้ใช้ไม่ใช่คู่กรณีในรายการยืม (User != Borrower AND User != Owner)
+            BE --> FE : 403 Forbidden
+            FE --> User : แสดงข้อความปฏิเสธการดำเนินการ (Unauthorized/Forbidden)
+
+        else กรณีที่ 2: รายการยืมไม่ได้อยู่ในสถานะ Accepted
+            BE --> FE : 409 Conflict
+            FE --> User : แสดงแจ้งเตือน: สถานะรายการไม่ถูกต้อง
+
+        else กรณีที่ 3: ไฟล์แนบไม่ถูกต้องหรือไม่รองรับ (Mime-type Invalid)
+            BE --> FE : 400 Bad Request
+            FE --> User : แสดงข้อความแจ้งเตือนข้อผิดพลาด ไม่บันทึกข้อมูล
+
+        else ข้อมูลและสิทธิ์ถูกต้องครบถ้วน
+            BE -> Storage : อัปโหลดไฟล์รูปภาพหลักฐานส่งมอบ
+            activate Storage
+            Storage --> BE : ส่งกลับ URL / Path ของรูปภาพ (imageUrl)
+            deactivate Storage
+
+            BE -> DB : BEGIN TRANSACTION
+            activate DB
+
+            BE -> DB : INSERT INTO loan_transactions\n(request_id, handover_by, handover_image_url, handover_note, handover_timestamp, status)\nVALUES (requestId, userId, imageUrl, conditionNote, NOW(), 'Borrowed')
+
+            BE -> DB : UPDATE borrow_requests SET status = 'Borrowed', updated_at = NOW()\nWHERE id = requestId
+
+            BE -> DB : UPDATE items SET status = 'Borrowed', updated_at = NOW()\nWHERE item_id = itemId
+
+            BE -> DB : COMMIT
+            deactivate DB
+
+            BE --> FE : 201 Created
+            deactivate BE
+
+            FE -> FE : อัปเดตสถานะของรายการบนหน้าจอเป็น "Borrowed
+            FE --> User : แสดงผลข้อความสำเร็จและแสดงภาพหลักฐานที่บันทึก
+            deactivate FE
+        end
+    end
+end
+
+@enduml

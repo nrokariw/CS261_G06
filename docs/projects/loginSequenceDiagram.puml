@@ -1,0 +1,37 @@
+@startuml
+skinparam style strictuml
+autonumber
+
+actor "User\n(นักศึกษา/บุคลากร)" as User
+participant "Frontend Client\n(Web UI)" as UI
+participant "Backend API\n(Server)" as API
+participant "TU Identity Provider\n(restapi.tu.ac.th)" as TU
+database "Database\n(DB)" as DB
+
+User -> UI : กรอก Username & Password (TU Account)
+activate UI
+UI -> API : POST /api/auth/login {username, password}
+activate API
+
+API -> TU : POST /api/v1/auth/tu (Verify Credentials)
+activate TU
+TU --> API : Return Response (Success / Fail + Student Data)
+deactivate TU
+
+alt การตรวจสอบกับ TU สำเร็จ (Valid Credentials)
+    API -> DB : ค้นหาหรือบันทึกข้อมูล User (Upsert)
+    activate DB
+    DB --> API : ยืนยันบันทึกสำเร็จ (User Profile)
+    deactivate DB
+    
+    API -> API : ออก Session หรือ JWT Token
+    API --> UI : 200 OK {token, userProfile}
+    UI --> User : นำทางไปยังหน้าหลัก (Redirect to /home)
+else การตรวจสอบล้มเหลว (Invalid Credentials / Server Error)
+    API --> UI : 401 Unauthorized / Error Response
+    deactivate API
+    UI --> User : แสดงข้อความแจ้งเตือน "ข้อมูลเข้าสู่ระบบไม่ถูกต้อง"
+    deactivate UI
+end
+
+@enduml

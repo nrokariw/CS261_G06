@@ -1,0 +1,56 @@
+@startuml
+autonumber
+
+actor "ผู้ขอยืม\n(Borrower)" as Borrower
+participant "Frontend Web\n(Client)" as FE
+participant "Backend API\n(Server)" as BE
+database "Database\n(TU Borrow DB)" as DB
+actor "ผู้ให้ยืม\n(Lender)" as Lender
+
+Borrower -> FE : อยู่ที่หน้ารายละเอียดสิ่งของ\nกรอกข้อมูล: วันที่เริ่มยืม, วันที่คืน, เหตุผลการยืม
+activate FE
+
+Borrower -> FE : กดยืนยันการส่งคำขอยืม (Submit Borrow Request)
+
+FE -> BE : POST /api/v1/requests\nHeader: Authorization: Bearer <token>\nBody: { itemId, borrowDate, returnDate, reason }
+activate BE
+
+BE -> BE : ตรวจสอบความถูกต้องของ Session Token
+alt Token ไม่ถูกต้อง หรือหมดอายุ
+    BE --> FE : 401 Unauthorized
+    FE --> Borrower : แจ้งเตือนให้เข้าสู่ระบบใหม่อีกครั้ง
+else Token ผ่านการยืนยัน
+    BE -> DB : SELECT owner_id, status FROM items WHERE item_id = itemId
+    activate DB
+    DB --> BE : ข้อมูลสิ่งของ (owner_id, status)
+    deactivate DB
+
+    alt กรณีที่ 1: ผู้ขอยืมเป็นเจ้าของสิ่งของชิ้นนี้เอง (Borrower ID == Owner ID)
+        BE --> FE : 400 Bad Request
+        FE --> Borrower : แสดงแจ้งเตือนข้อผิดพลาด: ไม่สามารถยืมของตัวเองได้
+
+    else กรณีที่ 2: สิ่งของไม่ได้อยู่ในสถานะพร้อมให้ยืม (Status != 'Available')
+        BE --> FE : 409 Conflict
+        FE --> Borrower : แสดงแจ้งเตือน: สิ่งของถูกยืมหรือจองไปแล้ว
+
+    else กรณีที่ 3: เงื่อนไขถูกต้องครบถ้วน (Valid Request)
+        BE -> DB : INSERT INTO borrow_requests\n(item_id, borrower_id, borrow_date, return_date, reason, status, created_at)\nVALUES (itemId, borrowerId, borrowDate, returnDate, reason, 'Pending', NOW())
+        activate DB
+        DB --> BE : สร้างรายการสำเร็จ (requestId, status: 'Pending')
+        deactivate DB
+
+        opt ส่งการแจ้งเตือนไปยังเจ้าของสิ่งของ (Notification)
+            BE -> DB : INSERT INTO notifications (user_id, message, ref_id)\nVALUES (ownerId, 'มีคำขอยืมสิ่งของใหม่', requestId)
+            BE -->> Lender : ส่ง Push Notification / In-app Notification แจ้งเตือนคำขอเข้า
+        end
+
+        BE --> FE : 201 Created
+        deactivate BE
+
+        FE --> Borrower : แสดงป๊อปอัปแจ้ง "ส่งคำขอยืมสำเร็จ รอเจ้าของตอบรับ
+        FE -> FE : อัปเดตสถานะปุ่มในหน้ารายละเอียดเป็น "รอการตอบรับ (Pending)
+        deactivate FE
+    end
+end
+
+@enduml

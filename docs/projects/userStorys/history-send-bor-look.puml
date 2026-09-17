@@ -1,0 +1,48 @@
+@startuml
+autonumber
+
+actor "ผู้ใช้งาน\n(Borrower / Lender / บุคคลภายนอก)" as User
+participant "Frontend Web\n(Client)" as FE
+participant "Backend API\n(Server)" as BE
+database "Database\n(TU Borrow DB)" as DB
+
+User -> FE : เข้าสู่หน้ารายละเอียดประวัติการยืม-คืน\n(URL: /loans/{requestId}/evidence)
+activate FE
+
+FE -> BE : GET /api/v1/loans/{requestId}/evidence\nHeader: Authorization: Bearer <token>
+activate BE
+
+BE -> BE : ตรวจสอบสิทธิ์ Session / Token ของ User
+alt Token ไม่ถูกต้อง หรือหมดอายุ
+    BE --> FE : 401 Unauthorized
+    FE --> User : แจ้งเตือนและเปลี่ยนเส้นทางไปยังหน้า Login
+else Token ถูกต้อง
+    BE -> DB : SELECT r.id, r.status, r.borrower_id, i.owner_id,\n       t.handover_image_url, t.handover_note, t.handover_timestamp,\n       t.return_image_url, t.return_note, t.return_timestamp\nFROM borrow_requests r\nJOIN items i ON r.item_id = i.item_id\nLEFT JOIN loan_transactions t ON t.request_id = r.id\nWHERE r.id = requestId
+    activate DB
+    DB --> BE : ข้อมูลคำขอ คู่กรณี และหลักฐานทั้งหมด
+    deactivate DB
+
+    alt กรณีที่ 1: ไม่พบรายการยืมในระบบ (Not Found)
+        BE --> FE : 404 Not Found
+        FE --> User : แสดงข้อความ "ไม่พบข้อมูลรายการยืมนี้"
+
+    else กรณีที่ 2: บุคคลภายนอกพยายามเข้าถึง (User != Borrower AND User != Owner)
+        BE --> FE : 403 Forbidden
+        FE --> User : แสดงข้อความปฏิเสธสิทธิ์การเข้าถึง (ไม่อนุญาตให้เปิดดู)
+
+    else กรณีที่ 3: ผู้ใช้เป็นคู่กรณี (Authorized User)
+        BE --> FE : 200 OK
+        deactivate BE
+
+        FE -> FE : Render หน้าจอแสดงผล Timeline ประวัติการยืม-คืน
+        FE -> FE : แสดงภาพถ่ายและหมายเหตุช่วงส่งมอบ (Handover Evidence)
+        opt มีหลักฐานช่วงส่งคืนแล้ว (Returned)
+            FE -> FE : แสดงภาพถ่ายและหมายเหตุช่วงส่งคืน (Return Evidence)
+        end
+
+        FE --> User : แสดงผลข้อมูลและรูปภาพหลักฐานครบถ้วน ถูกต้องตามสิทธิ์
+        deactivate FE
+    end
+end
+
+@enduml

@@ -1,0 +1,51 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "นักศึกษา / บุคลากร มธ." as User
+actor "ผู้ขอยืม (Borrower)" as Borrower
+actor "ผู้ให้ยืม (Lender)" as Lender
+actor "ระบบ TU Open API" as TUAPI <<External System>>
+
+User <|-- Borrower
+User <|-- Lender
+
+rectangle "ระบบยืมของระหว่างนักศึกษาภายในมหาวิทยาลัย" {
+  usecase "Login ด้วย TU Account" as UC_Login
+  usecase "ดูโปรไฟล์และข้อมูลสิทธิ์" as UC_Profile
+  
+  usecase "สร้างประกาศสิ่งของให้ยืม" as UC_CreateItem
+  usecase "แก้ไขและลบประกาศสิ่งของ" as UC_ManageItem
+  usecase "แสดงรายการสิ่งของที่เปิดให้ยืม" as UC_BrowseItems
+  
+  usecase "ส่งคำขอยืมสิ่งของ" as UC_RequestBorrow
+  usecase "ตอบรับหรือปฏิเสธคำขอยืม" as UC_RespondRequest
+  
+  usecase "บันทึกหลักฐานการส่งมอบสิ่งของ" as UC_HandoverEvidence
+  usecase "บันทึกหลักฐานการส่งคืนสิ่งของ" as UC_ReturnEvidence
+  usecase "เรียกดูประวัติและหลักฐานการยืม-คืน" as UC_ViewHistory
+}
+
+' Login dependencies
+User --> UC_Login
+UC_Login ..> TUAPI : <<include>>
+User --> UC_Profile
+
+' Browse & Manage items
+User --> UC_BrowseItems
+Lender --> UC_CreateItem
+Lender --> UC_ManageItem
+
+' Borrow Workflow
+Borrower --> UC_RequestBorrow
+Lender --> UC_RespondRequest
+
+' Evidence & History
+Lender --> UC_HandoverEvidence
+Borrower --> UC_HandoverEvidence
+Lender --> UC_ReturnEvidence
+Borrower --> UC_ReturnEvidence
+
+Borrower --> UC_ViewHistory
+Lender --> UC_ViewHistory
+@enduml

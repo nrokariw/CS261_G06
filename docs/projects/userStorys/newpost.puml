@@ -1,0 +1,55 @@
+@startuml
+autonumber
+
+actor "ผู้ให้ยืม\n(Lender)" as User
+participant "Frontend Web\n(Client)" as FE
+participant "Backend API\n(Server)" as BE
+database "Database\n(TU Borrow DB)" as DB
+box "File Storage" #F9F9F9
+participant "Storage Service\n(S3 / Local Storage)" as Storage
+end box
+
+User -> FE : กรอกข้อมูลในแบบฟอร์ม\n(ชื่อสิ่งของ, หมวดหมู่, รายละเอียด)\nและแนบไฟล์รูปภาพ
+activate FE
+
+User -> FE : กดยืนยันการสร้างประกาศ
+
+alt กรณีที่ 1: ตรวจสอบข้อมูลฝั่ง Client ไม่ผ่าน (Validation Failed)
+    FE -> FE : ตรวจพบฟิลด์บังคับว่างเปล่า หรือรูปแบบไฟล์ผิด
+    FE --> User : แสดงข้อความแจ้งเตือนให้กรอกข้อมูลให้ครบถ้วน
+else ข้อมูลเบื้องต้นครบถ้วน
+    FE -> BE : POST /api/v1/items\nHeader: Authorization: Bearer <token>\nBody: multipart/form-data\n(title, category, description, imageFile)
+    activate BE
+
+    BE -> BE : ตรวจสอบสิทธิ์ Session / Token ของ User
+    alt Token ไม่ถูกต้อง หรือหมดอายุ
+        BE --> FE : 401 Unauthorized
+        FE --> User : แจ้งเตือนให้เข้าสู่ระบบใหม่อีกครั้ง
+    else Token ถูกต้อง
+        BE -> BE : ตรวจสอบความถูกต้องของ Payload และ Mime-Type ของรูปภาพ
+        
+        alt กรณีที่ 2: ไฟล์รูปภาพไม่ถูกต้อง หรือฟิลด์บังคับไม่ครบ
+            BE --> FE : 400 Bad Request
+            FE --> User : แจ้งเตือนข้อผิดพลาด ไม่สามารถสร้างประกาศได้
+        else ข้อมูลถูกต้องสมบูรณ์
+            BE -> Storage : อัปโหลดไฟล์รูปภาพ (Upload File)
+            activate Storage
+            Storage --> BE : ส่งกลับ URL / Path ของรูปภาพ
+            deactivate Storage
+
+            BE -> DB : INSERT INTO items\n(owner_id, title, category, description, image_url, status, created_at)\nVALUES (userId, title, category, description, imageUrl, 'Available', NOW())
+            activate DB
+            DB --> BE : ยืนยันการบันทึกข้อมูลสำเร็จ 
+            deactivate DB
+
+            BE --> FE : 201 Created
+            deactivate BE
+
+            FE -> FE : อัปเดตรายการและเปลี่ยนเส้นทาง (Redirect) ไปยังหน้ารายการสิ่งของ
+            FE --> User : แสดงประกาศใหม่ในหน้ารายการสิ่งของทั้งหมด
+            deactivate FE
+        end
+    end
+end
+
+@enduml

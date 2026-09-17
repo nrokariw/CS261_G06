@@ -1,0 +1,78 @@
+@startuml
+autonumber
+
+actor "เจ้าของสิ่งของ\n(Lender)" as Lender
+participant "Frontend Web\n(Client)" as FE
+participant "Backend API\n(Server)" as BE
+database "Database\n(TU Borrow DB)" as DB
+actor "ผู้ขอยืม\n(Borrower)" as Borrower
+
+Lender -> FE : เปิดหน้ารายการคำขอยืม\nและเลือกคำขอ (requestId)
+activate FE
+
+alt Action A: ยอมรับคำขอ (Accept)
+    Lender -> FE : กดปุ่ม "ยอมรับคำขอ" (Accept Request)
+    FE -> BE : PATCH /api/v1/requests/{requestId}/status\nHeader: Authorization: Bearer <token>\nBody: { action: "ACCEPT" }
+    activate BE
+
+else Action B: ปฏิเสธคำขอ (Reject)
+    Lender -> FE : กดปุ่ม "ปฏิเสธคำขอ" (Reject Request)
+    FE -> BE : PATCH /api/v1/requests/{requestId}/status\nHeader: Authorization: Bearer <token>\nBody: { action: "REJECT", reason: "ไม่สะดวกให้ยืม" }
+end
+
+BE -> BE : ตรวจสอบสิทธิ์ Session / Token ของ User
+
+BE -> DB : SELECT r.id, r.status, r.item_id, r.borrower_id, i.owner_id, i.status AS item_status\nFROM borrow_requests r\nJOIN items i ON r.item_id = i.item_id\nWHERE r.id = requestId
+activate DB
+DB --> BE : ข้อมูลคำขอและสิ่งของ
+deactivate DB
+
+alt กรณีที่ 1: ผู้ใช้ไม่ใช่เจ้าของสิ่งของ (User ID != Owner ID)
+    BE --> FE : 403 Forbidden
+    FE --> Lender : แสดงแจ้งเตือนข้อผิดพลาด: ปฏิเสธการเข้าถึง
+
+else กรณีที่ 2: คำขอไม่ได้อยู่ในสถานะ Pending (Invalid State Transition)
+    BE --> FE : 409 Conflict
+    FE --> Lender : แสดงแจ้งเตือน: สถานะคำขอเปลี่ยนไปแล้ว
+
+else ข้อมูลถูกต้องและเป็นเจ้าของจริง (Valid Transition)
+
+    alt ดำเนินการ: ยอมรับคำขอ (action == "ACCEPT")
+        BE -> DB : BEGIN TRANSACTION
+        activate DB
+        BE -> DB : UPDATE borrow_requests SET status = 'Accepted', updated_at = NOW()\nWHERE id = requestId
+        BE -> DB : UPDATE items SET status = 'Borrowed', updated_at = NOW()\nWHERE item_id = itemId
+        
+        opt Auto-reject คำขออื่นที่ค้างอยู่ของสิ่งของชิ้นนี้
+            BE -> DB : UPDATE borrow_requests SET status = 'Rejected'\nWHERE item_id = itemId AND id != requestId AND status = 'Pending
+        end
+        BE -> DB : COMMIT
+        deactivate DB
+
+        opt ส่งการแจ้งเตือนหาผู้ขอยืม (Notification)
+            BE -> DB : INSERT INTO notifications (user_id, message, ref_id)\nVALUES (borrowerId, 'คำขอยืมได้รับการอนุมัติแล้ว', requestId)
+            BE -->> Borrower : แจ้งเตือน: คำขอยืมของคุณได้รับการยอมรับแล้ว
+        end
+
+        BE --> FE : 200 OK
+        FE --> Lender : แสดงสถานะ "ยอมรับคำขอแล้ว พร้อมส่งมอบของ
+
+    else ดำเนินการ: ปฏิเสธคำขอ (action == "REJECT")
+        BE -> DB : UPDATE borrow_requests SET status = 'Rejected', updated_at = NOW()\nWHERE id = requestId
+        activate DB
+        DB --> BE : อัปเดตสำเร็จ (สิ่งของยังคงสถานะ 'Available')
+        deactivate DB
+
+        opt ส่งการแจ้งเตือนหาผู้ขอยืม (Notification)
+            BE -> DB : INSERT INTO notifications (user_id, message, ref_id)\nVALUES (borrowerId, 'คำขอยืมถูกปฏิเสธ', requestId)
+            BE -->> Borrower : แจ้งเตือน: คำขอยืมของคุณถูกปฏิเสธ
+        end
+
+        BE --> FE : 200 OK
+        FE --> Lender : แสดงสถานะ "ปฏิเสธคำขอสำเร็จ
+    end
+    deactivate BE
+end
+deactivate FE
+
+@enduml

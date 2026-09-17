@@ -1,0 +1,84 @@
+@startuml
+autonumber
+
+actor "เจ้าของประกาศ\n(Lender)" as User
+participant "Frontend Web\n(Client)" as FE
+participant "Backend API\n(Server)" as BE
+database "Database\n(TU Borrow DB)" as DB
+box "File Storage" #F9F9F9
+participant "Storage Service\n(S3 / Local Storage)" as Storage
+end box
+
+== Scenario 1: แก้ไขประกาศสิ่งของ (Update Item) ==
+
+User -> FE : กรอกข้อมูลที่ต้องการแก้ไข (ชื่อ, รายละเอียด, หมวดหมู่)\nและเลือกบันทึกการเปลี่ยนแปลง
+activate FE
+
+FE -> BE : PUT /api/v1/items/{itemId}<token>\nBody: { title, category, description, ... }
+activate BE
+
+BE -> BE : ตรวจสอบสิทธิ์ Session / Token ของ User
+BE -> DB : SELECT * FROM items WHERE item_id = itemId
+activate DB
+DB --> BE : ข้อมูลประกาศ (owner_id, status)
+deactivate DB
+
+alt กรณีไม่ใช่เจ้าของประกาศ
+    BE --> FE : 403 Forbidden
+    FE --> User : แสดงข้อความปฏิเสธสิทธิ์ 
+else กรณีสิ่งของอยู่ในสถานะที่ไม่พร้อมแก้ไข (e.g. Borrowed หรือมีคำขอค้างอยู่) 
+    BE --> FE : 409 Conflict
+    FE --> User : แจ้งเตือนไม่อนุญาตให้แก้ไขในสถานะปัจจุบัน 
+else ผ่านเงื่อนไข (เจ้าของ + สถานะ Available) 
+    BE -> DB : UPDATE items SET title, category, description, updated_at\nWHERE item_id = itemId (end_span)
+    activate DB
+    DB --> BE : อัปเดตข้อมูลสำเร็จ 
+    deactivate DB
+
+    BE --> FE : 200 OK
+    FE --> User : แสดงข้อมูลประกาศที่อัปเดตใหม่ทันที 
+end
+deactivate BE
+deactivate FE
+
+== Scenario 2: ลบประกาศสิ่งของ (Delete / Soft Delete Item) ==
+
+User -> FE : กดยืนยันการลบประกาศสิ่งของ 
+activate FE
+
+FE -> BE : DELETE /api/v1/items/{itemId} 
+activate BE
+
+BE -> BE : ตรวจสอบสิทธิ์ Session / Token ของ User 
+BE -> DB : SELECT * FROM items WHERE item_id = itemId
+activate DB
+DB --> BE : ข้อมูลประกาศ (owner_id, status, image_url)
+deactivate DB
+
+alt กรณีไม่ใช่เจ้าของประกาศ
+    BE --> FE : 403 Forbidden
+    FE --> User : แสดงข้อความปฏิเสธสิทธิ์ 
+else กรณีสิ่งของถูกยืมอยู่ (Status = Borrowed) 
+    BE --> FE : 409 Conflict
+    FE --> User : แจ้งเตือนไม่อนุญาตให้ลบสิ่งของที่กำลังถูกยืม 
+else ผ่านเงื่อนไข (เจ้าของ + สถานะ Available) 
+    BE -> DB : UPDATE items SET status = 'Deleted', deleted_at = NOW()\nWHERE item_id = itemId (end_span)
+    activate DB
+    DB --> BE : ปรับสถานะการลบสำเร็จ 
+    deactivate DB
+
+    opt กรณีเลือกลบไฟล์รูปภาพออกจาก Storage
+        BE -> Storage : ลบไฟล์รูปภาพตาม image_url
+        activate Storage
+        Storage --> BE : ลบไฟล์สำเร็จ
+        deactivate Storage
+    end
+
+    BE --> FE : 200 OK
+    FE -> FE : นำประกาศออกจากหน้ารายการ 
+    FE --> User : แสดงผลหน้ารายการโดยไม่มีประกาศนั้นอีกต่อไป 
+end
+deactivate BE
+deactivate FE
+
+@enduml

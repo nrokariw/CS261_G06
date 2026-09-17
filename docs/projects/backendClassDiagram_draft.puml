@@ -1,0 +1,107 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam style strictuml
+
+enum ItemStatus {
+  AVAILABLE
+  RESERVED
+  BORROWED
+  UNAVAILABLE
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum TransactionStatus {
+  ACTIVE
+  COMPLETED
+  DISPUTED
+}
+
+enum ProofType {
+  HANDOVER
+  RETURN
+}
+
+class User {
+  - studentId: String
+  - username: String
+  - fullName: String
+  - email: String
+  - faculty: String
+  + login(): Boolean
+  + createItem(itemData): Item
+  + requestBorrow(itemId, dates): BorrowRequest
+}
+
+class Item {
+  - id: String
+  - title: String
+  - description: String
+  - category: String
+  - status: ItemStatus
+  - imageUrl: String
+  - ownerId: String
+  + updateDetails(title, desc): Void
+  + updateStatus(status: ItemStatus): Void
+  + delete(): Void
+}
+
+class BorrowRequest {
+  - id: String
+  - itemId: String
+  - borrowerId: String
+  - startDate: DateTime
+  - endDate: DateTime
+  - status: RequestStatus
+  - createdAt: DateTime
+  + approve(): Void
+  + reject(): Void
+}
+
+class Transaction {
+  - id: String
+  - requestId: String
+  - borrowerId: String
+  - lenderId: String
+  - itemId: String
+  - status: TransactionStatus
+  - borrowedAt: DateTime
+  - returnedAt: DateTime
+  + completeTransaction(): Void
+  + addProof(proof: EvidenceProof): Void
+}
+
+class EvidenceProof {
+  - id: String
+  - transactionId: String
+  - uploaderId: String
+  - proofType: ProofType
+  - imageUrl: String
+  - note: String
+  - capturedAt: DateTime
+  + getProofDetails(): Object
+}
+
+' Relationships
+User "1" -- "0..*" Item : owns >
+User "1" -- "0..*" BorrowRequest : submits >
+User "1" -- "0..*" Transaction : participates as lender/borrower >
+User "1" -- "0..*" EvidenceProof : uploads >
+
+Item "1" -- "0..*" BorrowRequest : requested for <
+Item "1" -- "0..*" Transaction : borrowed in <
+
+BorrowRequest "1" -- "0..1" Transaction : originates >
+Transaction "1" *-- "0..*" EvidenceProof : contains >
+
+Item ..> ItemStatus
+BorrowRequest ..> RequestStatus
+Transaction ..> TransactionStatus
+EvidenceProof ..> ProofType
+
+@enduml

@@ -1,0 +1,74 @@
+@startuml
+autonumber
+
+actor "ผู้ใช้งานคู่กรณี\n(Lender / Borrower)" as User
+participant "Frontend Web\n(Client)" as FE
+participant "Backend API\n(Server)" as BE
+database "Database\n(TU Borrow DB)" as DB
+box "File Storage" #F9F9F9
+participant "Storage Service\n(S3 / Local Storage)" as Storage
+end box
+
+User -> FE : อยู่ที่หน้ารายการยืม (สถานะ Borrowed)\nแนบไฟล์รูปภาพสภาพสิ่งของตอนคืนและกรอกหมายเหตุสภาพของ
+activate FE
+
+User -> FE : กดยืนยันการบันทึกหลักฐานส่งคืน
+
+alt กรณีตรวจสอบข้อมูลฝั่ง Client ไม่ผ่าน (Validation Failed)
+    FE -> FE : ตรวจพบไม่มีการแนบรูปภาพ หรือกรอกข้อมูลบังคับไม่ครบ
+    FE --> User : แจ้งเตือนข้อผิดพลาด: กรุณาแนบรูปภาพหลักฐานการส่งคืน
+else ข้อมูลเบื้องต้นครบถ้วน
+    FE -> BE : POST /api/v1/loans/{requestId}/return-evidence\nHeader: Authorization: Bearer <token>\nBody: multipart/form-data (imageFile, conditionNote)
+    activate BE
+
+    BE -> BE : ตรวจสอบสิทธิ์ Session / Token ของ User
+    alt Token ไม่ถูกต้อง หรือหมดอายุ
+        BE --> FE : 401 Unauthorized
+        FE --> User : แจ้งเตือนให้เข้าสู่ระบบใหม่อีกครั้ง
+    else Token ถูกต้อง
+        BE -> DB : SELECT r.id, r.status, r.borrower_id, i.item_id, i.owner_id, t.transaction_id\nFROM borrow_requests r\nJOIN items i ON r.item_id = i.item_id\nJOIN loan_transactions t ON t.request_id = r.id\nWHERE r.id = requestId
+        activate DB
+        DB --> BE : ข้อมูลคำขอ คู่กรณี และรายการธุรกรรม (borrower_id, owner_id, status)
+        deactivate DB
+
+        alt กรณีที่ 1: ผู้ใช้ไม่ใช่คู่กรณีในรายการยืม (User != Borrower AND User != Owner)
+            BE --> FE : 403 Forbidden
+            FE --> User : แสดงข้อความแจ้งเตือนปฏิเสธการเข้าถึง (Unauthorized/Forbidden)
+
+        else กรณีที่ 2: รายการยืมไม่ได้อยู่ในสถานะ Borrowed
+            BE --> FE : 409 Conflict
+            FE --> User : แสดงแจ้งเตือน: สถานะรายการไม่ถูกต้องสำหรับการส่งคืน
+
+        else กรณีที่ 3: ไฟล์แนบไม่ถูกต้องหรือไม่รองรับ (Mime-type Invalid)
+            BE --> FE : 400 Bad Request
+            FE --> User : แสดงข้อความแจ้งเตือนข้อผิดพลาด ไม่บันทึกข้อมูล
+
+        else ข้อมูลและสิทธิ์ถูกต้องครบถ้วน
+            BE -> Storage : อัปโหลดไฟล์รูปภาพหลักฐานส่งคืน
+            activate Storage
+            Storage --> BE : ส่งกลับ URL / Path ของรูปภาพ (returnImageUrl)
+            deactivate Storage
+
+            BE -> DB : BEGIN TRANSACTION
+            activate DB
+
+            BE -> DB : UPDATE loan_transactions SET\nreturn_by = userId,\nreturn_image_url = returnImageUrl,\nreturn_note = conditionNote,\nreturn_timestamp = NOW(),\nstatus = 'Returned'\nWHERE request_id = requestId
+
+            BE -> DB : UPDATE borrow_requests SET status = 'Returned', updated_at = NOW()\nWHERE id = requestId
+
+            BE -> DB : UPDATE items SET status = 'Available', updated_at = NOW()\nWHERE item_id = itemId
+
+            BE -> DB : COMMIT
+            deactivate DB
+
+            BE --> FE : 200 OKitemStatus: "Available" } }
+            deactivate BE
+
+            FE -> FE : อัปเดตสถานะของรายการบนหน้าจอเป็น "Returned
+            FE --> User : แสดงผลข้อความสำเร็จและแสดงภาพหลักฐานการคืน
+            deactivate FE
+        end
+    end
+end
+
+@enduml
