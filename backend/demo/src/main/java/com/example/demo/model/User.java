@@ -1,0 +1,39 @@
+package com.example.demo.model;
+
+public class User {
+
+    //define attributes
+    private String studentId;
+    private String username;
+    private String fullName;
+    private String email;
+    private String faculty;
+
+    //define constructors
+    public User() { }
+    public User(String studentId, String username, String fullName, String email, String faculty) {
+        this.studentId = studentId;
+        this.username = username;
+        this.fullName = fullName;
+        this.email = email;
+        this.faculty = faculty;
+    }
+
+    //define getters and setters
+    public String getStudentId() {return studentId;}
+    public String getUsername() {return username;}
+    public String getFullName() {return fullName;}
+    public String getEmail() {return email;}
+    public String getFaculty() {return faculty;}
+    public void setStudentId(String studentId) {this.studentId = studentId;}
+    public void setUsername(String username) {this.username = username;}
+    public void setFullName(String fullName) {this.fullName = fullName;}
+    public void setEmail(String email) {this.email = email;}
+    public void setFaculty(String faculty) {this.faculty = faculty;}
+
+    //define methods
+    ///public Boolean login() { }
+    ///public Item createItem(Item itemData) { }
+    ///public BorrowRequest requestBorrow(String itemId, BorrowDates dates) { }
+
+}
