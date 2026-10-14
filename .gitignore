@@ -2,12 +2,15 @@
 !*.*
 !**/**
 
+# Other
+**/[Pp]rivate/**
+
 # System and OS
 .DS_Store
+Thumbs.db
 
 # Tools
 .vscode/
 
-# Private
+# dotfiles
 .env
-**/[Pp]rivate/**
