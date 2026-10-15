@@ -14,8 +14,22 @@ public class EvidenceProof {
     private String note;
     private DateTime capturedAt;
 
-    //define constructors
+    /**
+     * Default constructor สำหรับสร้างออบเจ็กต์ EvidenceProof เปล่า
+     */
     public EvidenceProof() { }
+    
+    /**
+     * Constructor สำหรับสร้างและกำหนดค่าเริ่มต้นให้กับหลักฐานการยืมทั้งหมด
+     * 
+     * @param id            รหัสประจำตัวหลักฐาน (Evidence ID)
+     * @param transactionId รหัสประจำตัวการทำรายการ (Transaction ID) 
+     * @param uploaderId    รหัสประจำตัวของผู้อัปโหลด (Uploader ID) 
+     * @param proofType     ประเภทของหลักฐาน (เช่น HANDOVER, RETURN)
+     * @param imageUrl      ลิงก์หรือที่อยู่ของรูปภาพหลักฐานที่อัปโหลด
+     * @param note          หมายเหตุเพิ่มเติม
+     * @param capturedAt    วันที่และเวลาที่จับภาพหลักฐาน
+     */
     public EvidenceProof(String id, String transactionId, String uploaderId, ProofType proofType, String imageUrl, String note, DateTime capturedAt) {
         this.id = id;
         this.transactionId = transactionId;

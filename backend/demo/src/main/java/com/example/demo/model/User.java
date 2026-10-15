@@ -9,8 +9,20 @@ public class User {
     private String email;
     private String faculty;
 
-    //define constructors
+    /**
+     * Default constructor สำหรับสร้างออบเจ็กต์ User เปล่า
+     */
     public User() { }
+
+    /**
+     * Constructor สำหรับสร้างและกำหนดค่าเริ่มต้นให้กับผู้ใช้ทั้งหมด
+     * 
+     * @param studentId รหัสนักศึกษา (Student ID)
+     * @param username  ชื่อผู้ใช้ (Username)
+     * @param fullName  ชื่อเต็มของผู้ใช้ (Full Name)
+     * @param email     อีเมลของผู้ใช้ (Email)
+     * @param faculty   คณะของผู้ใช้ (Faculty)
+     */
     public User(String studentId, String username, String fullName, String email, String faculty) {
         this.studentId = studentId;
         this.username = username;

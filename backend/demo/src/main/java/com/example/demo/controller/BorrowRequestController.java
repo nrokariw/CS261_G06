@@ -9,7 +9,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 @RestController 
 @RequestMapping ("/api/borrow-requests")
-@CrossOrigin(origins = "http://localhost:3000")
 
 public class BorrowRequestController {
     

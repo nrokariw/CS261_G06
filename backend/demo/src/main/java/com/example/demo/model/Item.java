@@ -13,8 +13,22 @@ public class Item {
     private String imageUrl;
     private String ownerId;
 
-    //define constructors
+    /**
+     * Default constructor สำหรับสร้างออบเจ็กต์ Item เปล่า
+     */
     public Item() { }
+
+    /**
+     * Constructor สำหรับสร้างและกำหนดค่าเริ่มต้นให้กับสิ่งของทั้งหมด
+     * 
+     * @param id          รหัสประจำตัวสิ่งของ (Item ID)
+     * @param title       ชื่อของสิ่งของ
+     * @param description คำอธิบายเกี่ยวกับสิ่งของ
+     * @param category    หมวดหมู่ของสิ่งของ
+     * @param status      สถานะเริ่มต้นของสิ่งของ (เช่น AVAILABLE, BORROWED, RESERVED, UNAVAILABLE)
+     * @param imageUrl    ลิงก์หรือที่อยู่ของรูปภาพสิ่งของที่อัปโหลด
+     * @param ownerId     รหัสประจำตัวของเจ้าของสิ่งของ
+     */
     public Item(String id, String title, String description, String category, ItemStatus status, String imageUrl, String ownerId) {
         this.id = id;
         this.title = title;

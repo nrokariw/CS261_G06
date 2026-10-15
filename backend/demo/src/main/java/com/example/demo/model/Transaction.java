@@ -15,8 +15,23 @@ public class Transaction {
     private DateTime borrowedAt;
     private DateTime returnedAt;
 
-    // define constructors
+    /**
+     * Default constructor สำหรับสร้างออบเจ็กต์ Transaction เปล่า
+     */
     public Transaction() { }
+
+    /**
+     * Constructor สำหรับสร้างและกำหนดค่าเริ่มต้นให้กับการทำรายการทั้งหมด
+     * 
+     * @param id          รหัสประจำตัวการทำรายการ (Transaction ID)
+     * @param requestId   รหัสประจำตัวคำขอยืมที่เกี่ยวข้อง (Borrow Request ID)
+     * @param borrowerId  รหัสประจำตัวของผู้ขอยืม
+     * @param lenderId    รหัสประจำตัวของผู้ให้ยืม
+     * @param itemId      รหัสประจำตัวของสิ่งของที่ถูกยืม
+     * @param status      สถานะเริ่มต้นของการทำรายการ (เช่น ACTIVE, COMPLETED, DISPUTED)
+     * @param borrowedAt  วันที่และเวลาที่เริ่มต้นการยืม
+     * @param returnedAt  วันที่และเวลาที่คืนสิ่งของ 
+     */
     public Transaction(String id, String requestId, String borrowerId, String lenderId, String itemId, TransactionStatus status, DateTime borrowedAt, DateTime returnedAt) {
         this.id = id;
         this.requestId = requestId;

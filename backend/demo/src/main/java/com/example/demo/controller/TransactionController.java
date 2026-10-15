@@ -9,7 +9,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 @RestController 
 @RequestMapping ("/api/transactions")
-@CrossOrigin(origins = "http://localhost:3000")
 
 public class TransactionController {
     
