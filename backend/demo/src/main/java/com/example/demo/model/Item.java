@@ -56,11 +56,11 @@ public class Item {
     public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
 
     //define methods
-    /// public void updateDetails(String title, String description) {
-    ///     this.title = title;
-    ///     this.description = description;
-    /// }
-    /// public void updateStatus(ItemStatus status) { this.status = status; }
-    ///public void delete() { }
+    public void updateDetails(String title, String description) {
+        this.title = title;
+        this.description = description;
+    }
+    public void updateStatus(ItemStatus status) { this.status = status; }
+    public void delete() { this.status = ItemStatus.UNAVAILABLE; }
 
 }

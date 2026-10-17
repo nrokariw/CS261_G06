@@ -57,6 +57,9 @@ public class EvidenceProof {
     public void setCapturedAt(DateTime capturedAt) { this.capturedAt = capturedAt; }
 
     //define methods
-    ///public Object getProofDetails() { }
+    public String getProofDetails() {
+        return String.format("Evidence [ID=%s, Type=%s, Note=%s, CapturedAt=%s]", 
+                id, proofType, note, capturedAt);
+    }
 
 }

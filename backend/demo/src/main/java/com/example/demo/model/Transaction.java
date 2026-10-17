@@ -62,11 +62,16 @@ public class Transaction {
     public void setReturnedAt(DateTime returnedAt) { this.returnedAt = returnedAt; }
 
     //define methods
-    /// public void completeTransaction() {
-    ///     this.status = TransactionStatus.COMPLETED;
-    ///     this.returnedAt = DateTime.now();
-    /// }
-    /// public void addProof(EvidenceProof proof) { }
+    public void completeTransaction() {
+        this.status = TransactionStatus.COMPLETED;
+        this.returnedAt = DateTime.now();
+    }
+    public void addProof(EvidenceProof proof) {
+        proof.setTransactionId(this.id);
+    }
+    public void disputeTransaction() {
+        this.status = TransactionStatus.DISPUTED;
+    }
 
 
 }

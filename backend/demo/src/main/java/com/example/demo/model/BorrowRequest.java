@@ -58,10 +58,14 @@ public class BorrowRequest {
     public void setCreatedAt(DateTime createdAt) { this.createdAt = createdAt; }
 
     //define methods
-    /// public void approve() {
-    ///     this.status = RequestStatus.APPROVED;
-    /// }
-    /// public void reject() {
-    ///     this.status = RequestStatus.REJECTED;
-    /// }
+     public void approve() {
+         this.status = RequestStatus.ACCEPTED;
+    }
+    public void reject() {
+        this.status = RequestStatus.REJECTED;
+    }
+    public void cancel() {
+        this.status = RequestStatus.CANCELLED;
+    }
+    
 }
