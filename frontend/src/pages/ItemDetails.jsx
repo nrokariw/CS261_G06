@@ -10,8 +10,10 @@ import {
   Send,
 } from "lucide-react";
 import { PageHeading, StatusBadge } from "../components/UI";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function ItemDetails({ items, setRequests }) {
+  const { user } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
   const item = items.find((i) => i.id === id && i.status !== "deleted");
@@ -36,10 +38,10 @@ export default function ItemDetails({ items, setRequests }) {
     if (Object.keys(next).length) return;
     setRequests((prev) => [
       {
-        id: `req-${Date.now()}`,
+        id: crypto.randomUUID(),
         itemId: item.id,
         itemName: item.name,
-        borrower: "Ploy S.",
+        borrower: user.name,
         borrowDate,
         returnDate,
         reason: reason.trim(),

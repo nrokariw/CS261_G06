@@ -17,6 +17,7 @@ import ItemDetails from "./pages/ItemDetails";
 import MyListings from "./pages/MyListings";
 import IncomingRequests from "./pages/IncomingRequests";
 import NotFound from "./pages/NotFound";
+import { useAuth } from "./contexts/AuthContext";
 
 function readStore(key, fallback) {
   try {
@@ -37,6 +38,7 @@ function BrandMark() {
 }
 
 export default function App() {
+  const { user } = useAuth();
   const [items, setItems] = useState(() =>
     readStore("campusshare-items", SEED_ITEMS),
   );
@@ -96,9 +98,9 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <Avatar name="Ploy S." />
+          <Avatar name={user.name} />
           <div>
-            <strong>Ploy S.</strong>
+            <strong>{user.name}</strong>
             <small>นักศึกษาผู้ใช้งาน</small>
           </div>
         </div>
@@ -128,7 +130,7 @@ export default function App() {
             <strong aria-current="page">{currentLabel}</strong>
           </nav>
           <span className="top-user">
-            <Avatar name="Ploy S." size="sm" />
+            <Avatar name={user.name} size="sm" />
             <span>Ploy S.</span>
           </span>
         </header>

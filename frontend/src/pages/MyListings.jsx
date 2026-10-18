@@ -2,14 +2,16 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Pencil, Trash2, Plus, PackageOpen, Search } from "lucide-react";
 import { PageHeading, StatusBadge, EmptyState } from "../components/UI";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function MyListings({ items, setItems }) {
+  const { user } = useAuth();
   const [query, setQuery] = useState("");
   const [deleteId, setDeleteId] = useState(null);
   const [notice, setNotice] = useState("");
   const mine = items.filter(
     (item) =>
-      item.owner === "Ploy S." &&
+      item.owner === user.name &&
       item.status !== "deleted" &&
       item.name.toLowerCase().includes(query.toLowerCase()),
   );

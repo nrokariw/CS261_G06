@@ -9,8 +9,10 @@ import {
 } from "lucide-react";
 import { CATEGORIES } from "../data";
 import { PageHeading } from "../components/UI";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function CreateListing({ items, setItems }) {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const editId = params.get("edit");
@@ -56,12 +58,12 @@ export default function CreateListing({ items, setItems }) {
     setSuccess("");
     if (!validate()) return;
     const record = {
-      id: editingItem?.id || `item-${Date.now()}`,
+      id: editingItem?.id || crypto.randomUUID(),
       name: name.trim(),
       category,
       detail,
       image,
-      owner: editingItem?.owner || "Ploy S.",
+      owner: editingItem?.owner || user.name,
       status: "available",
     };
     if (editingItem)
