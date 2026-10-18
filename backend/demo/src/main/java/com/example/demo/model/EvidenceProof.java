@@ -2,9 +2,12 @@ package com.example.demo.model;
 
 import com.example.demo.constant.ProofType;
 import org.joda.time.DateTime;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 
+@Entity 
 public class EvidenceProof {
-
+    @Id 
     //define attributes
     private String id;
     private String transactionId;

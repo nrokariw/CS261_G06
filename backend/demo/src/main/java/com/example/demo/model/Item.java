@@ -1,9 +1,12 @@
 package com.example.demo.model;
 
 import com.example.demo.constant.ItemStatus;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 
+@Entity 
 public class Item {
-    
+    @Id 
     //define attributes
     private String id;
     private String title;

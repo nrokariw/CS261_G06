@@ -2,9 +2,14 @@ package com.example.demo.model;
 
 import com.example.demo.constant.TransactionStatus;
 import org.joda.time.DateTime;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
+@Entity 
+@Table(name = "borrowing_transaction")
 public class Transaction {
-    
+    @Id 
     //define attributes
     private String id;
     private String requestId;

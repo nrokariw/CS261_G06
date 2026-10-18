@@ -1,30 +1,39 @@
 package com.example.demo.controller;
 
 import com.example.demo.model.User;
+import com.example.demo.service.UserService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicLong;
 
 @RestController 
 @RequestMapping ("/api/users")
 
 public class UserController {
 
-    private final List<User> users = new ArrayList<>();
-    private final AtomicLong idCounter = new AtomicLong();
-    
-    @GetMapping
-    public List<User> getUsers() {
-        return users;
+    private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
     }
 
+    // 1. เพิ่มผู้ใช้งานใหม่
     @PostMapping
-    public User addUser(@RequestBody User user) {
-        user.setStudentId(String.valueOf(idCounter.incrementAndGet()));
-        users.add(user);
-        return user;
+    public User createUser(@RequestBody User user) {
+        return userService.saveUser(user);
+    }
+
+    // 2. ดึงรายการผู้ใช้งานทั้งหมด
+    @GetMapping
+    public List<User> getAllUsers() {
+        return userService.getAllUsers();
+    }
+
+    // 3. ค้นหาผู้ใช้งานตาม ID (หรือ Student ID)
+    @GetMapping("/{id}")
+    public User getUserById(@PathVariable String studentId) {
+        return userService.getUserByStudentId(studentId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + studentId));
     }
 
 }

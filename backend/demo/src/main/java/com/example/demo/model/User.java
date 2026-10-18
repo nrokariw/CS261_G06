@@ -3,9 +3,14 @@ package com.example.demo.model;
 import com.example.demo.constant.RequestStatus;
 import com.example.demo.constant.ItemStatus;
 import org.joda.time.DateTime;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
+@Entity 
+@Table(name = "app_user")
 public class User {
-
+    @Id 
     //define attributes
     private String studentId;
     private String username;

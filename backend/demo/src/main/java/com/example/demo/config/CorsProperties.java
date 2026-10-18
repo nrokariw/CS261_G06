@@ -22,7 +22,7 @@ public class CorsProperties {
             return new String[0];
         }
         return Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
+                .map(origin -> origin == null ? "" : origin.trim())
                 .filter(origin -> !origin.isEmpty())
                 .toArray(String[]::new);
     }
