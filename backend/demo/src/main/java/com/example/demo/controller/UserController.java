@@ -29,9 +29,9 @@ public class UserController {
         return userService.getAllUsers();
     }
 
-    // 3. ค้นหาผู้ใช้งานตาม ID (หรือ Student ID)
-    @GetMapping("/{id}")
-    public User getUserById(@PathVariable String studentId) {
+    // 3. ค้นหาผู้ใช้งานตาม Student ID
+    @GetMapping("/{studentId}")
+    public User getUserById(@PathVariable("studentId") String studentId) {
         return userService.getUserByStudentId(studentId)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + studentId));
     }
