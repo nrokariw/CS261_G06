@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Pencil, Trash2, Plus, PackageOpen, Search } from "lucide-react";
-import { PageHeading, StatusBadge, EmptyState } from "../components/UI";
+import { PageHeading, StatusBadge, EmptyState, safeImageSrc } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function MyListings({ items, setItems }) {
@@ -16,7 +16,16 @@ export default function MyListings({ items, setItems }) {
       item.name.toLowerCase().includes(query.toLowerCase()),
   );
 
+  // FIX : แก้ไข/ลบได้เฉพาะสถานะ available (reserved/borrowed/unavailable ห้าม)
+  const canModify = (item) =>
+    item.owner === user.name && item.status === "available";
+
   function removeItem(id) {
+    const target = items.find((i) => i.id === id);
+    if (!target || !canModify(target)) {
+      setDeleteId(null);
+      return;
+    }
     setItems((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, status: "deleted" } : item,
@@ -63,10 +72,10 @@ export default function MyListings({ items, setItems }) {
         <div className="my-listings-list">
           {mine.map((item) => (
             <article className="listing-row" key={item.id}>
-              {item.image ? (
+              {safeImageSrc(item.image) ? (
                 <img
                   className="listing-thumb"
-                  src={item.image}
+                  src={safeImageSrc(item.image)}
                   alt={item.name}
                 />
               ) : (
@@ -82,15 +91,30 @@ export default function MyListings({ items, setItems }) {
               </div>
 
               <div className="listing-actions">
-                <Link
-                  className="button button-outline button-sm"
-                  to={`/create?edit=${item.id}`}
-                >
-                  <Pencil size={15} /> แก้ไข
-                </Link>
+                {/* FIX : ปิดปุ่มแก้ไข/ลบเมื่อสิ่งของ reserved/borrowed */}
+                {canModify(item) ? (
+                  <Link
+                    className="button button-outline button-sm"
+                    to={`/create?edit=${item.id}`}
+                  >
+                    <Pencil size={15} /> แก้ไข
+                  </Link>
+                ) : (
+                  <button
+                    className="button button-outline button-sm"
+                    disabled
+                    title="แก้ไขได้เฉพาะเมื่อสิ่งของพร้อมให้ยืม"
+                  >
+                    <Pencil size={15} /> แก้ไข
+                  </button>
+                )}
                 <button
                   className="button button-danger-outline button-sm"
                   onClick={() => setDeleteId(item.id)}
+                  disabled={!canModify(item)}
+                  title={
+                    canModify(item) ? undefined : "ลบได้เฉพาะเมื่อสิ่งของพร้อมให้ยืม"
+                  }
                 >
                   <Trash2 size={15} /> ลบ
                 </button>

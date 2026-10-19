@@ -9,10 +9,13 @@ import {
   UserRound,
   Send,
 } from "lucide-react";
-import { PageHeading, StatusBadge } from "../components/UI";
+// FIX : ลบ import PageHeading ที่ไม่ได้ใช้
+import { StatusBadge, safeImageSrc } from "../components/UI";
+import { BORROWABLE_STATUS, hasDateOverlap } from "../data";
 import { useAuth } from "../contexts/AuthContext";
 
-export default function ItemDetails({ items, setRequests }) {
+// FIX : รับ requests เพิ่มเพื่อเช็กวันที่ซ้อนกัน
+export default function ItemDetails({ items, requests, setRequests }) {
   const { user } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
@@ -24,8 +27,17 @@ export default function ItemDetails({ items, setRequests }) {
   const [success, setSuccess] = useState(false);
   const today = new Date().toLocaleDateString("en-CA");
 
+  const isOwner = item?.owner === user.name; // เจ้าของห้ามยืมของตัวเอง
+  // ADD : เดิมยืมได้เฉพาะ available → ตอนนี้ reserved/borrowed ก็ขอยืมได้ (คนละช่วงวัน)
+  const canBorrow = !!item && !isOwner && BORROWABLE_STATUS.includes(item.status);
+  // ADD : ช่วงวันที่ถูกจองแล้ว (accepted) ไว้แสดงให้ผู้ยืมเห็นก่อนเลือกวัน
+  const bookedRanges = requests.filter(
+    (r) => item && r.itemId === item.id && r.status === "accepted",
+  );
+
   function submit(e) {
     e.preventDefault();
+    if (!canBorrow) return; 
     const next = {};
     if (!borrowDate) next.borrowDate = "กรุณาเลือกวันที่ยืม";
     if (!returnDate) next.returnDate = "กรุณาเลือกวันที่คืน";
@@ -34,6 +46,15 @@ export default function ItemDetails({ items, setRequests }) {
     if (borrowDate && returnDate && returnDate < borrowDate)
       next.returnDate = "วันที่คืนต้องไม่อยู่ก่อนวันที่ยืม";
     if (!reason.trim()) next.reason = "กรุณาระบุเหตุผลการยืม";
+    // FIX : ห้ามช่วงวันที่ซ้อนกับคำขอ pending/accepted ของสิ่งของนี้
+    if (
+      !next.borrowDate &&
+      !next.returnDate &&
+      borrowDate &&
+      returnDate &&
+      hasDateOverlap(requests, item.id, borrowDate, returnDate)
+    )
+      next.borrowDate = "ช่วงวันที่นี้ซ้อนกับคำขอยืมอื่นที่มีอยู่แล้ว";
     setErrors(next);
     if (Object.keys(next).length) return;
     setRequests((prev) => [
@@ -73,18 +94,13 @@ export default function ItemDetails({ items, setRequests }) {
       <div className="detail-layout">
         <section className="detail-main">
           <div className="detail-image">
-            {item.image ? (
-              <img src={item.image} alt={item.name} />
+            {safeImageSrc(item.image) ? (
+              <img src={safeImageSrc(item.image)} alt={item.name} />
             ) : (
               <div className="image-placeholder">
                 <CalendarDays size={48} />
               </div>
             )}
-          </div>
-          <div className="detail-thumbnails">
-            {item.image && <img src={item.image} alt="" />}
-            {item.image && <img src={item.image} alt="" />}
-            {item.image && <img src={item.image} alt="" />}
           </div>
           <div className="detail-info">
             <StatusBadge status={item.status} />
@@ -134,13 +150,39 @@ export default function ItemDetails({ items, setRequests }) {
               <p>เจ้าของสิ่งของจะตรวจสอบคำขอของคุณ</p>
               <button
                 className="button button-primary button-full"
-                onClick={() => navigate("/my-listings")}
+                onClick={() => navigate("/my-borrows")}
               >
-                กลับไปหน้าประกาศ
+                ดูรายการยืมของฉัน
               </button>
+            </div>
+          ) : !canBorrow ? (
+            // FIX : ซ่อนฟอร์มและแสดงเหตุผลแทน เมื่อเป็นเจ้าของ หรือสิ่งของไม่พร้อมให้ยืม
+            <div className="borrow-note">
+              <ShieldCheck size={17} />
+              <span>
+                {isOwner
+                  ? "นี่คือสิ่งของของคุณ จึงไม่สามารถส่งคำขอยืมได้"
+                  : item.status === "reserved"
+                    ? "สิ่งของนี้ถูกจองแล้ว กำลังรอส่งมอบ"
+                    : item.status === "borrowed"
+                      ? "สิ่งของนี้กำลังถูกยืมอยู่"
+                      : "สิ่งของนี้ยังไม่เปิดให้ยืมในขณะนี้"}
+              </span>
             </div>
           ) : (
             <form onSubmit={submit} noValidate>
+              {/* ADD : แสดงช่วงวันที่ถูกจองแล้ว เพื่อให้เลือกวันที่ไม่ชน */}
+              {bookedRanges.length > 0 && (
+                <div className="borrow-note">
+                  <ShieldCheck size={17} />
+                  <span>
+                    ช่วงที่ถูกจองแล้ว:{" "}
+                    {bookedRanges
+                      .map((r) => `${r.borrowDate} ถึง ${r.returnDate}`)
+                      .join(", ")}
+                  </span>
+                </div>
+              )}
               <div className="field">
                 <label htmlFor="borrowDate">
                   วันที่ยืม <span className="required">*</span>
