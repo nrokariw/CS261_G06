@@ -1,0 +1,65 @@
+name: Technical Task
+description: งานพัฒนาฝั่ง Frontend, Backend, Database หรือ Infrastructure (เช่น INFRA-03)
+title: "[TASK-XX]: "
+labels: ["task"]
+body:
+  - type: dropdown
+    id: sprint
+    attributes:
+      label: Sprint
+      options:
+        - Sprint 1
+        - Sprint 2
+        - Backlog
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: ส่วนของระบบ (Scope)
+      options:
+        - Frontend (React + Vite)
+        - Backend (Spring Boot)
+        - Database (MSSQL)
+        - Infrastructure / Docker
+        - Documentation
+        - Full-stack
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+
+  - type: input
+    id: related_story
+    attributes:
+      label: User Story หรือ Issue ที่เกี่ยวข้อง
+      placeholder: เช่น US-01, INFRA-03 หรือ #1
+
+  - type: textarea
+    id: description
+    attributes:
+      label: รายละเอียดงาน (Description)
+      description: อธิบายขอบเขตและสิ่งที่ต้องพัฒนาในงานนี้
+      placeholder: ระบุรายละเอียดของ Task...
+    validations:
+      required: true
+
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: สิ่งที่ต้องส่งมอบ / เงื่อนไขความสำเร็จ (Definition of Done)
+      value: |
+        - [ ] 
+        - [ ] ผ่านการทดสอบ Build / Test ตามมาตรฐานใน CONTRIBUTING.md
+    validations:
+      required: true

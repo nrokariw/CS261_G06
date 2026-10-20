@@ -1,0 +1,61 @@
+name: Bug Report
+description: แจ้งปัญหาหรือข้อผิดพลาดของระบบที่พบระหว่างการพัฒนาหรือทดสอบ
+title: "[BUG]: "
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: scope
+    attributes:
+      label: ส่วนที่พบปัญหา (Affected Area)
+      options:
+        - Frontend
+        - Backend
+        - Database
+        - Docker / Environment
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: ระดับความรุนแรง (Severity / Priority)
+      options:
+        - High (ระบบรันไม่ได้ หรือกระทบการทำงานหลัก)
+        - Medium (ฟีเจอร์ทำงานผิดพลาดแต่ระบบยังรันต่อได้)
+        - Low (การแสดงผลเพี้ยนเล็กน้อย หรือไม่กระทบฟีเจอร์หลัก)
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: อาการของปัญหาที่พบ (Bug Summary)
+      placeholder: อธิบายปัญหาที่เกิดขึ้นอย่างชัดเจน...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps_to_reproduce
+    attributes:
+      label: ขั้นตอนการทำให้เกิดปัญหาซ้ำ (Steps to Reproduce)
+      value: |
+        1. รันคำสั่ง หรือเปิดไปที่หน้า '...'
+        2. กดที่ปุ่ม หรือส่งข้อมูล '...'
+        3. พบข้อผิดพลาด '...'
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: ผลลัพธ์ที่ควรจะเป็น (Expected Behavior)
+      placeholder: อธิบายสิ่งที่ระบบควรทำงานได้อย่างถูกต้อง...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs_or_screenshots
+    attributes:
+      label: Error Log หรือภาพหน้าจอประกอบ (Logs / Screenshots)
+      description: วางข้อความ Error จาก Terminal/Browser Console หรือแนบรูปภาพ
+      render: shell
