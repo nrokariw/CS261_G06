@@ -65,12 +65,12 @@ public class User {
 
         return new Item(
             itemData.getId(), 
+            this.studentId,
             itemData.getTitle(), 
             itemData.getDescription(), 
             itemData.getCategory(), 
             itemData.getStatus(), 
-            itemData.getImageUrl(), 
-            this.studentId
+            itemData.getImageUrl()
         );
     }
     public BorrowRequest requestBorrow(String itemId, DateTime startDate, DateTime endDate) {
