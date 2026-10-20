@@ -18,4 +18,12 @@ public enum RequestStatus {
                 return null;
         }
     } 
+
+    // เพิ่มเมธอดแปลงจาก Request ที่ ACCEPTED กลายเป็น TransactionStatus เริ่มต้น
+    public TransactionStatus getInitialTransactionStatus() {
+        if (this == ACCEPTED) {
+            return TransactionStatus.ACTIVE;
+            }
+        return null;
+        }
 }

@@ -2,9 +2,12 @@ package com.example.demo.model;
 
 import com.example.demo.constant.RequestStatus;
 import org.joda.time.DateTime;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 
+@Entity
 public class BorrowRequest {
-    
+    @Id
     //define attributes
     private String id;
     private String itemId;
@@ -58,10 +61,18 @@ public class BorrowRequest {
     public void setCreatedAt(DateTime createdAt) { this.createdAt = createdAt; }
 
     //define methods
-    /// public void approve() {
-    ///     this.status = RequestStatus.APPROVED;
-    /// }
-    /// public void reject() {
-    ///     this.status = RequestStatus.REJECTED;
-    /// }
+     public void approve() {
+         this.status = RequestStatus.ACCEPTED;
+    }
+    public void reject() {
+        this.status = RequestStatus.REJECTED;
+    }
+    public void cancel() {
+        // ตรวจสอบว่าสถานะปัจจุบันอนุญาตให้ยกเลิกได้ไหม (เช่น ต้องเป็น PENDING อยู่)
+        if (this.status != RequestStatus.PENDING) {
+            throw new IllegalStateException("Cannot cancel request that is not pending");
+        }
+        this.status = RequestStatus.CANCELLED;
+    }
+    
 }

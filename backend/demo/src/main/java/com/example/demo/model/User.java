@@ -1,7 +1,16 @@
 package com.example.demo.model;
 
-public class User {
+import com.example.demo.constant.RequestStatus;
+import com.example.demo.constant.ItemStatus;
+import org.joda.time.DateTime;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
+@Entity 
+@Table(name = "app_user")
+public class User {
+    @Id 
     //define attributes
     private String studentId;
     private String username;
@@ -44,8 +53,37 @@ public class User {
     public void setFaculty(String faculty) {this.faculty = faculty;}
 
     //define methods
-    ///public Boolean login() { }
-    ///public Item createItem(Item itemData) { }
-    ///public BorrowRequest requestBorrow(String itemId, BorrowDates dates) { }
+    public Boolean login() {
+        // ตรวจสอบว่ามีรหัสนักศึกษา/ผู้ใช้หรือไม่
+        return this.studentId != null && !this.studentId.isEmpty();
+    }
+    public Item createItem(Item itemData) {
+
+        if (itemData.getStatus() == null) {
+                itemData.setStatus(ItemStatus.AVAILABLE);
+            }
+
+        return new Item(
+            itemData.getId(), 
+            itemData.getTitle(), 
+            itemData.getDescription(), 
+            itemData.getCategory(), 
+            itemData.getStatus(), 
+            itemData.getImageUrl(), 
+            this.studentId
+        );
+    }
+    public BorrowRequest requestBorrow(String itemId, DateTime startDate, DateTime endDate) {
+        //id ของ BorrowRequest ให้ทาง Service หรือ Database จัดการสร้างให้ทีหลัง 
+        return new BorrowRequest(
+            null,             // id
+            itemId,              // itemId
+            this.studentId,      // borrowerId
+            startDate,           // startDate
+            endDate,             // endDate
+            RequestStatus.PENDING, // status เริ่มต้น
+            DateTime.now()       // createdAt
+        );
+    }
 
 }

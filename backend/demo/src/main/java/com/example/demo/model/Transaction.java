@@ -2,9 +2,14 @@ package com.example.demo.model;
 
 import com.example.demo.constant.TransactionStatus;
 import org.joda.time.DateTime;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
+@Entity 
+@Table(name = "borrowing_transaction")
 public class Transaction {
-    
+    @Id 
     //define attributes
     private String id;
     private String requestId;
@@ -62,11 +67,16 @@ public class Transaction {
     public void setReturnedAt(DateTime returnedAt) { this.returnedAt = returnedAt; }
 
     //define methods
-    /// public void completeTransaction() {
-    ///     this.status = TransactionStatus.COMPLETED;
-    ///     this.returnedAt = DateTime.now();
-    /// }
-    /// public void addProof(EvidenceProof proof) { }
+    public void completeTransaction() {
+        this.status = TransactionStatus.COMPLETED;
+        this.returnedAt = DateTime.now();
+    }
+    public void addProof(EvidenceProof proof) {
+        proof.setTransactionId(this.id);
+    }
+    public void disputeTransaction() {
+        this.status = TransactionStatus.DISPUTED;
+    }
 
 
 }

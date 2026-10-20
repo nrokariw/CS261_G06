@@ -1,9 +1,12 @@
 package com.example.demo.model;
 
 import com.example.demo.constant.ItemStatus;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 
+@Entity 
 public class Item {
-    
+    @Id 
     //define attributes
     private String id;
     private String title;
@@ -56,11 +59,11 @@ public class Item {
     public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
 
     //define methods
-    /// public void updateDetails(String title, String description) {
-    ///     this.title = title;
-    ///     this.description = description;
-    /// }
-    /// public void updateStatus(ItemStatus status) { this.status = status; }
-    ///public void delete() { }
+    public void updateDetails(String title, String description) {
+        this.title = title;
+        this.description = description;
+    }
+    public void updateStatus(ItemStatus status) { this.status = status; }
+    public void delete() { this.status = ItemStatus.UNAVAILABLE; }
 
 }
