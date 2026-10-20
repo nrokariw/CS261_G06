@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import com.example.demo.constant.ItemStatus;
 import com.example.demo.dto.ItemCreateDto; // DTO สำหรับรับข้อมูล multipart
 import com.example.demo.model.Item;
 import com.example.demo.model.User;
@@ -63,4 +64,8 @@ public class ItemService {
         return itemRepository.findByOwnerId(ownerId);
     }
 
+    // 5.ดึงรายการตามสถานะที่ยังไม่ถูกลบ เรียงจากใหม่ไปเก่า
+    public List<Item> getAvailableItems(ItemStatus status) {
+        return itemRepository.findByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(status);
+    }  
 }
