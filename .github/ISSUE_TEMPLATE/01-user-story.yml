@@ -1,0 +1,97 @@
+name: User Story
+description: สร้าง User Story ตามโครงสร้าง Product Backlog ของโปรเจกต์ (เช่น US-01)
+title: "[US-XX]: "
+labels: ["user-story"]
+body:
+  - type: dropdown
+    id: sprint
+    attributes:
+      label: Sprint
+      description: เลือก Sprint ที่รับผิดชอบ User Story นี้
+      options:
+        - Sprint 1
+        - Sprint 2
+        - Backlog
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: ระดับความสำคัญของ User Story
+      options:
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+
+  - type: dropdown
+    id: estimate
+    attributes:
+      label: Estimate (Story Points)
+      description: ประเมินขนาดของงานเป็น Story Points
+      options:
+        - 1 point
+        - 2 points
+        - 3 points
+        - 5 points
+        - 8 points
+    validations:
+      required: true
+
+  - type: input
+    id: as_a
+    attributes:
+      label: As a (ในฐานะใคร)
+      value: นักศึกษาและบุคลากรของมหาวิทยาลัยธรรมศาสตร์ที่มี TU Account
+    validations:
+      required: true
+
+  - type: textarea
+    id: i_want_to
+    attributes:
+      label: I want to (ต้องการทำอะไร)
+      placeholder: ระบุสิ่งที่ผู้ใช้ต้องการทำในระบบ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: so_that
+    attributes:
+      label: So that (เพื่อให้เกิดประโยชน์อะไร)
+      placeholder: ระบุเป้าหมายหรือคุณค่าที่ผู้ใช้ได้รับ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: pre_conditions
+    attributes:
+      label: Pre-conditions (เงื่อนไขก่อนเริ่มทำงาน)
+      value: |
+        1. ผู้ใช้อยู่ในสถานะเข้าสู่ระบบ
+        2. 
+    validations:
+      required: true
+
+  - type: textarea
+    id: post_conditions
+    attributes:
+      label: Post-conditions (ผลลัพธ์หลังทำงานเสร็จ)
+      value: |
+        1. 
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria & Test Cases
+      description: เกณฑ์การตรวจรับงานและกรณีทดสอบ
+      value: |
+        - [ ] **Test Case 1:** 
+        - [ ] **Test Case 2:** 
+        - [ ] **Test Case 3:** 
+    validations:
+      required: true
