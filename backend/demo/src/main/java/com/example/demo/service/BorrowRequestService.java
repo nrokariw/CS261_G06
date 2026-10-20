@@ -7,9 +7,11 @@ import com.example.demo.model.User;
 import com.example.demo.repository.BorrowRequestRepository;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.UserRepository;
+
+import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.joda.time.DateTime;
+import java.time.LocalDateTime;
 
 import java.util.List;
 
@@ -30,7 +32,7 @@ public class BorrowRequestService {
 
     // 1. ผู้ยืมสร้างคำขอยืม (Borrow Request)
     @Transactional
-    public BorrowRequest requestBorrow(String borrowerId, String itemId, DateTime startDate, DateTime endDate) {
+    public BorrowRequest requestBorrow(String borrowerId, String itemId, LocalDateTime startDate, LocalDateTime endDate) {
         // ตรวจสอบว่ามี User และ Item อยู่จริงไหม
         User borrower = userRepository.findById(borrowerId)
                 .orElseThrow(() -> new RuntimeException("Borrower not found"));

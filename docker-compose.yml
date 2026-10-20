@@ -29,7 +29,7 @@ services:
 
   backend:
     build:
-      context: ./backend/demo
+      context: ./backend
       dockerfile: Dockerfile
     container_name: cs261-backend
     env_file:
@@ -44,6 +44,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: "${MSSQL_SA_PASSWORD:-StrongPassw0rd!}"
     ports:
       - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - ./backend/demo/uploads:/app/uploads
     depends_on:
       database:
         condition: service_healthy

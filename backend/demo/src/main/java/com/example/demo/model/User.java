@@ -2,7 +2,9 @@ package com.example.demo.model;
 
 import com.example.demo.constant.RequestStatus;
 import com.example.demo.constant.ItemStatus;
-import org.joda.time.DateTime;
+import java.time.LocalDateTime;
+import org.springframework.cglib.core.Local;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -73,7 +75,7 @@ public class User {
             itemData.getImageUrl()
         );
     }
-    public BorrowRequest requestBorrow(String itemId, DateTime startDate, DateTime endDate) {
+    public BorrowRequest requestBorrow(String itemId, LocalDateTime startDate, LocalDateTime endDate) {
         //id ของ BorrowRequest ให้ทาง Service หรือ Database จัดการสร้างให้ทีหลัง 
         return new BorrowRequest(
             null,             // id
@@ -82,7 +84,7 @@ public class User {
             startDate,           // startDate
             endDate,             // endDate
             RequestStatus.PENDING, // status เริ่มต้น
-            DateTime.now()       // createdAt
+            LocalDateTime.now()       // createdAt
         );
     }
 

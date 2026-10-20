@@ -1,7 +1,8 @@
 package com.example.demo.model;
 
 import com.example.demo.constant.ProofType;
-import org.joda.time.DateTime;
+import java.time.LocalDateTime;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 
@@ -15,7 +16,7 @@ public class EvidenceProof {
     private ProofType proofType;
     private String imageUrl;
     private String note;
-    private DateTime capturedAt;
+    private LocalDateTime capturedAt;
 
     /**
      * Default constructor สำหรับสร้างออบเจ็กต์ EvidenceProof เปล่า
@@ -33,7 +34,7 @@ public class EvidenceProof {
      * @param note          หมายเหตุเพิ่มเติม
      * @param capturedAt    วันที่และเวลาที่จับภาพหลักฐาน
      */
-    public EvidenceProof(String id, String transactionId, String uploaderId, ProofType proofType, String imageUrl, String note, DateTime capturedAt) {
+    public EvidenceProof(String id, String transactionId, String uploaderId, ProofType proofType, String imageUrl, String note, LocalDateTime capturedAt) {
         this.id = id;
         this.transactionId = transactionId;
         this.uploaderId = uploaderId;
@@ -50,14 +51,14 @@ public class EvidenceProof {
     public ProofType getProofType() { return proofType; }
     public String getImageUrl() { return imageUrl; }
     public String getNote() { return note; }
-    public DateTime getCapturedAt() { return capturedAt; }
+    public LocalDateTime getCapturedAt() { return capturedAt; }
     public void setId(String id) { this.id = id; }
     public void setTransactionId(String transactionId) { this.transactionId = transactionId; }
     public void setUploaderId(String uploaderId) { this.uploaderId = uploaderId; }
     public void setProofType(ProofType proofType) { this.proofType = proofType; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
     public void setNote(String note) { this.note = note; }
-    public void setCapturedAt(DateTime capturedAt) { this.capturedAt = capturedAt; }
+    public void setCapturedAt(LocalDateTime capturedAt) { this.capturedAt = capturedAt; }
 
     //define methods
     public String getProofDetails() {

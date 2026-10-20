@@ -1,9 +1,13 @@
 package com.example.demo.model;
 
 import com.example.demo.constant.RequestStatus;
-import org.joda.time.DateTime;
+
+import java.util.UUID;
+
+import java.time.LocalDateTime;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
 
 @Entity
 public class BorrowRequest {
@@ -12,10 +16,18 @@ public class BorrowRequest {
     private String id;
     private String itemId;
     private String borrowerId;
-    private DateTime startDate;
-    private DateTime endDate;
+    private LocalDateTime startDate;
+    private LocalDateTime endDate;
     private RequestStatus status;
-    private DateTime createdAt;
+    private LocalDateTime createdAt;
+
+    // สั่งให้สุ่มสร้าง UUID อัตโนมัติก่อนบันทึกลง Database
+    @PrePersist
+    protected void onCreate() {
+        if (this.id == null || this.id.isEmpty()) {
+            this.id = UUID.randomUUID().toString(); // สร้าง UUID 36 หลัก
+        }   
+    }
 
     /**
      * Default constructor สำหรับสร้างออบเจ็กต์ BorrowRequest เปล่า
@@ -33,7 +45,7 @@ public class BorrowRequest {
      * @param status      สถานะเริ่มต้นของคำขอยืม (เช่น PENDING, ACCEPTED, REJECTED, CANCELLED)
      * @param createdAt   วันที่และเวลาที่สร้างคำขอยืมนี้ขึ้นมา
      */
-    public BorrowRequest(String id, String itemId, String borrowerId, DateTime startDate, DateTime endDate, RequestStatus status, DateTime createdAt) {
+    public BorrowRequest(String id, String itemId, String borrowerId, LocalDateTime startDate, LocalDateTime endDate, RequestStatus status, LocalDateTime createdAt) {
         this.id = id;
         this.itemId = itemId;
         this.borrowerId = borrowerId;
@@ -47,18 +59,18 @@ public class BorrowRequest {
     public String getId() { return id; }
     public String getItemId() { return itemId; }
     public String getBorrowerId() { return borrowerId; }
-    public DateTime getStartDate() { return startDate; }
-    public DateTime getEndDate() { return endDate; }
+    public LocalDateTime getStartDate() { return startDate; }
+    public LocalDateTime getEndDate() { return endDate; }
     public RequestStatus getStatus() { return status; }
-    public DateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
     
     public void setId(String id) { this.id = id; }
     public void setItemId(String itemId) { this.itemId = itemId; }
     public void setBorrowerId(String borrowerId) { this.borrowerId = borrowerId; }
-    public void setStartDate(DateTime startDate) { this.startDate = startDate; }
-    public void setEndDate(DateTime endDate) { this.endDate = endDate; }
+    public void setStartDate(LocalDateTime startDate) { this.startDate = startDate; }
+    public void setEndDate(LocalDateTime endDate) { this.endDate = endDate; }
     public void setStatus(RequestStatus status) { this.status = status; }
-    public void setCreatedAt(DateTime createdAt) { this.createdAt = createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
     //define methods
      public void approve() {

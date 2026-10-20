@@ -2,8 +2,10 @@ package com.example.demo.controller;
 
 import com.example.demo.model.BorrowRequest;
 import com.example.demo.service.BorrowRequestService;
+
+import org.springframework.cglib.core.Local;
 import org.springframework.web.bind.annotation.*;
-import org.joda.time.DateTime;
+import java.time.LocalDateTime;
 
 import java.util.List;
 
@@ -29,8 +31,8 @@ public class BorrowRequestController {
         return borrowService.requestBorrow(
             borrowerId, 
             itemId, 
-            DateTime.parse(startDate), 
-            DateTime.parse(endDate)
+            LocalDateTime.parse(startDate), 
+            LocalDateTime.parse(endDate)
         );
     }
 

@@ -8,9 +8,11 @@ import com.example.demo.model.Transaction;
 import com.example.demo.repository.BorrowRequestRepository;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.TransactionRepository;
+
+import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.joda.time.DateTime;
+import java.time.LocalDateTime;
 
 import java.util.List;
 
@@ -57,7 +59,7 @@ public class TransactionService {
         transaction.setItemId(request.getItemId());
         transaction.setBorrowerId(request.getBorrowerId());
         transaction.setStatus(currentStatus);
-        transaction.setBorrowedAt(DateTime.now());
+        transaction.setBorrowedAt(LocalDateTime.now());
         transaction.setReturnedAt(null);
 
         return transactionRepository.save(transaction);

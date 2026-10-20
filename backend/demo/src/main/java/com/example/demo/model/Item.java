@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 
 import java.util.UUID;
 
-import org.joda.time.DateTime;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "items") 
@@ -13,7 +13,7 @@ public class Item {
 
     //define attributes
     @Id
-    @Column(name = "item_id", length = 36)
+    @Column(name = "item_id", length = 36, updatable = false, nullable = false)
     private String id;
 
     @Column(name = "owner_id", nullable = false)
@@ -35,21 +35,36 @@ public class Item {
     @Column(name = "image_url")
     private String imageUrl;
 
-    @Column(name = "created_at", updatable = false)
-    private DateTime createdAt = DateTime.now();
+@   Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
-    private DateTime updatedAt = DateTime.now();
+    private LocalDateTime updatedAt;
 
     @Column(name = "deleted_at")
-    private DateTime deletedAt;
+    private LocalDateTime deletedAt;
 
-    // สุ่ม id เป็น String อัตโนมัติก่อนบันทึกลง Database
+    // สั่งให้สุ่มสร้าง UUID และกำหนด วันที่ เวลา อัตโนมัติก่อนบันทึกลง Database
     @PrePersist
-    public void prePersist() {
+    protected void onCreate() {
         if (this.id == null || this.id.isEmpty()) {
-            this.id = UUID.randomUUID().toString();
+            this.id = UUID.randomUUID().toString(); //สร้าง UUID 36 ตัว
         }
+        LocalDateTime now = LocalDateTime.now();
+        if (this.createdAt == null) {
+            this.createdAt = now;
+        }
+        if (this.updatedAt == null) {
+            this.updatedAt = now;
+        }
+        if (this.status == null) {
+            this.status = ItemStatus.AVAILABLE;
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 
     /**
@@ -79,43 +94,45 @@ public class Item {
         this.category = category;
         this.status = status != null ? status : ItemStatus.AVAILABLE;
         this.imageUrl = imageUrl;
-        this.createdAt = DateTime.now();
-        this.updatedAt = DateTime.now();
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
     }
 
     //define getters and setters
-    public String getId() { return id; }
-    public String getOwnerId() { return ownerId; }
-    public String getTitle() { return title; }
-    public String getDescription() { return description; }
-    public String getCategory() { return category; }
-    public ItemStatus getStatus() { return status; }
-    public String getImageUrl() { return imageUrl; }
+public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+    public String getOwnerId() { return ownerId; }
     public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
+    public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
+    public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
+    public ItemStatus getStatus() { return status; }
     public void setStatus(ItemStatus status) { this.status = status; }
+    public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
-
-    public DateTime getCreatedAt() { return createdAt; }
-    public DateTime getUpdatedAt() { return updatedAt; }
-    public DateTime getDeletedAt() { return deletedAt; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
 
     //define methods
     public void updateDetails(String title, String description) {
         this.title = title;
         this.description = description;
-        this.updatedAt = DateTime.now();
+        this.updatedAt = LocalDateTime.now();
     }
     public void updateStatus(ItemStatus status) {
         this.status = status; 
-        this.updatedAt = DateTime.now();
+        this.updatedAt = LocalDateTime.now();
     }
     public void delete() {
         this.status = ItemStatus.UNAVAILABLE; 
-        this.deletedAt = DateTime.now();
+        this.deletedAt = LocalDateTime.now();
     }
 
 }

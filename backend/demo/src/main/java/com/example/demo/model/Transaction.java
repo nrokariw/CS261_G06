@@ -1,7 +1,7 @@
 package com.example.demo.model;
 
 import com.example.demo.constant.TransactionStatus;
-import org.joda.time.DateTime;
+import java.time.LocalDateTime;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -17,8 +17,8 @@ public class Transaction {
     private String lenderId;
     private String itemId;
     private TransactionStatus status;
-    private DateTime borrowedAt;
-    private DateTime returnedAt;
+    private LocalDateTime borrowedAt;
+    private LocalDateTime returnedAt;
 
     /**
      * Default constructor สำหรับสร้างออบเจ็กต์ Transaction เปล่า
@@ -37,7 +37,7 @@ public class Transaction {
      * @param borrowedAt  วันที่และเวลาที่เริ่มต้นการยืม
      * @param returnedAt  วันที่และเวลาที่คืนสิ่งของ 
      */
-    public Transaction(String id, String requestId, String borrowerId, String lenderId, String itemId, TransactionStatus status, DateTime borrowedAt, DateTime returnedAt) {
+    public Transaction(String id, String requestId, String borrowerId, String lenderId, String itemId, TransactionStatus status, LocalDateTime borrowedAt, LocalDateTime returnedAt) {
         this.id = id;
         this.requestId = requestId;
         this.borrowerId = borrowerId;
@@ -55,21 +55,21 @@ public class Transaction {
     public String getLenderId() { return lenderId; }
     public String getItemId() { return itemId; }
     public TransactionStatus getStatus() { return status; }
-    public DateTime getBorrowedAt() { return borrowedAt; }
-    public DateTime getReturnedAt() { return returnedAt; }
+    public LocalDateTime getBorrowedAt() { return borrowedAt; }
+    public LocalDateTime getReturnedAt() { return returnedAt; }
     public void setId(String id) { this.id = id; }
     public void setRequestId(String requestId) { this.requestId = requestId; }
     public void setBorrowerId(String borrowerId) { this.borrowerId = borrowerId; }
     public void setLenderId(String lenderId) { this.lenderId = lenderId; }
     public void setItemId(String itemId) { this.itemId = itemId; }
     public void setStatus(TransactionStatus status) { this.status = status; }
-    public void setBorrowedAt(DateTime borrowedAt) { this.borrowedAt = borrowedAt; }
-    public void setReturnedAt(DateTime returnedAt) { this.returnedAt = returnedAt; }
+    public void setBorrowedAt(LocalDateTime borrowedAt) { this.borrowedAt = borrowedAt; }
+    public void setReturnedAt(LocalDateTime returnedAt) { this.returnedAt = returnedAt; }
 
     //define methods
     public void completeTransaction() {
         this.status = TransactionStatus.COMPLETED;
-        this.returnedAt = DateTime.now();
+        this.returnedAt = LocalDateTime.now();
     }
     public void addProof(EvidenceProof proof) {
         proof.setTransactionId(this.id);
