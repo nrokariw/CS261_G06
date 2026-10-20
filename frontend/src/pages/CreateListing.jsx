@@ -1,15 +1,54 @@
-import React, { useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ImagePlus,
   UploadCloud,
   CheckCircle2,
   AlertCircle,
   ArrowLeft,
+  Trash2,
 } from "lucide-react";
-import { CATEGORIES } from "../data";
-import { PageHeading } from "../components/UI";
+import { CATEGORY_SUGGESTIONS, getCategories } from "../data";
+import { PageHeading, safeImageSrc } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
+
+const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"];
+const MAX_RAW_BYTES = 10 * 1024 * 1024; 
+const TARGET_BYTES = 150 * 1024; // เป้าหมายขนาด data URL หลังย่อ ≤ 150KB
+const DIMENSIONS = [800, 640, 480, 360];
+const QUALITIES = [0.8, 0.7, 0.6, 0.5, 0.4];
+
+
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let result = "";
+      for (const maxDim of DIMENSIONS) {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#fff"; // PNG โปร่งใสจะกลายเป็นพื้นขาวเมื่อแปลงเป็น JPEG
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        for (const q of QUALITIES) {
+          result = canvas.toDataURL("image/jpeg", q);
+          if (result.length * 0.75 <= TARGET_BYTES) return resolve(result);
+        }
+      }
+      resolve(result);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("decode failed"));
+    };
+    img.src = url;
+  });
+}
 
 export default function CreateListing({ items, setItems }) {
   const { user } = useAuth();
@@ -22,49 +61,78 @@ export default function CreateListing({ items, setItems }) {
   const [detail, setDetail] = useState(editingItem?.detail || "");
   const [image, setImage] = useState(editingItem?.image || "");
   const [imageFileName, setImageFileName] = useState("");
+  const [processing, setProcessing] = useState(false);
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState("");
   const fileRef = useRef(null);
+  const timerRef = useRef(null);
+
+  useEffect(() => () => window.clearTimeout(timerRef.current), []);
+
+  // FIX : แก้ไขได้เฉพาะเจ้าของ และเมื่อสถานะเป็น available เท่านั้น
+  const editBlocked =
+    !!editId &&
+    (!editingItem ||
+      editingItem.owner !== user.name ||
+      editingItem.status !== "available");
 
   function validate() {
     const next = {};
     if (!name.trim()) next.name = "กรุณากรอกชื่อสิ่งของ";
-    if (!category) next.category = "กรุณาเลือกหมวดหมู่";
+    // FIX : หมวดหมู่เป็น free-text → ตรวจว่าไม่ว่างและไม่ยาวเกินไป
+    if (!category.trim()) next.category = "กรุณากรอกหมวดหมู่";
+    else if (category.trim().length > 50)
+      next.category = "หมวดหมู่ต้องไม่เกิน 50 ตัวอักษร";
     if (!detail.trim()) next.detail = "กรุณากรอกรายละเอียด";
     setErrors(next);
     return Object.keys(next).length === 0;
   }
 
-  function chooseImage(e) {
+  async function chooseImage(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setErrors((prev) => ({ ...prev, image: "กรุณาเลือกไฟล์รูปภาพเท่านั้น" }));
+    if (!ALLOWED_MIME.includes(file.type)) {
+      setErrors((prev) => ({ ...prev, image: "รองรับเฉพาะไฟล์ JPG, PNG, WEBP" }));
+      e.target.value = "";
       return;
     }
-    if (file.size > 3 * 1024 * 1024) {
-      setErrors((prev) => ({ ...prev, image: "รูปภาพต้องมีขนาดไม่เกิน 3 MB" }));
+    if (file.size > MAX_RAW_BYTES) {
+      setErrors((prev) => ({ ...prev, image: "รูปภาพต้องมีขนาดไม่เกิน 10 MB" }));
+      e.target.value = "";
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setImage(String(reader.result));
-    reader.readAsDataURL(file);
-    setImageFileName(file.name);
+    setProcessing(true);
+    try {
+      setImage(await compressImage(file));
+      setImageFileName(file.name);
+      setErrors((prev) => ({ ...prev, image: "" }));
+    } catch {
+      setErrors((prev) => ({ ...prev, image: "ไม่สามารถอ่านไฟล์รูปภาพนี้ได้" }));
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  // FIX : เพิ่มปุ่ม "ลบรูปภาพ"
+  function removeImage() {
+    setImage("");
+    setImageFileName("");
     setErrors((prev) => ({ ...prev, image: "" }));
+    if (fileRef.current) fileRef.current.value = ""; 
   }
 
   function submit(e) {
     e.preventDefault();
     setSuccess("");
-    if (!validate()) return;
+    if (processing || !validate()) return;
     const record = {
       id: editingItem?.id || crypto.randomUUID(),
       name: name.trim(),
-      category,
+      category: category.trim(),
       detail,
       image,
       owner: editingItem?.owner || user.name,
-      status: "available",
+      status: editingItem?.status || "available",
     };
     if (editingItem)
       setItems((prev) =>
@@ -74,8 +142,27 @@ export default function CreateListing({ items, setItems }) {
     setSuccess(
       editingItem ? "แก้ไขประกาศเรียบร้อยแล้ว" : "สร้างประกาศเรียบร้อยแล้ว",
     );
-    window.setTimeout(() => navigate("/my-listings"), 650);
+    timerRef.current = window.setTimeout(() => navigate("/my-listings"), 650);
   }
+
+  // FIX : ถ้าไม่ใช่เจ้าของ / สถานะไม่ใช่ available / ไม่พบประกาศ → ไม่แสดงฟอร์มแก้ไข
+  if (editBlocked)
+    return (
+      <div className="not-found">
+        <h1>ไม่สามารถแก้ไขประกาศนี้ได้</h1>
+        <p>
+          แก้ไขได้เฉพาะเจ้าของประกาศ และเมื่อสิ่งของอยู่ในสถานะ "พร้อมให้ยืม" เท่านั้น
+        </p>
+        <Link to="/my-listings" className="button button-primary">
+          กลับไปประกาศของฉัน
+        </Link>
+      </div>
+    );
+
+  const previewSrc = safeImageSrc(image);
+  const categorySuggestions = Array.from(
+    new Set([...CATEGORY_SUGGESTIONS, ...getCategories(items)]),
+  );
 
   return (
     <div className="page-stack narrow-page">
@@ -86,8 +173,7 @@ export default function CreateListing({ items, setItems }) {
         eyebrow={editingItem ? "EDIT LISTING" : "CREATE LISTING"}
         title={editingItem ? "แก้ไขประกาศ" : "ลงประกาศสิ่งของ"}
         subtitle="กรอกข้อมูลให้ครบเพื่อให้เพื่อนค้นหาและขอยืมสิ่งของได้ง่ายขึ้น"
-      />{" "}
-      {/* หัวประกาศ */}
+      />
       <form className="form-card" onSubmit={submit} noValidate>
         {success && (
           <div className="alert alert-success">
@@ -112,9 +198,10 @@ export default function CreateListing({ items, setItems }) {
             onChange={(e) => setName(e.target.value)}
             placeholder="เช่น เครื่องคิดเลขวิทยาศาสตร์"
             aria-invalid={!!errors.name}
+            aria-describedby={errors.name ? "err-name" : undefined}
           />
           {errors.name && (
-            <small className="field-error">
+            <small className="field-error" id="err-name">
               <AlertCircle size={13} />
               {errors.name}
             </small>
@@ -124,19 +211,24 @@ export default function CreateListing({ items, setItems }) {
           <label htmlFor="item-category">
             หมวดหมู่ <span className="required">*</span>
           </label>
-          <select
+          {/* FIX : เปลี่ยน <select> เป็น <input> + datalist (พิมพ์หมวดหมู่เองได้ มีคำแนะนำให้เลือก) */}
+          <input
             id="item-category"
+            list="category-suggestions"
             value={category}
+            maxLength={50}
             onChange={(e) => setCategory(e.target.value)}
+            placeholder="เช่น อุปกรณ์การเรียน หรือพิมพ์หมวดหมู่ใหม่"
             aria-invalid={!!errors.category}
-          >
-            <option value="">เลือกหมวดหมู่</option>
-            {CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
+            aria-describedby={errors.category ? "err-category" : undefined}
+          />
+          <datalist id="category-suggestions">
+            {categorySuggestions.map((c) => (
+              <option key={c} value={c} />
             ))}
-          </select>
+          </datalist>
           {errors.category && (
-            <small className="field-error">
+            <small className="field-error" id="err-category">
               <AlertCircle size={13} />
               {errors.category}
             </small>
@@ -157,9 +249,10 @@ export default function CreateListing({ items, setItems }) {
             onChange={(e) => setDetail(e.target.value)}
             placeholder="ระบุสภาพสิ่งของ เงื่อนไขการยืม และสถานที่นัดรับ"
             aria-invalid={!!errors.detail}
+            aria-describedby={errors.detail ? "err-detail" : undefined}
           />
           {errors.detail && (
-            <small className="field-error">
+            <small className="field-error" id="err-detail">
               <AlertCircle size={13} />
               {errors.detail}
             </small>
@@ -175,19 +268,21 @@ export default function CreateListing({ items, setItems }) {
         <input
           ref={fileRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
           className="visually-hidden"
           onChange={chooseImage}
+          aria-describedby={errors.image ? "err-image" : undefined}
         />
         <button
           type="button"
           className="upload-zone"
           onClick={() => fileRef.current?.click()}
+          disabled={processing}
         >
-          {image ? (
+          {previewSrc ? (
             <img
               className="upload-preview"
-              src={image}
+              src={previewSrc}
               alt="ตัวอย่างรูปสิ่งของ"
             />
           ) : (
@@ -195,18 +290,32 @@ export default function CreateListing({ items, setItems }) {
               <span className="upload-icon">
                 <ImagePlus size={28} />
               </span>
-              <strong>คลิกเพื่ออัปโหลดรูปภาพ</strong>
-              <span>รองรับ JPG, PNG หรือ WEBP</span>
+              <strong>
+                {processing ? "กำลังประมวลผลรูปภาพ..." : "คลิกเพื่ออัปโหลดรูปภาพ"}
+              </strong>
+              <span>รองรับ JPG, PNG หรือ WEBP (ระบบจะย่อรูปให้อัตโนมัติ)</span>
             </>
-          )}{" "}
-          {/* จะกำหนดขนาดเท่าไรเช่น ไม่เกิน 3 MB */}
-          {image && (
+          )}
+          {previewSrc && (
             <span className="upload-change">
               <UploadCloud size={15} /> {imageFileName || "เปลี่ยนรูปภาพ"}
             </span>
           )}
         </button>
-        {errors.image && <small className="field-error">{errors.image}</small>}
+        {previewSrc && (
+          <button
+            type="button"
+            className="button button-danger-outline button-sm"
+            onClick={removeImage}
+          >
+            <Trash2 size={15} /> ลบรูปภาพ
+          </button>
+        )}
+        {errors.image && (
+          <small className="field-error" id="err-image">
+            {errors.image}
+          </small>
+        )}
         <div className="form-note">
           <AlertCircle size={16} />
           <span>
@@ -221,7 +330,11 @@ export default function CreateListing({ items, setItems }) {
           >
             ยกเลิก
           </button>
-          <button type="submit" className="button button-primary">
+          <button
+            type="submit"
+            className="button button-primary"
+            disabled={processing}
+          >
             <CheckCircle2 size={17} />
             {editingItem ? "บันทึกการแก้ไข" : "เผยแพร่"}
           </button>

@@ -1,9 +1,61 @@
-export const CATEGORIES = [
+// FIX : เลิกใช้ CATEGORIES แบบ fix 4 หมวด → ใช้เป็น "คำแนะนำ" ใน datalist เท่านั้น
+// หมวดหมู่จริงที่ใช้กรองใน Browse จะดึงจากข้อมูลสิ่งของ 
+export const CATEGORY_SUGGESTIONS = [
   "อุปกรณ์การเรียน",
   "อุปกรณ์อิเล็กทรอนิกส์",
   "อุปกรณ์กีฬา",
   "ของใช้ทั่วไป"
 ];
+
+export const STORAGE_KEYS = {
+  items: "campusshare-items-v2",
+  requests: "campusshare-requests-v2"
+};
+
+export const ALL_CATEGORIES_ID = "__ALL__";
+
+export const ITEM_STATUS = ["available", "reserved", "borrowed", "unavailable", "deleted"];
+export const REQUEST_STATUS = ["pending", "accepted", "rejected", "cancelled"];
+
+// FIX : ดึงหมวดหมู่จากสิ่งของจริง (ไม่รวมที่ถูกลบ) แทนการ hardcode
+export function getCategories(items) {
+  return Array.from(
+    new Set(
+      items
+        .filter((i) => i.status !== "deleted")
+        .map((i) => (i.category || "").trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+// ADD (จองคนละช่วงเวลา): สถานะที่ยังแสดงในหน้าค้นหาและยังขอยืมได้
+// reserved/borrowed ยังขอยืมได้ถ้าช่วงวันที่ไม่ซ้อนกับคำขอที่ accepted ไปแล้ว
+export const BORROWABLE_STATUS = ["available", "reserved", "borrowed"];
+
+// ADD : เจ้าของกดยอมรับได้ถ้าช่วงวันที่ไม่ซ้อนกับคำขอ accepted อื่นของสิ่งของเดียวกัน
+export function hasAcceptedOverlap(requests, req) {
+  return requests.some(
+    (r) =>
+      r.id !== req.id &&
+      r.itemId === req.itemId &&
+      r.status === "accepted" &&
+      req.borrowDate <= r.returnDate &&
+      req.returnDate >= r.borrowDate
+  );
+}
+
+// FIX : เช็กช่วงวันที่ซ้อนกับคำขอที่ pending/accepted ของสิ่งของเดียวกัน
+// (รูปแบบวันที่ YYYY-MM-DD เทียบแบบสตริงได้เลย)
+export function hasDateOverlap(requests, itemId, borrowDate, returnDate) {
+  return requests.some(
+    (r) =>
+      r.itemId === itemId &&
+      (r.status === "pending" || r.status === "accepted") &&
+      borrowDate <= r.returnDate &&
+      returnDate >= r.borrowDate
+  );
+}
 
 export const SEED_ITEMS = [
   {
@@ -51,8 +103,10 @@ export const SEED_REQUESTS = [
     reason: "ใช้สอบวิชาคณิตศาสตร์", status: "pending"
   },
   {
+    // FIX: เดิม borrower = "Mint P." ซึ่งเป็นเจ้าของขาตั้งกล้องเอง (ยืมของตัวเอง)
+    // เปลี่ยนเป็น "Ploy S." เพื่อให้ทดสอบหน้า /my-borrows ได้ (Ploy ขอยืมของ Mint)
     id: "req-2", itemId: "item-2", itemName: "ขาตั้งกล้อง",
-    borrower: "Mint P.", borrowDate: "2026-10-21", returnDate: "2026-10-23",
+    borrower: "Ploy S.", borrowDate: "2026-10-21", returnDate: "2026-10-23",
     reason: "ใช้ถ่ายวิดีโอสำหรับงานกลุ่ม", status: "pending"
   }
 ];

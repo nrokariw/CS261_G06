@@ -2831,3 +2831,16 @@ textarea:focus-visible {
         white-space: normal;
     }
 }
+
+/* แถบแจ้งข้อผิดพลาด (storage เต็ม / รับคำขอไม่ได้) */
+.alert-error {
+    background: #FBE9E6;
+    color: var(--red);
+}
+
+/* ปุ่มที่ถูกปิดใช้งาน (แก้ไข/ลบเมื่อ reserved/borrowed, ยอมรับเมื่อสิ่งของไม่ว่าง, ระหว่างย่อรูป) */
+.button:disabled,
+.upload-zone:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}

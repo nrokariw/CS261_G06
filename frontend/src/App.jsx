@@ -5,24 +5,50 @@ import {
   PlusCircle,
   ClipboardList,
   Inbox,
+  Handshake, // FIX : ไอคอนเมนู "รายการยืมของฉัน"
   Menu,
   X,
   ChevronRight,
 } from "lucide-react";
-import { SEED_ITEMS, SEED_REQUESTS } from "./data";
+import {
+  SEED_ITEMS,
+  SEED_REQUESTS,
+  STORAGE_KEYS,
+  ITEM_STATUS,
+  REQUEST_STATUS,
+} from "./data";
 import { Avatar } from "./components/UI";
 import Browse from "./pages/Browse";
 import CreateListing from "./pages/CreateListing";
 import ItemDetails from "./pages/ItemDetails";
 import MyListings from "./pages/MyListings";
+import MyBorrows from "./pages/MyBorrows";
 import IncomingRequests from "./pages/IncomingRequests";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./contexts/AuthContext";
 
-function readStore(key, fallback) {
+
+const isValidItem = (i) =>
+  i &&
+  typeof i.id === "string" &&
+  typeof i.name === "string" &&
+  typeof i.owner === "string" &&
+  ITEM_STATUS.includes(i.status);
+
+const isValidRequest = (r) =>
+  r &&
+  typeof r.id === "string" &&
+  typeof r.itemId === "string" &&
+  typeof r.borrower === "string" &&
+  REQUEST_STATUS.includes(r.status);
+
+function readStore(key, fallback, isValid) {
   try {
     const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
+    if (!saved) return fallback;
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed) || !parsed.every(isValid)) return fallback;
+    return parsed;
   } catch {
     return fallback;
   }
@@ -40,31 +66,45 @@ function BrandMark() {
 export default function App() {
   const { user } = useAuth();
   const [items, setItems] = useState(() =>
-    readStore("campusshare-items", SEED_ITEMS),
+    readStore(STORAGE_KEYS.items, SEED_ITEMS, isValidItem),
   );
   const [requests, setRequests] = useState(() =>
-    readStore("campusshare-requests", SEED_REQUESTS),
+    readStore(STORAGE_KEYS.requests, SEED_REQUESTS, isValidRequest),
   );
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [storageError, setStorageError] = useState(""); // FIX : แจ้งผู้ใช้เมื่อบันทึกไม่ได้
   const location = useLocation();
 
-  useEffect(
-    () => localStorage.setItem("campusshare-items", JSON.stringify(items)),
-    [items],
-  );
-  useEffect(
-    () =>
-      localStorage.setItem("campusshare-requests", JSON.stringify(requests)),
-    [requests],
-  );
+
+  function persist(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      setStorageError("");
+    } catch {
+      setStorageError(
+        "บันทึกข้อมูลไม่สำเร็จ พื้นที่จัดเก็บในเบราว์เซอร์เต็ม ลองลบประกาศที่มีรูปขนาดใหญ่ออก",
+      );
+    }
+  }
+  useEffect(() => persist(STORAGE_KEYS.items, items), [items]);
+  useEffect(() => persist(STORAGE_KEYS.requests, requests), [requests]);
   useEffect(() => setMobileMenu(false), [location.pathname]);
 
-  const pendingCount = requests.filter((r) => r.status === "pending").length;
+  // FIX : badge จำนวนคำขอ นับเฉพาะคำขอที่เข้าสิ่งของของ currentUser
+  // เดิมนับคำขอ pending ของทุกคน
+  const myItemIds = new Set(
+    items.filter((i) => i.owner === user.name).map((i) => i.id),
+  );
+  const pendingCount = requests.filter(
+    (r) => r.status === "pending" && myItemIds.has(r.itemId),
+  ).length;
   const navItems = [
     { to: "/", label: "หน้าหลัก", icon: LayoutGrid, end: true },
     { to: "/create", label: "สร้างประกาศ", icon: PlusCircle },
     { to: "/my-listings", label: "ประกาศของฉัน", icon: ClipboardList },
     { to: "/requests", label: "คำขอยืมเข้า", icon: Inbox, count: pendingCount },
+    // FIX : เพิ่มเมนู /my-borrows
+    { to: "/my-borrows", label: "รายการยืมของฉัน", icon: Handshake },
   ];
 
   const { pathname, search } = location;
@@ -131,11 +171,17 @@ export default function App() {
           </nav>
           <span className="top-user">
             <Avatar name={user.name} size="sm" />
-            <span>Ploy S.</span>
+            {/* FIX : เดิม hardcode <span>Ploy S.</span> */}
+            <span>{user.name}</span>
           </span>
         </header>
 
         <main className="page-container">
+          {storageError && (
+            <div className="alert alert-error" role="alert">
+              {storageError}
+            </div>
+          )}
           <Routes>
             <Route path="/" element={<Browse items={items} />} />
             <Route
@@ -144,7 +190,14 @@ export default function App() {
             />
             <Route
               path="/items/:id"
-              element={<ItemDetails items={items} setRequests={setRequests} />}
+              // FIX : ส่ง requests เข้าไปเพื่อเช็กวันที่ซ้อนกัน
+              element={
+                <ItemDetails
+                  items={items}
+                  requests={requests}
+                  setRequests={setRequests}
+                />
+              }
             />
             <Route
               path="/my-listings"
@@ -153,7 +206,20 @@ export default function App() {
             <Route
               path="/requests"
               element={
+                // FIX : ต้องส่ง items/setItems เพื่อกรองตามเจ้าของ และเปลี่ยน item เป็น reserved ตอน Accept
                 <IncomingRequests
+                  items={items}
+                  setItems={setItems}
+                  requests={requests}
+                  setRequests={setRequests}
+                />
+              }
+            />
+            <Route
+              path="/my-borrows"
+              element={
+                <MyBorrows
+                  items={items}
                   requests={requests}
                   setRequests={setRequests}
                 />
