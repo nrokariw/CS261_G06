@@ -14,3 +14,5 @@ Thumbs.db
 
 # dotfiles
 .env
+
+frontend/node_modules/
