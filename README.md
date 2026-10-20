@@ -17,7 +17,7 @@
 |   3   | นายณสพล ติณชาติอารักษ์       |  6809617092  |   26   | [Boomnasapon68](https://github.com/Boomnasapon68)                 |
 |   4   | นายวิรากร ธนบัตร             |  6809617415  |   55   | [nrokariw](https://github.com/nrokariw)                           |
 |   5   | นางสาวอภิชญา ตั้งบัณฑิต      |  6809617498  |   62   | [Apichaya-Thangbhandit](https://github.com/Apichaya-Thangbhandit) |
-|   6   | นางสาวชวิศา อภิรักษ์นุสิทธิ์ |  6809620062  |   67   |                                                                   |
+|   6   | นางสาวชวิศา อภิรักษ์นุสิทธิ์ |  6809620062  |   67   |   [SandSimme](https://github.com/SandSimme) |
 |   7   | นายวุฒิภัทร คล๊าก            |  6809620112  |   69   | [tenwuttiphat-spec](https://github.com/tenwuttiphat-spec)         |
 
 **วันที่เริ่มต้น:** 28 กันยายน พ.ศ. 2569  
