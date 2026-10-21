@@ -11,8 +11,9 @@ import com.example.demo.repository.UserRepository;
 import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDateTime;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
@@ -44,7 +45,7 @@ public class BorrowRequestService {
             throw new RuntimeException("Item is not available for borrow");
         }
 
-        // เรียกใช้ฟังก์ชัน requestBorrow จาก User Model
+        // เรียกใช้ฟังก์ชัน requestBorrow จาก User Model (ข้างในกำหนด createdAt เป็น UTC+0 แล้ว)
         BorrowRequest request = borrower.requestBorrow(itemId, startDate, endDate);
 
         return borrowRequestRepository.save(request);

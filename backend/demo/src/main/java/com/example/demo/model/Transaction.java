@@ -2,8 +2,12 @@ package com.example.demo.model;
 
 import com.example.demo.constant.TransactionStatus;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.UUID;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity 
@@ -16,9 +20,23 @@ public class Transaction {
     private String borrowerId;
     private String lenderId;
     private String itemId;
-    private TransactionStatus status;
+    private TransactionStatus status = TransactionStatus.ACTIVE;
     private LocalDateTime borrowedAt;
     private LocalDateTime returnedAt;
+
+    // สั่งให้สุ่มสร้าง UUID และกำหนดเวลาเป็น UTC+0 อัตโนมัติก่อนบันทึกลง Database
+    @PrePersist
+    protected void onCreate() {
+        if (this.id == null || this.id.isEmpty()) {
+            this.id = UUID.randomUUID().toString(); // สร้าง UUID 36 หลัก
+        }
+        if (this.borrowedAt == null) {
+            this.borrowedAt = LocalDateTime.now(ZoneOffset.UTC); // บันทึกเวลาเป็น UTC+0 เสมอ
+        }
+        if (this.status == null) {
+            this.status = TransactionStatus.ACTIVE;
+        }
+    }
 
     /**
      * Default constructor สำหรับสร้างออบเจ็กต์ Transaction เปล่า
@@ -43,8 +61,8 @@ public class Transaction {
         this.borrowerId = borrowerId;
         this.lenderId = lenderId;
         this.itemId = itemId;
-        this.status = status;
-        this.borrowedAt = borrowedAt;
+        this.status = status != null ? status : TransactionStatus.ACTIVE;
+        this.borrowedAt = borrowedAt != null ? borrowedAt : LocalDateTime.now(ZoneOffset.UTC);
         this.returnedAt = returnedAt;
     }
 
@@ -69,7 +87,7 @@ public class Transaction {
     //define methods
     public void completeTransaction() {
         this.status = TransactionStatus.COMPLETED;
-        this.returnedAt = LocalDateTime.now();
+        this.returnedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
     public void addProof(EvidenceProof proof) {
         proof.setTransactionId(this.id);
