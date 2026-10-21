@@ -16,3 +16,9 @@ Thumbs.db
 .env
 
 frontend/node_modules/
+
+# Storage & Cache
+storage/products/*
+!storage/products/.gitkeep
+storage/temporary/*
+!storage/temporary/.gitkeep
