@@ -1,5 +1,7 @@
 package com.example.demo.service;
 
+import com.example.demo.constant.ItemStatus;
+import com.example.demo.dto.ItemCreateDto; // DTO สำหรับรับข้อมูล multipart
 import com.example.demo.model.Item;
 import com.example.demo.model.User;
 import com.example.demo.repository.ItemRepository;
@@ -16,22 +18,35 @@ public class ItemService {
 
     private final UserRepository userRepository;
 
-    public ItemService(ItemRepository itemRepository, UserRepository userRepository) {
+    private final FileStorageService fileStorageService; // เพิ่ม Service สำหรับจัดการไฟล์รูปภาพ
+
+    public ItemService(ItemRepository itemRepository, 
+                       UserRepository userRepository, 
+                       FileStorageService fileStorageService) {
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
+        this.fileStorageService = fileStorageService;
     }
 
-    // 1.สร้างไอเท็มใหม่จาก User Model
-    public Item createItemForUser(String studentId, Item itemData) {
-        // ค้นหา User จาก Database
-        User user = userRepository.findById(studentId)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + studentId));
+    // 1. สร้างไอเท็มใหม่จาก User Model พร้อมรองรับการอัปโหลดรูปภาพ (US-01.2 & US-01.3)
+    public Item createItemForUser(String studentId, ItemCreateDto itemCreateDto) {
 
-        // เรียกใช้เมธอด createItem ใน User Model (บังคับใส่ ownerId)
-        Item newItem = user.createItem(itemData);
+        // อัปโหลดรูปภาพผ่าน FileStorageService (จะตรวจสอบ Mime-Type และขนาดไฟล์ให้อัตโนมัติ)
+        String imageUrl = null;
+        if (itemCreateDto.getImageFile() != null && !itemCreateDto.getImageFile().isEmpty()) {
+            imageUrl = fileStorageService.storeFile(itemCreateDto.getImageFile());
+        }
+
+        // สร้าง item และกำหนด ownerId
+        Item item = new Item();
+        item.setOwnerId(studentId);
+        item.setTitle(itemCreateDto.getTitle());
+        item.setCategory(itemCreateDto.getCategory());
+        item.setDescription(itemCreateDto.getDescription());
+        item.setImageUrl(imageUrl);
 
         // บันทึกลง MSSQL Database
-        return itemRepository.save(newItem);
+        return itemRepository.save(item);
     }
 
     // 2.ดึงรายการไอเท็มทั้งหมด
@@ -49,4 +64,8 @@ public class ItemService {
         return itemRepository.findByOwnerId(ownerId);
     }
 
+    // 5.ดึงรายการตามสถานะที่ยังไม่ถูกลบ เรียงจากใหม่ไปเก่า
+    public List<Item> getAvailableItems(ItemStatus status) {
+        return itemRepository.findByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(status);
+    }  
 }

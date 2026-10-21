@@ -25,7 +25,7 @@ endif
         build build-frontend build-backend build-database \
         stop stop-frontend stop-backend stop-database \
         down restart logs logs-frontend logs-backend logs-database \
-        status ps clean fclean
+        status ps clean fclean db-init db-shell clean-cache clean-storage
 
 help:
 	@echo "Usage: make [target] [DB_MODE=mssql|edge]"
@@ -36,6 +36,10 @@ help:
 	@echo "  backend            Build and start only backend (with dependencies)"
 	@echo "  database / db      Build and start only database"
 	@echo "  start-only-%       Start a single service without starting its dependencies (e.g. make start-only-frontend)"
+	@echo ""
+	@echo "Database targets:"
+	@echo "  db-init            Execute initialization schema scripts (DB_ITEM_TABLE.sql)"
+	@echo "  db-shell           Open interactive SQL Server command line (sqlcmd)"
 	@echo ""
 	@echo "Build targets:"
 	@echo "  build              Build all service images"
@@ -53,8 +57,10 @@ help:
 	@echo "  status / ps        List running containers and status"
 	@echo ""
 	@echo "Cleanup targets:"
-	@echo "  clean              Stop and remove containers, networks, and volumes"
-	@echo "  fclean             Full clean: remove containers, networks, volumes, and local images"
+	@echo "  clean              Stop and remove containers, networks, volumes, and temporary cache"
+	@echo "  clean-cache        Clear files in storage/temporary/"
+	@echo "  clean-storage      Clear files in both storage/products/ and storage/temporary/"
+	@echo "  fclean             Full clean: remove containers, networks, volumes, images, and storage files"
 
 # Automatically create .env from .env.example if .env does not exist yet
 env:
@@ -129,8 +135,22 @@ status:
 
 ps: status
 
-clean:
+# Execute initial schema script inside running database container
+db-init:
+	$(COMPOSE) exec -T database /opt/mssql-tools18/bin/sqlcmd -S localhost -U $(DB_USER) -P "$$MSSQL_SA_PASSWORD" -C -i /scripts/schema/DB_ITEM_TABLE.sql
+
+# Open interactive sqlcmd terminal in running database container
+db-shell:
+	$(COMPOSE) exec database /opt/mssql-tools18/bin/sqlcmd -S localhost -U $(DB_USER) -P "$$MSSQL_SA_PASSWORD" -C
+
+clean-cache:
+	@find storage/temporary -mindepth 1 ! -name '.gitkeep' -delete 2>/dev/null || true
+
+clean-storage: clean-cache
+	@find storage/products -mindepth 1 ! -name '.gitkeep' -delete 2>/dev/null || true
+
+clean: clean-cache
 	$(COMPOSE) down -v --remove-orphans
 
-fclean:
+fclean: clean-storage
 	$(COMPOSE) down -v --rmi local --remove-orphans

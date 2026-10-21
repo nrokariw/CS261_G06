@@ -108,8 +108,16 @@ refactor / test / docs / chore: ...
 
 ---
 
-## แนวทางการจัดการฐานข้อมูล (MSSQL & Spring Data JPA)
+## แนวทางการจัดการฐานข้อมูลและไฟล์จัดเก็บ (MSSQL & Storage)
 
+- **SQL Scripts (`database/scripts/`)**: จัดเก็บแยกตามประเภทการทำงาน
+  - `schema/` — สำหรับสคริปต์สร้าง Database และตารางเริ่มต้น (DDL) เช่น `DB_ITEM_TABLE.sql`
+  - `seeds/` — สำหรับสคริปต์ Mock Data หรือข้อมูลเริ่มต้น (DML)
+  - `migrations/` — สำหรับสคริปต์ Alter Table / Migration ตามแต่ละ Sprint
+- **Storage & Caching (`storage/`)**:
+  - `storage/products/` — สำหรับจัดเก็บไฟล์รูปภาพสินค้า/สิ่งของที่อัปโหลด
+  - `storage/temporary/` — สำหรับจัดเก็บไฟล์แคชหรือไฟล์อัปโหลดชั่วคราว
+  - *(ไฟล์มีเดียและแคชถูกละเว้นใน `.gitignore` โดยอัตโนมัติ ห้ามลบ `.gitkeep`)*
 - โครงสร้างตารางจัดการผ่าน JPA Entity ใน `backend/demo/src/main/java/com/example/demo/model/`
 - สำหรับฟิลด์ที่ต้องเก็บข้อความภาษาไทย ให้ระบุชนิดข้อมูลเป็น `NVARCHAR` เสมอ (เช่น `@Column(columnDefinition = "NVARCHAR(255)")`) เพื่อป้องกันปัญหาตัวอักษรภาษาไทยเพี้ยนใน MSSQL
 - หากมีการแก้ไขฟิลด์ใน Entity ที่กระทบโครงสร้างตารางเดิม ให้แจ้งในกลุ่มและระบุไว้ในคำอธิบาย PR

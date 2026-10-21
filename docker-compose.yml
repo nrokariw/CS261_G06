@@ -16,6 +16,7 @@ services:
       - "${DB_PORT:-1433}:1433"
     volumes:
       - mssql_data:/var/opt/mssql
+      - ./database/scripts:/scripts
     healthcheck:
       # MSSQL 2022 relocated sqlcmd to mssql-tools18 and enforces TLS (-C); fallback to /dev/tcp if tools differ
       test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" || bash -c '</dev/tcp/localhost/1433'"]
@@ -29,7 +30,7 @@ services:
 
   backend:
     build:
-      context: ./backend/demo
+      context: ./backend
       dockerfile: Dockerfile
     container_name: cs261-backend
     env_file:
@@ -44,6 +45,11 @@ services:
       SPRING_DATASOURCE_PASSWORD: "${MSSQL_SA_PASSWORD:-StrongPassw0rd!}"
     ports:
       - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - ./backend/demo/uploads:/app/uploads
+      - ./storage/products:/app/uploads/products
+      - ./storage/temporary:/app/uploads/temporary
+      - ./storage:/app/storage
     depends_on:
       database:
         condition: service_healthy

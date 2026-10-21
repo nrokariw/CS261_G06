@@ -1,20 +1,71 @@
 package com.example.demo.model;
 
 import com.example.demo.constant.ItemStatus;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 
-@Entity 
+import java.util.UUID;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "items") 
 public class Item {
-    @Id 
+
     //define attributes
+    @Id
+    @Column(name = "item_id", length = 36, updatable = false, nullable = false)
     private String id;
-    private String title;
-    private String description;
-    private String category;
-    private ItemStatus status;
-    private String imageUrl;
+
+    @Column(name = "owner_id", nullable = false)
     private String ownerId;
+
+    @Column(nullable = false)
+    private String title;
+
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String description;
+
+    @Column(nullable = false)
+    private String category;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ItemStatus status = ItemStatus.AVAILABLE;
+
+    @Column(name = "image_url")
+    private String imageUrl;
+
+@   Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    // สั่งให้สุ่มสร้าง UUID และกำหนด วันที่ เวลา อัตโนมัติก่อนบันทึกลง Database
+    @PrePersist
+    protected void onCreate() {
+        if (this.id == null || this.id.isEmpty()) {
+            this.id = UUID.randomUUID().toString(); //สร้าง UUID 36 ตัว
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (this.createdAt == null) {
+            this.createdAt = now;
+        }
+        if (this.updatedAt == null) {
+            this.updatedAt = now;
+        }
+        if (this.status == null) {
+            this.status = ItemStatus.AVAILABLE;
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 
     /**
      * Default constructor สำหรับสร้างออบเจ็กต์ Item เปล่า
@@ -25,45 +76,63 @@ public class Item {
      * Constructor สำหรับสร้างและกำหนดค่าเริ่มต้นให้กับสิ่งของทั้งหมด
      * 
      * @param id          รหัสประจำตัวสิ่งของ (Item ID)
+     * @param ownerId     รหัสประจำตัวของเจ้าของสิ่งของ
      * @param title       ชื่อของสิ่งของ
      * @param description คำอธิบายเกี่ยวกับสิ่งของ
      * @param category    หมวดหมู่ของสิ่งของ
      * @param status      สถานะเริ่มต้นของสิ่งของ (เช่น AVAILABLE, BORROWED, RESERVED, UNAVAILABLE)
      * @param imageUrl    ลิงก์หรือที่อยู่ของรูปภาพสิ่งของที่อัปโหลด
-     * @param ownerId     รหัสประจำตัวของเจ้าของสิ่งของ
+     * @param createdAt   วันที่และเวลาที่สร้างสิ่งของ
+     * @param updatedAt   วันที่และเวลาที่อัปเดตสิ่งของ
+     * @param deletedAt   วันที่และเวลาที่ลบสิ่งของ
      */
-    public Item(String id, String title, String description, String category, ItemStatus status, String imageUrl, String ownerId) {
+    public Item(String id, String ownerId, String title, String description, String category, ItemStatus status, String imageUrl) {
         this.id = id;
+        this.ownerId = ownerId;
         this.title = title;
         this.description = description;
         this.category = category;
-        this.status = status;
+        this.status = status != null ? status : ItemStatus.AVAILABLE;
         this.imageUrl = imageUrl;
-        this.ownerId = ownerId;
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
     }
 
     //define getters and setters
-    public String getId() { return id; }
-    public String getTitle() { return title; }
-    public String getDescription() { return description; }
-    public String getCategory() { return category; }
-    public ItemStatus getStatus() { return status; }
-    public String getImageUrl() { return imageUrl; }
-    public String getOwnerId() { return ownerId; }
+public String getId() { return id; }
     public void setId(String id) { this.id = id; }
-    public void setTitle(String title) { this.title = title; }
-    public void setDescription(String description) { this.description = description; }
-    public void setCategory(String category) { this.category = category; }
-    public void setStatus(ItemStatus status) { this.status = status; }
-    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public String getOwnerId() { return ownerId; }
     public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
+    public ItemStatus getStatus() { return status; }
+    public void setStatus(ItemStatus status) { this.status = status; }
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
 
     //define methods
     public void updateDetails(String title, String description) {
         this.title = title;
         this.description = description;
+        this.updatedAt = LocalDateTime.now();
     }
-    public void updateStatus(ItemStatus status) { this.status = status; }
-    public void delete() { this.status = ItemStatus.UNAVAILABLE; }
+    public void updateStatus(ItemStatus status) {
+        this.status = status; 
+        this.updatedAt = LocalDateTime.now();
+    }
+    public void delete() {
+        this.status = ItemStatus.UNAVAILABLE; 
+        this.deletedAt = LocalDateTime.now();
+    }
 
 }
