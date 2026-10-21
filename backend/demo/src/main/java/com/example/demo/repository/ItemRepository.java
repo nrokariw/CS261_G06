@@ -15,4 +15,6 @@ public interface ItemRepository extends JpaRepository<Item, String> {
     // ค้นหาไอเท็มตามสถานะ (เช่น ดึงเฉพาะชิ้นที่ AVAILABLE อยู่)
     List<Item> findByStatus(ItemStatus status);
 
+    //ค้นหาตาม Status และ deletedt เป็น null เรียงตาม createdAt จากใหม่ไปเก่า (แสดงรายการสิ่งของที่เป็นไปตาม status เช่น AVAILABLE จาก ใหม่ไปเก่า)
+    List<Item> findByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(ItemStatus status);
 }

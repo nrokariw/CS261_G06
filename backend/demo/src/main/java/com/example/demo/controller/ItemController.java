@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import com.example.demo.model.Item;
+import com.example.demo.constant.ItemStatus;
 import com.example.demo.dto.ItemCreateDto;
 import com.example.demo.service.ItemService;
 import org.springframework.web.bind.annotation.*;
@@ -22,12 +23,39 @@ public class ItemController {
     }
 
     // 1. ดูรายการไอเท็มทั้งหมด
-    @GetMapping
+    @GetMapping("/all")
     public ResponseEntity<List<Item>> getAllItems() {
         return ResponseEntity.ok(itemService.getAllItems());
     }
 
-    // 2. เพิ่มไอเท็มใหม่ (รองรับ Multipart และตรวจสอบ Token / StudentId)
+    // 2. ดึงรายการสิ่งของที่พร้อมให้ยืม (AVAILABLE Items)
+    @GetMapping 
+    public ResponseEntity<List<Item>> getItems(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam(value = "status", required = false, defaultValue = "AVAILABLE") String status) {
+
+        // ตรวจสอบ JWT Token (คืนค่า 401 Unauthorized หากไม่มี Token หรือไม่ถูกต้อง)
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
+        }
+
+        // แปลงค่า Query Parameter String เป็น Enum ItemStatus
+        ItemStatus itemStatus;
+        try {
+            itemStatus = ItemStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            itemStatus = ItemStatus.AVAILABLE; // Default หากส่งค่าพารามิเตอร์ผิดพลาด
+        }
+
+        // เรียกใช้งาน Service เพื่อคิวรีข้อมูล
+        List<Item> items = itemService.getAvailableItems(itemStatus);
+
+        // คืนค่า 200 OK พร้อม Array ของรายการสิ่งของ
+        return ResponseEntity.ok(items);
+    }
+
+
+    // 3. เพิ่มไอเท็มใหม่ (รองรับ Multipart และตรวจสอบ Token / StudentId)
     @PostMapping(value = "/{studentId}", consumes = {"multipart/form-data"})
     public ResponseEntity<Item> createItem(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
