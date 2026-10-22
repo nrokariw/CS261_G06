@@ -28,6 +28,7 @@ export default function CreateListing({ items, setItems }) {
 
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState("");
+  const [submitError, setSubmitError] = useState("");
   const fileRef = useRef(null);
 
   function validate() {
@@ -77,6 +78,7 @@ export default function CreateListing({ items, setItems }) {
   async function submit(e) {
     e.preventDefault();
     setSuccess("");
+    setSubmitError("");
     if (!validate()) return;
 
     // ใช้ FormData สำหรับส่งไฟล์และข้อมูลไป Backend พร้อมกัน
@@ -133,6 +135,7 @@ export default function CreateListing({ items, setItems }) {
     window.setTimeout(() => navigate("/my-listings"), 650);
   } catch (err) {
       setErrors((prev) => ({ ...prev, submit: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" }));
+      setSubmitError(err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
   }
 }
 
@@ -272,6 +275,13 @@ export default function CreateListing({ items, setItems }) {
             ช่องที่มีเครื่องหมาย <b>*</b> จำเป็นต้องกรอก
           </span>
         </div>
+        {/* Inline Alert สำหรับแสดง Error ตอนกดบันทึก */}
+        {submitError && (
+          <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', padding: '12px', background: '#ffebee', color: '#c62828', borderRadius: '6px' }}>
+            <AlertCircle size={18} />
+            <span>{submitError}</span>
+          </div>
+        )}
         <div className="form-actions">
           <button
             type="button"
