@@ -3,8 +3,9 @@ package com.example.demo.model;
 import com.example.demo.constant.RequestStatus;
 
 import java.util.UUID;
-
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
@@ -18,15 +19,21 @@ public class BorrowRequest {
     private String borrowerId;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
-    private RequestStatus status;
+    private RequestStatus status = RequestStatus.PENDING;
     private LocalDateTime createdAt;
 
-    // สั่งให้สุ่มสร้าง UUID อัตโนมัติก่อนบันทึกลง Database
+    // สั่งให้สุ่มสร้าง UUID และกำหนดเวลาเป็น UTC+0 อัตโนมัติก่อนบันทึกลง Database
     @PrePersist
     protected void onCreate() {
         if (this.id == null || this.id.isEmpty()) {
             this.id = UUID.randomUUID().toString(); // สร้าง UUID 36 หลัก
         }   
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now(ZoneOffset.UTC); 
+        }
+        if (this.status == null) {
+            this.status = RequestStatus.PENDING;
+        }
     }
 
     /**
@@ -51,8 +58,8 @@ public class BorrowRequest {
         this.borrowerId = borrowerId;
         this.startDate = startDate;
         this.endDate = endDate;
-        this.status = status;
-        this.createdAt = createdAt;
+        this.status = status != null ? status : RequestStatus.PENDING;
+        this.createdAt = createdAt != null ? createdAt : LocalDateTime.now(ZoneOffset.UTC);
     }
 
     //define getters and setters

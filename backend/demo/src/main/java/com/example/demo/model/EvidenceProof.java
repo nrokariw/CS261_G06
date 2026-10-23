@@ -2,9 +2,12 @@ package com.example.demo.model;
 
 import com.example.demo.constant.ProofType;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.UUID;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
 
 @Entity 
 public class EvidenceProof {
@@ -18,6 +21,17 @@ public class EvidenceProof {
     private String note;
     private LocalDateTime capturedAt;
 
+    // สั่งให้สุ่มสร้าง UUID และกำหนดเวลาเป็น UTC+0 อัตโนมัติหากไม่ได้ระบุมา
+    @PrePersist
+    protected void onCreate() {
+        if (this.id == null || this.id.isEmpty()) {
+            this.id = UUID.randomUUID().toString(); // สร้าง UUID 36 หลัก
+        }
+        if (this.capturedAt == null) {
+            this.capturedAt = LocalDateTime.now(ZoneOffset.UTC); // บันทึกเวลาเป็น UTC+0 เสมอ
+        }
+    }
+    
     /**
      * Default constructor สำหรับสร้างออบเจ็กต์ EvidenceProof เปล่า
      */
@@ -41,7 +55,7 @@ public class EvidenceProof {
         this.proofType = proofType;
         this.imageUrl = imageUrl;
         this.note = note;
-        this.capturedAt = capturedAt;
+        this.capturedAt = capturedAt != null ? capturedAt : LocalDateTime.now(ZoneOffset.UTC);
     }
 
     //define getters and setters

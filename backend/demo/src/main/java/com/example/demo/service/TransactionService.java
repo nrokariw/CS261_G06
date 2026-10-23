@@ -13,7 +13,7 @@ import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
-
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
@@ -53,13 +53,15 @@ public class TransactionService {
         }
         itemRepository.save(item);
 
-        // สร้าง Transaction ใหม่โดยใช้ค่าที่ได้จาก TransactionStatus
+        // สร้าง Transaction ใหม่โดยใช้ค่าที่ได้จาก TransactionStatus และกำหนดเวลาเป็น UTC+0
         Transaction transaction = new Transaction();
         transaction.setId(java.util.UUID.randomUUID().toString());
+        transaction.setRequestId(request.getId()); // ผูกกับ Request ID
         transaction.setItemId(request.getItemId());
         transaction.setBorrowerId(request.getBorrowerId());
+        transaction.setLenderId(item.getOwnerId()); // ดึงรหัสเจ้าของไอเท็มมาเป็น lenderId
         transaction.setStatus(currentStatus);
-        transaction.setBorrowedAt(LocalDateTime.now());
+        transaction.setBorrowedAt(LocalDateTime.now(ZoneOffset.UTC)); 
         transaction.setReturnedAt(null);
 
         return transactionRepository.save(transaction);

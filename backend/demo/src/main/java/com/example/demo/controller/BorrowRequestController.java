@@ -6,6 +6,8 @@ import com.example.demo.service.BorrowRequestService;
 import org.springframework.cglib.core.Local;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 import java.util.List;
 
@@ -20,7 +22,7 @@ public class BorrowRequestController {
         this.borrowService = borrowService;
     }
 
-    // 1. ส่งคำขอยืมไอเท็ม
+    // 1. ส่งคำขอยืมไอเท็ม (รองรับ Client local time พร้อม UTC tag หรือ Offset)
     @PostMapping("/request")
     public BorrowRequest requestBorrow(
             @RequestParam String borrowerId,
@@ -28,11 +30,21 @@ public class BorrowRequestController {
             @RequestParam String startDate,
             @RequestParam String endDate) {
         
+        // ใช้ OffsetDateTime.parse() เพื่อรองรับเครื่องหมาย 'Z' (UTC) หรือ Offset เช่น '+07:00'
+        // แล้วแปลงให้เป็น LocalDateTime ในเขตเวลา UTC+0 ก่อนบันทึก
+        LocalDateTime utcStartDate = OffsetDateTime.parse(startDate)
+                .withOffsetSameInstant(ZoneOffset.UTC)
+                .toLocalDateTime();
+                
+        LocalDateTime utcEndDate = OffsetDateTime.parse(endDate)
+                .withOffsetSameInstant(ZoneOffset.UTC)
+                .toLocalDateTime();
+
         return borrowService.requestBorrow(
             borrowerId, 
             itemId, 
-            LocalDateTime.parse(startDate), 
-            LocalDateTime.parse(endDate)
+            utcStartDate, 
+            utcEndDate
         );
     }
 

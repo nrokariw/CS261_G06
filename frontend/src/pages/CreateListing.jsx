@@ -20,10 +20,15 @@ export default function CreateListing({ items, setItems }) {
   const [name, setName] = useState(editingItem?.name || "");
   const [category, setCategory] = useState(editingItem?.category || "");
   const [detail, setDetail] = useState(editingItem?.detail || "");
-  const [image, setImage] = useState(editingItem?.image || "");
+  
+  // เปลี่ยนเก็บเป็น File Object แทน Base64 String
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(editingItem?.image || "");
   const [imageFileName, setImageFileName] = useState("");
+
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState("");
+  const [submitError, setSubmitError] = useState("");
   const fileRef = useRef(null);
 
   function validate() {
@@ -38,34 +43,87 @@ export default function CreateListing({ items, setItems }) {
   function chooseImage(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setErrors((prev) => ({ ...prev, image: "กรุณาเลือกไฟล์รูปภาพเท่านั้น" }));
+
+    // 1. ตรวจสอบนามสกุลไฟล์ก่อนถึง backend (JPG, PNG, WEBP)
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      setErrors((prev) => ({ 
+        ...prev, 
+        image: "กรุณาเลือกไฟล์รูปภาพสกุล JPG, PNG หรือ WEBP เท่านั้น" 
+      }));
       return;
     }
-    if (file.size > 3 * 1024 * 1024) {
-      setErrors((prev) => ({ ...prev, image: "รูปภาพต้องมีขนาดไม่เกิน 3 MB" }));
+
+    // 2. ตรวจสอบขนาดไม่ให้เกิน 3MB ก่อนถึง backend 
+    const maxSizeInBytes = 3 * 1024 * 1024;
+    if (file.size > maxSizeInBytes) {
+      setErrors((prev) => ({ 
+        ...prev, 
+        image: "ขนาดไฟล์ต้องไม่เกิน 3 MB" 
+      }));
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setImage(String(reader.result));
-    reader.readAsDataURL(file);
+
+    // เก็บ File Object จริงไว้เตรียมส่ง FormData
+    setImageFile(file);
     setImageFileName(file.name);
+
+    // สร้าง Preview สำหรับแสดงผลชั่วคราวบนหน้าจอ
+    const reader = new FileReader();
+    reader.onload = () => setImagePreview(String(reader.result));
+    reader.readAsDataURL(file);
     setErrors((prev) => ({ ...prev, image: "" }));
   }
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
     setSuccess("");
+    setSubmitError("");
     if (!validate()) return;
-    const record = {
-      id: editingItem?.id || crypto.randomUUID(),
-      name: name.trim(),
-      category,
-      detail,
-      image,
-      owner: editingItem?.owner || user.name,
-      status: "available",
-    };
+
+    // ใช้ FormData สำหรับส่งไฟล์และข้อมูลไป Backend พร้อมกัน
+    const formData = new FormData();
+
+    // แมปชื่อจากฝั่ง Frontend ให้ตรงกับ DTO ฝั่ง Backend
+    formData.append("title", name.trim());
+    formData.append("category", category);
+    formData.append("description", detail.trim());
+
+    // แนบไฟล์จริงไปกับ Key ที่ Backend รอรับ 
+    if (imageFile) {
+      formData.append("imageFile", imageFile);
+    }
+
+    try {
+      // ส่ง Request หรือ ยิง API ไปหา Backend
+      const studentId = user?.studentId || "6400000001"; // ดึงจาก Auth หรือค่าเริ่มต้น
+      const response = await fetch(`/api/items/${studentId}`, {
+        method: "POST",
+        headers: {
+          // แนบ JWT Token ใน Header ตามที่ระบบ Backend ตรวจสอบสิทธิ์
+          "Authorization": `Bearer ${user?.token || localStorage.getItem("token")}`
+          // หมายเหตุ: ห้ามใส่ Content-Type: application/json เด็ดขาด เพราะใช้ FormData
+        },
+        body: formData, // ส่ง FormData (ห้ามใส่ Content-Type เด็ดขาด เดี๋ยว Browser จัดการให้เอง)
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || "ไม่สามารถบันทึกข้อมูลได้");
+      }
+
+      const result = await response.json();
+
+      // บันทึกลง State ฝั่ง frontend (อันเดิม)
+      const record = {
+        id: editingItem?.id || crypto.randomUUID(),
+        name: name.trim(),
+        category,
+        detail,
+        image: imagePreview,
+        owner: editingItem?.owner || user.name,
+        status: "available",
+      };
     if (editingItem)
       setItems((prev) =>
         prev.map((item) => (item.id === editingItem.id ? record : item)),
@@ -75,7 +133,11 @@ export default function CreateListing({ items, setItems }) {
       editingItem ? "แก้ไขประกาศเรียบร้อยแล้ว" : "สร้างประกาศเรียบร้อยแล้ว",
     );
     window.setTimeout(() => navigate("/my-listings"), 650);
+  } catch (err) {
+      setErrors((prev) => ({ ...prev, submit: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" }));
+      setSubmitError(err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
   }
+}
 
   return (
     <div className="page-stack narrow-page">
@@ -175,7 +237,7 @@ export default function CreateListing({ items, setItems }) {
         <input
           ref={fileRef}
           type="file"
-          accept="image/*"
+          accept=".jpg, .jpeg, .png, .webp"
           className="visually-hidden"
           onChange={chooseImage}
         />
@@ -184,10 +246,10 @@ export default function CreateListing({ items, setItems }) {
           className="upload-zone"
           onClick={() => fileRef.current?.click()}
         >
-          {image ? (
+          {imagePreview ? (
             <img
               className="upload-preview"
-              src={image}
+              src={imagePreview}
               alt="ตัวอย่างรูปสิ่งของ"
             />
           ) : (
@@ -200,7 +262,7 @@ export default function CreateListing({ items, setItems }) {
             </>
           )}{" "}
           {/* จะกำหนดขนาดเท่าไรเช่น ไม่เกิน 3 MB */}
-          {image && (
+          {imagePreview && (
             <span className="upload-change">
               <UploadCloud size={15} /> {imageFileName || "เปลี่ยนรูปภาพ"}
             </span>
@@ -213,6 +275,13 @@ export default function CreateListing({ items, setItems }) {
             ช่องที่มีเครื่องหมาย <b>*</b> จำเป็นต้องกรอก
           </span>
         </div>
+        {/* Inline Alert สำหรับแสดง Error ตอนกดบันทึก */}
+        {submitError && (
+          <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', padding: '12px', background: '#ffebee', color: '#c62828', borderRadius: '6px' }}>
+            <AlertCircle size={18} />
+            <span>{submitError}</span>
+          </div>
+        )}
         <div className="form-actions">
           <button
             type="button"

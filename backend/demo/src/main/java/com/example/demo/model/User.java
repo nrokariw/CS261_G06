@@ -3,6 +3,8 @@ package com.example.demo.model;
 import com.example.demo.constant.RequestStatus;
 import com.example.demo.constant.ItemStatus;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+
 import org.springframework.cglib.core.Local;
 
 import jakarta.persistence.Entity;
@@ -60,7 +62,6 @@ public class User {
         return this.studentId != null && !this.studentId.isEmpty();
     }
     public Item createItem(Item itemData) {
-
         if (itemData.getStatus() == null) {
                 itemData.setStatus(ItemStatus.AVAILABLE);
             }
@@ -78,13 +79,13 @@ public class User {
     public BorrowRequest requestBorrow(String itemId, LocalDateTime startDate, LocalDateTime endDate) {
         //id ของ BorrowRequest ให้ทาง Service หรือ Database จัดการสร้างให้ทีหลัง 
         return new BorrowRequest(
-            null,             // id
-            itemId,              // itemId
-            this.studentId,      // borrowerId
-            startDate,           // startDate
-            endDate,             // endDate
-            RequestStatus.PENDING, // status เริ่มต้น
-            LocalDateTime.now()       // createdAt
+            null,                               // id
+            itemId,                                 // itemId
+            this.studentId,                         // borrowerId
+            startDate,                              // startDate
+            endDate,                                // endDate
+            RequestStatus.PENDING,                  // status เริ่มต้น
+            LocalDateTime.now(ZoneOffset.UTC)       // createdAt
         );
     }
 

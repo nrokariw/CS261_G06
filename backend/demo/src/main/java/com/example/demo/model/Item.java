@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import java.util.UUID;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "items") 
@@ -35,7 +36,7 @@ public class Item {
     @Column(name = "image_url")
     private String imageUrl;
 
-@   Column(name = "created_at", updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
@@ -44,18 +45,18 @@ public class Item {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    // สั่งให้สุ่มสร้าง UUID และกำหนด วันที่ เวลา อัตโนมัติก่อนบันทึกลง Database
+    // สั่งให้สุ่มสร้าง UUID และกำหนด วันที่ เวลา เป็น UTC+0 อัตโนมัติก่อนบันทึกลง Database
     @PrePersist
     protected void onCreate() {
         if (this.id == null || this.id.isEmpty()) {
             this.id = UUID.randomUUID().toString(); //สร้าง UUID 36 ตัว
         }
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
         if (this.createdAt == null) {
-            this.createdAt = now;
+            this.createdAt = nowUtc;
         }
         if (this.updatedAt == null) {
-            this.updatedAt = now;
+            this.updatedAt = nowUtc;
         }
         if (this.status == null) {
             this.status = ItemStatus.AVAILABLE;
@@ -64,7 +65,7 @@ public class Item {
 
     @PreUpdate
     protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     /**
@@ -94,12 +95,13 @@ public class Item {
         this.category = category;
         this.status = status != null ? status : ItemStatus.AVAILABLE;
         this.imageUrl = imageUrl;
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
+        this.createdAt = nowUtc;
+        this.updatedAt = nowUtc;
     }
 
     //define getters and setters
-public String getId() { return id; }
+    public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public String getOwnerId() { return ownerId; }
     public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
@@ -124,15 +126,15 @@ public String getId() { return id; }
     public void updateDetails(String title, String description) {
         this.title = title;
         this.description = description;
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
     public void updateStatus(ItemStatus status) {
         this.status = status; 
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
     public void delete() {
         this.status = ItemStatus.UNAVAILABLE; 
-        this.deletedAt = LocalDateTime.now();
+        this.deletedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
 }

@@ -18,7 +18,7 @@ WORKDIR /app
 COPY --from=build /app/target/*.war app.war
 
 # สร้างโฟลเดอร์ uploads/images รอไว้ใน Container
-RUN mkdir -p uploads/images
+RUN mkdir -p uploads/products
 
 EXPOSE 8080
 
