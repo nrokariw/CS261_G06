@@ -11,7 +11,7 @@ export default function MyListings({ items, setItems }) {
   const [notice, setNotice] = useState("");
   const mine = items.filter(
     (item) =>
-      item.owner === user.name &&
+      item.ownerId === user.id &&
       item.status !== "deleted" &&
       item.name.toLowerCase().includes(query.toLowerCase()),
   );

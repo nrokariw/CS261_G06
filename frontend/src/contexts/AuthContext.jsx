@@ -1,6 +1,6 @@
 import React, {createContext, useContext, useState} from "react";
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 export function AuthProvider({children}){
     const [user] = useState({
@@ -10,8 +10,24 @@ export function AuthProvider({children}){
         role: "STUDENT"
     });
 
+    //เพิ่ม state สำหรับ token
+    const [token, setToken] = useState(null);
+    
+    //ฟังก์ชันจำลองการ Login
+    const login = async (username, password) => {
+        //เชื่อมต่อกับ API ตรงนี้
+        console.log("Mock login...");
+        setToken("Mock-jwt-token-123")
+    };
+
+    //ฟังก์ชันการจำลองการ logout
+    const logout = () => {
+        setUser(null);
+        setToken(null);
+    };
+
     return(
-        <AuthContext.Provider value={{ user }}>
+        <AuthContext.Provider value={{ user, token, login, logout }}>
             {children}
         </AuthContext.Provider>
     );
@@ -20,3 +36,4 @@ export function AuthProvider({children}){
  export function useAuth(){
         return useContext(AuthContext);
     }
+    
