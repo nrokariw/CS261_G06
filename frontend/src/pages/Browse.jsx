@@ -1,9 +1,18 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Search, Plus, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
 import { CATEGORIES, getCategoryLabel, normalizeCategoryKey } from "../data";
 import { ItemCard, PageHeading, EmptyState } from "../components/UI";
+import { useAuth } from "../contexts/AuthContext";
+import { fetchItems } from "../api/items";
+
+export default function Browse() {
+  const { user } = useAuth();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+}
 
 export default function Browse({ items }) {
   const { t } = useTranslation();
@@ -17,13 +26,16 @@ export default function Browse({ items }) {
         const text =
           `${item.name} ${categoryText} ${item.owner}`.toLowerCase();
         return (
-          item.status !== "deleted" &&
+          item.status === "available" &&
           text.includes(query.toLowerCase()) &&
           (category === "ALL" || !category || itemCategoryKey === category)
         );
       }),
     [items, query, category],
   );
+
+  if(loading) return <div className="page-stack">กำลังโหลดข้อมูล...</div>;
+  if(error) return <div className="page-stack"><EmptyState title="เกิดข้อผิดพลาด" description={error}/></div>
 
   return (
     <div className="page-stack">

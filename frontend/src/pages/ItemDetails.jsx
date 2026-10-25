@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -16,12 +16,16 @@ import { BORROW_REASON_MAX_LENGTH } from "../constants/config";
 import { getCategoryLabel, normalizeCategoryKey } from "../data";
 import { createBorrowRequest } from "../api/requestsApi";
 
-export default function ItemDetails({ items, setRequests }) {
+export default function ItemDetails({ setRequests }) {
   const { user } = useAuth();
   const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
-  const item = items.find((i) => i.id === id && i.status !== "deleted");
+
+  const [item, setItem] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState(""); 
+
   const [borrowDate, setBorrowDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [reason, setReason] = useState("");
@@ -68,6 +72,7 @@ export default function ItemDetails({ items, setRequests }) {
       ...prev,
     ]);
     setSuccess(true);
+    setTimeout(() => navigate("/my-borrows"), 1500);
   }
 
   if (!item)
@@ -229,6 +234,33 @@ export default function ItemDetails({ items, setRequests }) {
                 <Send size={16} /> {t("itemDetails.submitRequest")}
               </button>
             </form>
+          )}
+
+          {/*แสดงข้อความสำเร็จเมื่อกดส่งคำขอเรียบร้อยแล้ว*/}
+          {success && (
+            <div className="request-success">
+              <span>
+                <CheckCircle2 size={28} />
+              </span>
+              <h3>ส่งคำขอเรียบร้อยแล้ว!</h3>
+              <p>ระบบกำลังพาคุณไปยังหน้าประวัติการยืม...</p>
+            </div>
+          )}
+
+          {/*แจ้งเตือนหากผู้ใช้คือเจ้าของสิ่งของ*/}
+          {isOwner && (
+            <div className="borrow-note" style={{ color: 'blue', marginTop: '15px' }}>
+              <ShieldCheck size={17} /> 
+              <span>คุณเป็นเจ้าของสิ่งของชิ้นนี้ ไม่สามารถยืมของตัวเองได้</span>
+            </div>
+          )}
+
+          {/*แจ้งเตือนหากสิ่งของถูกยืมหรือจองไปแล้ว*/}
+          {!isAvailable && !isOwner && (
+            <div className="borrow-note" style={{ color: 'red', marginTop: '15px' }}>
+              <ShieldCheck size={17} /> 
+              <span>สิ่งของชิ้นนี้ไม่อยู่ในสถานะพร้อมให้ยืม (อาจถูกจองหรือยืมไปแล้ว)</span>
+            </div>
           )}
         </aside>
       </div>
