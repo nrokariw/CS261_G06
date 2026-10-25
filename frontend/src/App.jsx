@@ -13,7 +13,6 @@ import {
   Moon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { SEED_ITEMS, SEED_REQUESTS } from "./data";
 import { Avatar } from "./components/UI";
 import Browse from "./pages/Browse";
 import CreateListing from "./pages/CreateListing";
@@ -23,15 +22,9 @@ import IncomingRequests from "./pages/IncomingRequests";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./contexts/AuthContext";
 import { useTheme } from "./contexts/ThemeContext";
-
-function readStore(key, fallback) {
-  try {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
-  } catch {
-    return fallback;
-  }
-}
+import { loadRuntimeConfig } from "./api/client";
+import { getAllItems, getAvailableItems } from "./api/itemsApi";
+import { getBorrowRequests } from "./api/requestsApi";
 
 function BrandMark() {
   return (
@@ -43,27 +36,38 @@ function BrandMark() {
 }
 
 export default function App() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
-  const [items, setItems] = useState(() =>
-    readStore("campusshare-items", SEED_ITEMS),
-  );
-  const [requests, setRequests] = useState(() =>
-    readStore("campusshare-requests", SEED_REQUESTS),
-  );
+  const [items, setItems] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [mobileMenu, setMobileMenu] = useState(false);
   const location = useLocation();
 
-  useEffect(
-    () => localStorage.setItem("campusshare-items", JSON.stringify(items)),
-    [items],
-  );
-  useEffect(
-    () =>
-      localStorage.setItem("campusshare-requests", JSON.stringify(requests)),
-    [requests],
-  );
+  useEffect(() => {
+    let active = true;
+    async function fetchInitialData() {
+      await loadRuntimeConfig();
+      const loadedItems = await getAllItems(token)
+        .catch(() => getAvailableItems("AVAILABLE", token))
+        .catch(() => []);
+      if (!active) return;
+      setItems(loadedItems);
+
+      const loadedRequests = await getBorrowRequests(
+        user,
+        token,
+        loadedItems,
+      ).catch(() => []);
+      if (!active) return;
+      setRequests(loadedRequests);
+    }
+    fetchInitialData();
+    return () => {
+      active = false;
+    };
+  }, [user, token]);
+
   useEffect(() => setMobileMenu(false), [location.pathname]);
 
   const pendingCount = requests.filter((r) => r.status === "pending").length;

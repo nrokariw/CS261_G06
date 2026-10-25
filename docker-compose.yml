@@ -69,6 +69,8 @@ services:
         VITE_API_ITEMS_PATH: ${API_ITEMS_PATH:-/api/items}
         VITE_API_REQUESTS_PATH: ${API_REQUESTS_PATH:-/api/requests}
         VITE_API_USERS_PATH: ${API_USERS_PATH:-/api/users}
+        VITE_API_TRANSACTIONS_PATH: ${API_TRANSACTIONS_PATH:-/api/transactions}
+        VITE_API_EVIDENCE_PATH: ${API_EVIDENCE_PATH:-/api/evidence}
     container_name: cs261-frontend
     env_file:
       - .env.example
@@ -81,6 +83,8 @@ services:
       API_ITEMS_PATH: ${API_ITEMS_PATH:-/api/items}
       API_REQUESTS_PATH: ${API_REQUESTS_PATH:-/api/requests}
       API_USERS_PATH: ${API_USERS_PATH:-/api/users}
+      API_TRANSACTIONS_PATH: ${API_TRANSACTIONS_PATH:-/api/transactions}
+      API_EVIDENCE_PATH: ${API_EVIDENCE_PATH:-/api/evidence}
     ports:
       - "${FRONTEND_PORT:-3000}:80"
     depends_on:

@@ -1,7 +1,12 @@
-import React from "react";
-import { Check, X } from "lucide-react";
+import React, { useState } from "react";
+import { Check, X, AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeading, StatusBadge, EmptyState, Avatar } from "../components/UI";
+import { useAuth } from "../contexts/AuthContext";
+import {
+  updateBorrowRequestStatus,
+  cancelBorrowRequest,
+} from "../api/requestsApi";
 
 function formatDate(date, language = "th") {
   if (!date) return "—";
@@ -14,14 +19,28 @@ function formatDate(date, language = "th") {
 }
 
 export default function IncomingRequests({ requests, setRequests }) {
+  const { user, token } = useAuth();
   const { t, i18n } = useTranslation();
+  const [actionError, setActionError] = useState("");
   const pending = requests.filter((r) => r.status === "pending").length;
   const accepted = requests.filter((r) => r.status === "accepted").length;
 
-  function updateStatus(id, status) {
-    setRequests((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status } : r)),
-    );
+  async function updateStatus(id, status) {
+    setActionError("");
+    const authToken = token || user?.token;
+    const ownerId = user?.studentId || user?.id;
+    try {
+      if (status === "cancelled") {
+        await cancelBorrowRequest(id, authToken);
+      } else {
+        await updateBorrowRequestStatus(id, status, { ownerId }, authToken);
+      }
+      setRequests((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status } : r)),
+      );
+    } catch (err) {
+      setActionError(err.message || t("validation.submitFailed"));
+    }
   }
 
   return (
@@ -47,6 +66,16 @@ export default function IncomingRequests({ requests, setRequests }) {
           </div>
         }
       />
+
+      {actionError && (
+        <div className="alert alert-error" style={{ background: "#FCE8E4", color: "#B9382B" }}>
+          <AlertCircle size={17} />
+          <span>{actionError}</span>
+          <button onClick={() => setActionError("")} className="alert-close">
+            {t("myListings.closeAlert")}
+          </button>
+        </div>
+      )}
 
       {requests.length ? (
         <div className="requests-list requests-list-updated">

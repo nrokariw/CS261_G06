@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   CalendarDays,
   CheckCircle2,
+  AlertCircle,
   MapPin,
   ShieldCheck,
   UserRound,
@@ -14,10 +15,10 @@ import { PageHeading, StatusBadge } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { BORROW_REASON_MAX_LENGTH } from "../constants/config";
 import { getCategoryLabel, normalizeCategoryKey } from "../data";
-import { createBorrowRequest } from "../api/requestsApi";
+import { createBorrowRequest, normalizeBorrowRequest } from "../api/requestsApi";
 
 export default function ItemDetails({ items, setRequests }) {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
@@ -26,11 +27,13 @@ export default function ItemDetails({ items, setRequests }) {
   const [returnDate, setReturnDate] = useState("");
   const [reason, setReason] = useState("");
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState("");
   const [success, setSuccess] = useState(false);
   const today = new Date().toLocaleDateString("en-CA");
 
   async function submit(e) {
     e.preventDefault();
+    setSubmitError("");
     const next = {};
     if (!borrowDate) next.borrowDate = t("validation.borrowDateRequired");
     if (!returnDate) next.returnDate = t("validation.returnDateRequired");
@@ -49,25 +52,30 @@ export default function ItemDetails({ items, setRequests }) {
       endDate: returnDate,
       reason: reason.trim(),
     };
-    const apiResult = await createBorrowRequest(payload, user?.token).catch(
-      () => null,
-    );
-
-    setRequests((prev) => [
-      {
-        id: apiResult?.id || crypto.randomUUID(),
-        itemId: item.id,
-        itemName: item.name,
-        borrower: user.name,
-        borrowerId: user.id,
-        borrowDate,
-        returnDate,
-        reason: reason.trim(),
-        status: "pending",
-      },
-      ...prev,
-    ]);
-    setSuccess(true);
+    try {
+      const apiResult = await createBorrowRequest(
+        payload,
+        token || user?.token,
+      );
+      const normalized = normalizeBorrowRequest(apiResult, items);
+      setRequests((prev) => [
+        {
+          id: normalized?.id || apiResult?.id,
+          itemId: item.id,
+          itemName: item.name,
+          borrower: user?.name || payload.borrowerId,
+          borrowerId: payload.borrowerId,
+          borrowDate: normalized?.borrowDate || borrowDate,
+          returnDate: normalized?.returnDate || returnDate,
+          reason: normalized?.reason || reason.trim(),
+          status: normalized?.status || "pending",
+        },
+        ...prev,
+      ]);
+      setSuccess(true);
+    } catch (err) {
+      setSubmitError(err.message || t("validation.submitFailed"));
+    }
   }
 
   if (!item)
@@ -222,6 +230,12 @@ export default function ItemDetails({ items, setRequests }) {
                 <ShieldCheck size={17} />
                 <span>{t("itemDetails.borrowNote")}</span>
               </div>
+              {submitError && (
+                <small className="field-error" style={{ marginBottom: "12px" }}>
+                  <AlertCircle size={13} />
+                  {submitError}
+                </small>
+              )}
               <button
                 className="button button-primary button-full"
                 type="submit"
