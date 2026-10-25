@@ -76,7 +76,13 @@ export async function apiRequest(endpoint, options = {}) {
   });
 
   if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
+    const rawText = await response.text().catch(() => "");
+    let errData = {};
+    try {
+      errData = rawText ? JSON.parse(rawText) : {};
+    } catch {
+      errData = { message: rawText };
+    }
     const error = new Error(
       errData.message || errData.error || `Request failed (${response.status})`,
     );

@@ -23,6 +23,7 @@ import NotFound from "./pages/NotFound";
 import { useAuth } from "./contexts/AuthContext";
 import { useTheme } from "./contexts/ThemeContext";
 import { loadRuntimeConfig } from "./api/client";
+import { createUser } from "./api/authApi";
 import { getAllItems, getAvailableItems } from "./api/itemsApi";
 import { getBorrowRequests } from "./api/requestsApi";
 
@@ -48,6 +49,19 @@ export default function App() {
     let active = true;
     async function fetchInitialData() {
       await loadRuntimeConfig();
+      const studentId = user?.studentId || user?.id;
+      if (studentId) {
+        await createUser(
+          {
+            studentId,
+            username: studentId,
+            fullName: user?.name || studentId,
+            email: user?.email || "",
+            faculty: user?.faculty || "",
+          },
+          token,
+        ).catch(() => null);
+      }
       const loadedItems = await getAllItems(token)
         .catch(() => getAvailableItems("AVAILABLE", token))
         .catch(() => []);
@@ -186,6 +200,7 @@ export default function App() {
                 <IncomingRequests
                   requests={requests}
                   setRequests={setRequests}
+                  setItems={setItems}
                 />
               }
             />

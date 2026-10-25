@@ -73,6 +73,7 @@ export async function createBorrowRequest(payload, token) {
         itemId: payload.itemId,
         startDate: `${payload.startDate}T00:00:00Z`,
         endDate: `${payload.endDate}T23:59:59Z`,
+        ...(payload.reason ? { reason: payload.reason } : {}),
       });
       return apiRequest(`${LEGACY_REQUESTS_PATH}/request?${query.toString()}`, {
         method: "POST",
@@ -96,7 +97,7 @@ export async function updateBorrowRequestStatus(
   try {
     return await apiRequest(`${requests}/${encodeURIComponent(id)}/status`, {
       method: "PATCH",
-      body: { action, status: normalizedStatus.toUpperCase(), reason },
+      body: { action, status: normalizedStatus.toUpperCase(), ownerId, reason },
       token,
     });
   } catch (err) {

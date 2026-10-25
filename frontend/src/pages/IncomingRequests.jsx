@@ -18,7 +18,7 @@ function formatDate(date, language = "th") {
   });
 }
 
-export default function IncomingRequests({ requests, setRequests }) {
+export default function IncomingRequests({ requests, setRequests, setItems }) {
   const { user, token } = useAuth();
   const { t, i18n } = useTranslation();
   const [actionError, setActionError] = useState("");
@@ -29,6 +29,7 @@ export default function IncomingRequests({ requests, setRequests }) {
     setActionError("");
     const authToken = token || user?.token;
     const ownerId = user?.studentId || user?.id;
+    const targetReq = requests.find((r) => r.id === id);
     try {
       if (status === "cancelled") {
         await cancelBorrowRequest(id, authToken);
@@ -38,6 +39,21 @@ export default function IncomingRequests({ requests, setRequests }) {
       setRequests((prev) =>
         prev.map((r) => (r.id === id ? { ...r, status } : r)),
       );
+      if (setItems && targetReq?.itemId) {
+        const nextItemStatus =
+          status === "accepted"
+            ? "reserved"
+            : status === "cancelled"
+              ? "unavailable"
+              : "available";
+        setItems((prev) =>
+          prev.map((item) =>
+            item.id === targetReq.itemId
+              ? { ...item, status: nextItemStatus }
+              : item,
+          ),
+        );
+      }
     } catch (err) {
       setActionError(err.message || t("validation.submitFailed"));
     }

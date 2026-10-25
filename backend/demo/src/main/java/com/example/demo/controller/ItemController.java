@@ -87,5 +87,25 @@ public class ItemController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         } 
     }
+
+    @PutMapping(value = "/{itemId}", consumes = {"application/json"})
+    public ResponseEntity<Item> updateItemJson(
+            @PathVariable String itemId,
+            @RequestBody ItemCreateDto itemUpdateDto) {
+        return ResponseEntity.ok(itemService.updateItem(itemId, itemUpdateDto));
+    }
+
+    @PutMapping(value = "/{itemId}", consumes = {"multipart/form-data"})
+    public ResponseEntity<Item> updateItemMultipart(
+            @PathVariable String itemId,
+            @ModelAttribute ItemCreateDto itemUpdateDto) {
+        return ResponseEntity.ok(itemService.updateItem(itemId, itemUpdateDto));
+    }
+
+    @DeleteMapping("/{itemId}")
+    public ResponseEntity<Void> deleteItem(@PathVariable String itemId) {
+        itemService.deleteItem(itemId);
+        return ResponseEntity.noContent().build();
+    }
 }
 

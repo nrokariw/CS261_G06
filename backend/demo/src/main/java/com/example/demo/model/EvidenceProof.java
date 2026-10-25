@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
@@ -18,6 +19,7 @@ public class EvidenceProof {
     private String uploaderId;
     private ProofType proofType;
     private String imageUrl;
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String note;
     private LocalDateTime capturedAt;
 
