@@ -28,11 +28,11 @@ export default function Browse({ items }) {
   return (
     <div className="page-stack">
       <PageHeading
-        eyebrow="DISCOVER & BORROW"
-        title="ค้นหาสิ่งของ"
-        subtitle="ค้นหาของที่เพื่อนๆ เปิดให้ยืมภายในมหาวิทยาลัย"
+        eyebrow={t("browse.eyebrow")}
+        title={t("browse.title")}
+        subtitle={t("browse.subtitle")}
         action={
-          <span className="result-count">{availableItems.length} รายการ</span>
+          <span className="result-count">{t("browse.resultCount", { count: availableItems.length })}</span>
         }
       />
       <section className="filter-panel">
@@ -41,11 +41,11 @@ export default function Browse({ items }) {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="ค้นหาชื่อสิ่งของหรือเจ้าของ"
+            placeholder={t("browse.searchPlaceholder")}
           />
         </label>
         <label className="select-box">
-          <span>หมวดหมู่</span>
+          <span>{t("browse.categoryLabel")}</span>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
@@ -79,17 +79,17 @@ export default function Browse({ items }) {
         </section>
       ) : (
         <EmptyState
-          title="ไม่พบสิ่งของที่ค้นหา"
-          description="ลองเปลี่ยนคำค้นหาหรือเลือกหมวดหมู่อื่น"
+          title={t("browse.emptyTitle")}
+          description={t("browse.emptyDesc")}
         />
       )}
       <div className="bottom-cta">
         <div>
-          <strong>ลงประกาศของที่ให้ยืม</strong>
-          <p>เพิ่มรายละเอียดของที่อยากให้เพื่อนยืมได้เลย</p>
+          <strong>{t("browse.ctaTitle")}</strong>
+          <p>{t("browse.ctaDesc")}</p>
         </div>
         <Link to="/create" className="button button-primary">
-          <Plus size={17} /> สร้างประกาศ
+          <Plus size={17} /> {t("browse.ctaButton")}
         </Link>
       </div>
     </div>

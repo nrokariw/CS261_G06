@@ -14,7 +14,7 @@ function formatDate(date, language = "th") {
 }
 
 export default function IncomingRequests({ requests, setRequests }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const pending = requests.filter((r) => r.status === "pending").length;
   const accepted = requests.filter((r) => r.status === "accepted").length;
 
@@ -27,21 +27,21 @@ export default function IncomingRequests({ requests, setRequests }) {
   return (
     <div className="page-stack">
       <PageHeading
-        eyebrow="INCOMING REQUESTS"
-        title="คำขอยืมที่เข้ามา"
-        subtitle="ตรวจสอบรายละเอียดก่อนตัดสินใจรับหรือปฏิเสธคำขอ"
+        eyebrow={t("incomingRequests.eyebrow")}
+        title={t("incomingRequests.title")}
+        subtitle={t("incomingRequests.subtitle")}
         action={
           <div className="request-summary">
             <div className="request-summary-item">
-              <small>คำขอทั้งหมด</small>
+              <small>{t("incomingRequests.totalRequests")}</small>
               <strong>{requests.length}</strong>
             </div>
             <div className="request-summary-item request-summary-pending">
-              <small>รอพิจารณา</small>
+              <small>{t("incomingRequests.pendingRequests")}</small>
               <strong>{pending}</strong>
             </div>
             <div className="request-summary-item request-summary-accepted">
-              <small>ยอมรับแล้ว</small>
+              <small>{t("incomingRequests.acceptedRequests")}</small>
               <strong>{accepted}</strong>
             </div>
           </div>
@@ -58,7 +58,7 @@ export default function IncomingRequests({ requests, setRequests }) {
                   <div className="request-title">
                     <h3>{req.itemName}</h3>
                     <p>
-                      ขอยืมโดย <strong>{req.borrower}</strong>
+                      {t("incomingRequests.requestedBy")} <strong>{req.borrower}</strong>
                     </p>
                   </div>
                   <StatusBadge status={req.status} />
@@ -69,11 +69,11 @@ export default function IncomingRequests({ requests, setRequests }) {
               <div className="request-side">
                 <dl className="request-dates">
                   <div>
-                    <dt>วันที่ยืม</dt>
+                    <dt>{t("incomingRequests.borrowDate")}</dt>
                     <dd>{formatDate(req.borrowDate, i18n.language)}</dd>
                   </div>
                   <div>
-                    <dt>วันที่คืน</dt>
+                    <dt>{t("incomingRequests.returnDate")}</dt>
                     <dd>{formatDate(req.returnDate, i18n.language)}</dd>
                   </div>
                 </dl>
@@ -84,13 +84,13 @@ export default function IncomingRequests({ requests, setRequests }) {
                       className="button button-primary"
                       onClick={() => updateStatus(req.id, "accepted")}
                     >
-                      <Check size={16} /> ยอมรับ
+                      <Check size={16} /> {t("incomingRequests.accept")}
                     </button>
                     <button
                       className="button button-danger-outline"
                       onClick={() => updateStatus(req.id, "rejected")}
                     >
-                      <X size={16} /> ปฏิเสธ
+                      <X size={16} /> {t("incomingRequests.reject")}
                     </button>
                   </div>
                 ) : (
@@ -99,7 +99,7 @@ export default function IncomingRequests({ requests, setRequests }) {
                       className="text-button"
                       onClick={() => updateStatus(req.id, "pending")}
                     >
-                      เปลี่ยนกลับเป็นรอพิจารณา
+                      {t("incomingRequests.resetToPending")}
                     </button>
                   </div>
                 )}
@@ -109,8 +109,8 @@ export default function IncomingRequests({ requests, setRequests }) {
         </div>
       ) : (
         <EmptyState
-          title="ยังไม่มีคำขอยืม"
-          description="เมื่อมีคนส่งคำขอยืมสิ่งของของคุณ รายการจะแสดงที่หน้านี้"
+          title={t("incomingRequests.emptyTitle")}
+          description={t("incomingRequests.emptyDesc")}
         />
       )}
     </div>

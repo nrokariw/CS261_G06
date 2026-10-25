@@ -13,7 +13,7 @@ import {
 import { PageHeading, StatusBadge } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { BORROW_REASON_MAX_LENGTH } from "../constants/config";
-import { getCategoryLabel } from "../data";
+import { getCategoryLabel, normalizeCategoryKey } from "../data";
 import { createBorrowRequest } from "../api/requestsApi";
 
 export default function ItemDetails({ items, setRequests }) {
@@ -73,20 +73,25 @@ export default function ItemDetails({ items, setRequests }) {
   if (!item)
     return (
       <div className="not-found">
-        <h1>ไม่พบสิ่งของนี้</h1>
+        <h1>{t("itemDetails.notFoundTitle")}</h1>
         <Link className="button button-primary" to="/">
-          กลับหน้าหลัก
+          {t("itemDetails.backToHome")}
         </Link>
       </div>
     );
 
+  const categoryKey = normalizeCategoryKey(item.category);
+  const categoryLabel = t(`categories.${categoryKey}`, {
+    defaultValue: getCategoryLabel(item.category),
+  });
+
   return (
     <div className="page-stack">
       <div className="detail-page-heading">
-        <div className="eyebrow">ITEM DETAILS</div>
+        <div className="eyebrow">{t("itemDetails.eyebrow")}</div>
       </div>
       <button className="back-link" onClick={() => navigate(-1)}>
-        <ArrowLeft size={16} /> กลับไปหน้าค้นหา
+        <ArrowLeft size={16} /> {t("itemDetails.backToSearch")}
       </button>
       <div className="detail-layout">
         <section className="detail-main">
@@ -108,7 +113,7 @@ export default function ItemDetails({ items, setRequests }) {
           )}
           <div className="detail-info">
             <StatusBadge status={item.status} />
-            <span className="category-label">{getCategoryLabel(item.category)}</span>
+            <span className="category-label">{categoryLabel}</span>
             <h1>{item.name}</h1>
             <div className="owner-row">
               <span className="owner-avatar">
@@ -116,21 +121,21 @@ export default function ItemDetails({ items, setRequests }) {
               </span>
               <div>
                 <strong>{item.owner}</strong>
-                <small>เจ้าของสิ่งของ</small>
+                <small>{t("itemDetails.ownerRole")}</small>
               </div>
               <span className="verified">
-                <ShieldCheck size={15} /> สมาชิก
+                <ShieldCheck size={15} /> {t("itemDetails.verifiedMember")}
               </span>
             </div>
             <hr />
-            <h2>รายละเอียดสิ่งของ</h2>
+            <h2>{t("itemDetails.detailHeading")}</h2>
             <p>{item.detail}</p>
             <div className="detail-meta">
               <span>
-                <MapPin size={16} /> นัดรับภายในมหาวิทยาลัย
+                <MapPin size={16} /> {t("itemDetails.pickupLocation")}
               </span>
               <span>
-                <ShieldCheck size={16} /> โปรดรักษาสิ่งของและคืนตรงเวลา
+                <ShieldCheck size={16} /> {t("itemDetails.careNotice")}
               </span>
             </div>
           </div>
@@ -141,8 +146,8 @@ export default function ItemDetails({ items, setRequests }) {
               <CalendarDays size={20} />
             </span>
             <div>
-              <h2>ส่งคำขอยืม</h2>
-              <p>ระบุช่วงเวลาที่ต้องการยืม</p>
+              <h2>{t("itemDetails.borrowHeading")}</h2>
+              <p>{t("itemDetails.borrowSubtitle")}</p>
             </div>
           </div>
           {success ? (
@@ -150,20 +155,20 @@ export default function ItemDetails({ items, setRequests }) {
               <span>
                 <CheckCircle2 size={28} />
               </span>
-              <h3>ส่งคำขอเรียบร้อยแล้ว!</h3>
-              <p>เจ้าของสิ่งของจะตรวจสอบคำขอของคุณ</p>
+              <h3>{t("itemDetails.requestSentTitle")}</h3>
+              <p>{t("itemDetails.requestSentDesc")}</p>
               <button
                 className="button button-primary button-full"
                 onClick={() => navigate("/my-listings")}
               >
-                กลับไปหน้าประกาศ
+                {t("itemDetails.backToListings")}
               </button>
             </div>
           ) : (
             <form onSubmit={submit} noValidate>
               <div className="field">
                 <label htmlFor="borrowDate">
-                  วันที่ยืม <span className="required">*</span>
+                  {t("itemDetails.borrowDateLabel")} <span className="required">*</span>
                 </label>
                 <input
                   id="borrowDate"
@@ -179,7 +184,7 @@ export default function ItemDetails({ items, setRequests }) {
               </div>
               <div className="field">
                 <label htmlFor="returnDate">
-                  วันที่คืน <span className="required">*</span>
+                  {t("itemDetails.returnDateLabel")} <span className="required">*</span>
                 </label>
                 <input
                   id="returnDate"
@@ -195,7 +200,7 @@ export default function ItemDetails({ items, setRequests }) {
               </div>
               <div className="field">
                 <label htmlFor="reason">
-                  เหตุผลการยืม <span className="required">*</span>
+                  {t("itemDetails.reasonLabel")} <span className="required">*</span>
                 </label>
                 <textarea
                   id="reason"
@@ -203,25 +208,25 @@ export default function ItemDetails({ items, setRequests }) {
                   maxLength={BORROW_REASON_MAX_LENGTH}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  placeholder="เช่น ใช้ทำงานกลุ่มหรือทำรายงาน..."
+                  placeholder={t("itemDetails.reasonPlaceholder")}
                   aria-invalid={!!errors.reason}
                 />
                 {errors.reason && (
                   <small className="field-error">{errors.reason}</small>
                 )}
                 <small className="helper-text">
-                  {reason.length}/{BORROW_REASON_MAX_LENGTH} ตัวอักษร
+                  {t("itemDetails.charCount", { count: reason.length, max: BORROW_REASON_MAX_LENGTH })}
                 </small>
               </div>
               <div className="borrow-note">
                 <ShieldCheck size={17} />
-                <span>คำขอจะถูกส่งให้เจ้าของพิจารณาก่อนยืนยันการยืม</span>
+                <span>{t("itemDetails.borrowNote")}</span>
               </div>
               <button
                 className="button button-primary button-full"
                 type="submit"
               >
-                <Send size={16} /> ส่งคำขอยืม
+                <Send size={16} /> {t("itemDetails.submitRequest")}
               </button>
             </form>
           )}

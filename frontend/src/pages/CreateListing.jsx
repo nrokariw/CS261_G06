@@ -143,12 +143,12 @@ export default function CreateListing({ items, setItems }) {
   return (
     <div className="page-stack narrow-page">
       <button className="back-link" onClick={() => navigate(-1)}>
-        <ArrowLeft size={16} /> กลับ
+        <ArrowLeft size={16} /> {t("common.back")}
       </button>
       <PageHeading
-        eyebrow={editingItem ? "EDIT LISTING" : "CREATE LISTING"}
-        title={editingItem ? "แก้ไขประกาศ" : "ลงประกาศสิ่งของ"}
-        subtitle="กรอกข้อมูลให้ครบเพื่อให้เพื่อนค้นหาและขอยืมสิ่งของได้ง่ายขึ้น"
+        eyebrow={editingItem ? t("createListing.eyebrowEdit") : t("createListing.eyebrowCreate")}
+        title={editingItem ? t("createListing.titleEdit") : t("createListing.titleCreate")}
+        subtitle={t("createListing.subtitle")}
       />{" "}
       {/* หัวประกาศ */}
       <form className="form-card" onSubmit={submit} noValidate>
@@ -161,19 +161,19 @@ export default function CreateListing({ items, setItems }) {
         <div className="form-section-title">
           <span className="section-number">01</span>
           <div>
-            <h2>ข้อมูลสิ่งของ</h2>
-            <p>รายละเอียดพื้นฐานของสิ่งของที่ต้องการแบ่งปัน</p>
+            <h2>{t("createListing.section1Title")}</h2>
+            <p>{t("createListing.section1Desc")}</p>
           </div>
         </div>
         <div className="field">
           <label htmlFor="item-name">
-            ชื่อสิ่งของ <span className="required">*</span>
+            {t("createListing.nameLabel")} <span className="required">*</span>
           </label>
           <input
             id="item-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="เช่น เครื่องคิดเลขวิทยาศาสตร์"
+            placeholder={t("createListing.namePlaceholder")}
             aria-invalid={!!errors.name}
           />
           {errors.name && (
@@ -185,7 +185,7 @@ export default function CreateListing({ items, setItems }) {
         </div>
         <div className="field">
           <label htmlFor="item-category">
-            หมวดหมู่ <span className="required">*</span>
+            {t("createListing.categoryLabel")} <span className="required">*</span>
           </label>
           <select
             id="item-category"
@@ -193,7 +193,7 @@ export default function CreateListing({ items, setItems }) {
             onChange={(e) => setCategory(e.target.value)}
             aria-invalid={!!errors.category}
           >
-            <option value="">เลือกหมวดหมู่</option>
+            <option value="">{t("createListing.categoryPlaceholder")}</option>
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
                 {t(`categories.${c}`, { defaultValue: getCategoryLabel(c) })}
@@ -210,7 +210,7 @@ export default function CreateListing({ items, setItems }) {
         <div className="field">
           <div className="label-row">
             <label htmlFor="item-detail">
-              รายละเอียด <span className="required">*</span>
+              {t("createListing.detailLabel")} <span className="required">*</span>
             </label>
             <span className="character-count">{detail.length}/{ITEM_DETAIL_MAX_LENGTH}</span>
           </div>
@@ -220,7 +220,7 @@ export default function CreateListing({ items, setItems }) {
             rows={5}
             value={detail}
             onChange={(e) => setDetail(e.target.value)}
-            placeholder="ระบุสภาพสิ่งของ เงื่อนไขการยืม และสถานที่นัดรับ"
+            placeholder={t("createListing.detailPlaceholder")}
             aria-invalid={!!errors.detail}
           />
           {errors.detail && (
@@ -233,8 +233,8 @@ export default function CreateListing({ items, setItems }) {
         <div className="form-section-title section-spaced">
           <span className="section-number">02</span>
           <div>
-            <h2>รูปภาพสิ่งของ</h2>
-            <p>เพิ่มรูปเพื่อให้ผู้ยืมเห็นสภาพสิ่งของ (ไม่บังคับ)</p>
+            <h2>{t("createListing.section2Title")}</h2>
+            <p>{t("createListing.section2Desc")}</p>
           </div>
         </div>
         <input
@@ -253,21 +253,21 @@ export default function CreateListing({ items, setItems }) {
             <img
               className="upload-preview"
               src={imagePreview}
-              alt="ตัวอย่างรูปสิ่งของ"
+              alt={t("createListing.previewAlt")}
             />
           ) : (
             <>
               <span className="upload-icon">
                 <ImagePlus size={28} />
               </span>
-              <strong>คลิกเพื่ออัปโหลดรูปภาพ</strong>
-              <span>รองรับ JPG, PNG หรือ WEBP</span>
+              <strong>{t("createListing.uploadPrompt")}</strong>
+              <span>{t("createListing.uploadHint")}</span>
             </>
           )}{" "}
           {/* จะกำหนดขนาดเท่าไรเช่น ไม่เกิน 3 MB */}
           {imagePreview && (
             <span className="upload-change">
-              <UploadCloud size={15} /> {imageFileName || "เปลี่ยนรูปภาพ"}
+              <UploadCloud size={15} /> {imageFileName || t("createListing.changeImage")}
             </span>
           )}
         </button>
@@ -275,7 +275,7 @@ export default function CreateListing({ items, setItems }) {
         <div className="form-note">
           <AlertCircle size={16} />
           <span>
-            ช่องที่มีเครื่องหมาย <b>*</b> จำเป็นต้องกรอก
+            {t("createListing.requiredNotePrefix")} <b>*</b> {t("createListing.requiredNoteSuffix")}
           </span>
         </div>
         {/* Inline Alert สำหรับแสดง Error ตอนกดบันทึก */}
@@ -291,11 +291,11 @@ export default function CreateListing({ items, setItems }) {
             className="button button-outline"
             onClick={() => navigate(-1)}
           >
-            ยกเลิก
+            {t("common.cancel")}
           </button>
           <button type="submit" className="button button-primary">
             <CheckCircle2 size={17} />
-            {editingItem ? "บันทึกการแก้ไข" : "เผยแพร่"}
+            {editingItem ? t("common.saveChanges") : t("common.publish")}
           </button>
         </div>
       </form>

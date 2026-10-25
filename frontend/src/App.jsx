@@ -86,11 +86,11 @@ export default function App() {
   return (
     <div className="app-shell">
       <aside className={`sidebar ${mobileMenu ? "sidebar-open" : ""}`}>
-        <NavLink to="/" className="brand" aria-label="CampusShare หน้าหลัก">
+        <NavLink to="/" className="brand" aria-label={t("nav.brandAria")}>
           <BrandMark />
           <span className="brand-name">CampusShare</span>
         </NavLink>
-        <nav className="side-nav" aria-label="เมนูหลัก">
+        <nav className="side-nav" aria-label={t("nav.mainMenuAria")}>
           {navItems.map(({ to, label, icon: Icon, end, count }) => (
             <NavLink
               key={to}
@@ -110,7 +110,7 @@ export default function App() {
           <Avatar name={user.name} />
           <div>
             <strong>{user.name}</strong>
-            <small>นักศึกษาผู้ใช้งาน</small>
+            <small>{t("nav.studentRole")}</small>
           </div>
         </div>
       </aside>
@@ -118,7 +118,7 @@ export default function App() {
       {mobileMenu && (
         <button
           className="scrim"
-          aria-label="ปิดเมนู"
+          aria-label={t("nav.closeMenu")}
           onClick={() => setMobileMenu(false)}
         />
       )}
@@ -128,12 +128,12 @@ export default function App() {
           <button
             className="menu-toggle"
             onClick={() => setMobileMenu(!mobileMenu)}
-            aria-label={mobileMenu ? "ปิดเมนู" : "เปิดเมนู"}
+            aria-label={mobileMenu ? t("nav.closeMenu") : t("nav.openMenu")}
             aria-expanded={mobileMenu}
           >
             {mobileMenu ? <X size={22} /> : <Menu size={22} />}
           </button>
-          <nav className="breadcrumbs" aria-label="ตำแหน่งปัจจุบัน">
+          <nav className="breadcrumbs" aria-label={t("nav.breadcrumbAria")}>
             <Link to="/">CampusShare</Link>
             <ChevronRight size={15} aria-hidden="true" />
             <strong aria-current="page">{currentLabel}</strong>
@@ -143,7 +143,7 @@ export default function App() {
               type="button"
               className="button button-outline button-sm"
               onClick={toggleTheme}
-              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              aria-label={theme === "dark" ? t("nav.switchToLight") : t("nav.switchToDark")}
             >
               {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
             </button>
@@ -151,7 +151,7 @@ export default function App() {
               type="button"
               className="button button-outline button-sm"
               onClick={() => i18n.changeLanguage(nextLanguage)}
-              aria-label="Switch language"
+              aria-label={t("nav.switchLanguage")}
             >
               <Globe size={15} />
               <span>{i18n.language === "en" ? "EN" : "TH"}</span>
