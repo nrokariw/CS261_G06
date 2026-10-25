@@ -68,7 +68,7 @@ public class ItemService {
     public List<Item> getAvailableItems(ItemStatus status) {
         return itemRepository.findByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(status);
     }  
-    
+
     // ==========================================
     // US-04: แก้ไขและลบประกาศสิ่งของ (T-4.1)
     // ==========================================
@@ -112,5 +112,31 @@ public class ItemService {
 
         item.setUpdatedAt(LocalDateTime.now());
         return itemRepository.save(item);
+    }
+
+    // 7. ลบประกาศแบบ Soft Delete (DELETE /api/items/{id})
+    public void deleteItem(Long itemId, String userId) {
+        // ตรวจสอบว่ามีไอเท็มนี้อยู่จริง
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบรายการสิ่งของที่ต้องการลบ"));
+
+        if (item.getDeletedAt() != null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "รายการสิ่งของนี้ถูกลบไปแล้ว");
+        }
+
+        // ตรวจสอบสิทธิ์ความเป็นเจ้าของ (403 Forbidden)
+        if (!item.getOwnerId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "คุณไม่มีสิทธิ์ลบประกาศนี้");
+        }
+
+        // ตรวจสอบสถานะต้องเป็น Available เท่านั้น (409 Conflict)
+        if (item.getStatus() != ItemStatus.AVAILABLE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "ไม่สามารถลบได้ เนื่องจากสิ่งของไม่อยู่ในสถานะพร้อมให้ยืม (Available)");
+        }
+
+        // ทำ Soft Delete โดยบันทึกเวลา deletedAt และ updatedAt
+        item.setDeletedAt(LocalDateTime.now());
+        item.setUpdatedAt(LocalDateTime.now());
+        itemRepository.save(item);
     }
 }
