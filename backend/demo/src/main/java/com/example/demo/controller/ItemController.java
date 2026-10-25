@@ -87,5 +87,27 @@ public class ItemController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         } 
     }
+
+    // ==========================================
+    // US-04: แก้ไขและลบประกาศสิ่งของ (T-4.1)
+    // ==========================================
+
+    // 4. PUT /api/items/{id} - แก้ไขข้อมูลประกาศ
+    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
+    public ResponseEntity<Item> updateItem(
+            @PathVariable("id") Long itemId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @ModelAttribute ItemCreateDto requestDto) {
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
+        }
+
+        // TODO: ดึง userId จาก JWT Token เมื่อเชื่อมต่อระบบ Auth จริง
+        String userId = "6400000001"; 
+
+        Item updatedItem = itemService.updateItem(itemId, userId, requestDto);
+        return ResponseEntity.ok(updatedItem);
+    }
 }
 
