@@ -109,5 +109,22 @@ public class ItemController {
         Item updatedItem = itemService.updateItem(itemId, userId, requestDto);
         return ResponseEntity.ok(updatedItem);
     }
+
+    // 5. DELETE /api/items/{id} - ลบประกาศแบบ Soft Delete
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteItem(
+            @PathVariable("id") Long itemId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
+        }
+
+        // TODO: ดึง userId จาก JWT Token เมื่อเชื่อมต่อระบบ Auth จริง
+        String userId = "6400000001"; 
+
+        itemService.deleteItem(itemId, userId);
+        return ResponseEntity.ok(Map.of("message", "Item deleted successfully"));
+    }
 }
 
