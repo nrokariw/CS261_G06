@@ -43,6 +43,7 @@ services:
       SPRING_DATASOURCE_URL: "jdbc:sqlserver://database:1433;databaseName=${DB_NAME:-master};encrypt=true;trustServerCertificate=true"
       SPRING_DATASOURCE_USERNAME: "${DB_USER:-sa}"
       SPRING_DATASOURCE_PASSWORD: "${MSSQL_SA_PASSWORD:-StrongPassw0rd!}"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: "${HIBERNATE_DDL_AUTO:-update}"
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:
