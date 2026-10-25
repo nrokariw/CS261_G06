@@ -1,10 +1,12 @@
 import React from "react";
 import { Check, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { PageHeading, StatusBadge, EmptyState, Avatar } from "../components/UI";
 
-function formatDate(date) {
+function formatDate(date, language = "th") {
   if (!date) return "—";
-  return new Date(`${date}T12:00:00`).toLocaleDateString("th-TH", {
+  const locale = language.startsWith("en") ? "en-US" : "th-TH";
+  return new Date(`${date}T12:00:00`).toLocaleDateString(locale, {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -12,6 +14,7 @@ function formatDate(date) {
 }
 
 export default function IncomingRequests({ requests, setRequests }) {
+  const { i18n } = useTranslation();
   const pending = requests.filter((r) => r.status === "pending").length;
   const accepted = requests.filter((r) => r.status === "accepted").length;
 
@@ -67,11 +70,11 @@ export default function IncomingRequests({ requests, setRequests }) {
                 <dl className="request-dates">
                   <div>
                     <dt>วันที่ยืม</dt>
-                    <dd>{formatDate(req.borrowDate)}</dd>
+                    <dd>{formatDate(req.borrowDate, i18n.language)}</dd>
                   </div>
                   <div>
                     <dt>วันที่คืน</dt>
-                    <dd>{formatDate(req.returnDate)}</dd>
+                    <dd>{formatDate(req.returnDate, i18n.language)}</dd>
                   </div>
                 </dl>
 

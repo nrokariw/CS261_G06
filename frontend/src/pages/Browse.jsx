@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Search, Plus, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
 import { CATEGORIES, getCategoryLabel, normalizeCategoryKey } from "../data";
 import { ItemCard, PageHeading, EmptyState } from "../components/UI";
 
 export default function Browse({ items }) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("ALL");
   const availableItems = useMemo(
@@ -48,10 +50,10 @@ export default function Browse({ items }) {
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
-            <option value="ALL">{getCategoryLabel("ALL")}</option>
+            <option value="ALL">{t("categories.ALL", { defaultValue: getCategoryLabel("ALL") })}</option>
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
-                {getCategoryLabel(c)}
+                {t(`categories.${c}`, { defaultValue: getCategoryLabel(c) })}
               </option>
             ))}
           </select>
@@ -65,7 +67,7 @@ export default function Browse({ items }) {
             onClick={() => setCategory(c)}
             className={`chip ${category === c ? "chip-active" : ""}`}
           >
-            {getCategoryLabel(c)}
+            {t(`categories.${c}`, { defaultValue: getCategoryLabel(c) })}
           </button>
         ))}
       </div>

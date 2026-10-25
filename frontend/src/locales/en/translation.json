@@ -1,0 +1,52 @@
+{
+  "nav": {
+    "home": "Home",
+    "create": "Create Listing",
+    "myListings": "My Listings",
+    "requests": "Incoming Requests",
+    "editListing": "Edit Listing",
+    "itemDetails": "Item Details",
+    "notFound": "Page Not Found",
+    "studentRole": "Student Member",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "status": {
+    "available": "Available",
+    "pending": "Pending",
+    "accepted": "Accepted",
+    "rejected": "Rejected",
+    "borrowed": "Borrowed",
+    "reserved": "Reserved"
+  },
+  "categories": {
+    "ALL": "All Categories",
+    "STUDY": "Study Supplies",
+    "ELECTRONICS": "Electronics",
+    "SPORTS": "Sports Gear",
+    "GENERAL": "General Items"
+  },
+  "validation": {
+    "itemNameRequired": "Please enter the item name",
+    "categoryRequired": "Please select a category",
+    "detailRequired": "Please enter item details",
+    "invalidImageType": "Only JPG, PNG, or WEBP images are allowed",
+    "imageTooLarge": "File size must not exceed {{max}} MB",
+    "submitFailed": "An error occurred while saving the listing",
+    "saveFailed": "Unable to save listing data",
+    "listingCreated": "Listing created successfully",
+    "listingUpdated": "Listing updated successfully",
+    "borrowDateRequired": "Please select a borrow date",
+    "returnDateRequired": "Please select a return date",
+    "borrowDatePast": "Borrow date cannot be in the past",
+    "returnDateBeforeBorrow": "Return date cannot be earlier than borrow date",
+    "reasonRequired": "Please provide a reason for borrowing"
+  },
+  "common": {
+    "viewDetails": "View Details",
+    "back": "Back",
+    "cancel": "Cancel",
+    "publish": "Publish",
+    "saveChanges": "Save Changes"
+  }
+}

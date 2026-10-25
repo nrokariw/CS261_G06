@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   CalendarDays,
@@ -17,6 +18,7 @@ import { createBorrowRequest } from "../api/requestsApi";
 
 export default function ItemDetails({ items, setRequests }) {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const item = items.find((i) => i.id === id && i.status !== "deleted");
@@ -30,13 +32,13 @@ export default function ItemDetails({ items, setRequests }) {
   async function submit(e) {
     e.preventDefault();
     const next = {};
-    if (!borrowDate) next.borrowDate = "กรุณาเลือกวันที่ยืม";
-    if (!returnDate) next.returnDate = "กรุณาเลือกวันที่คืน";
+    if (!borrowDate) next.borrowDate = t("validation.borrowDateRequired");
+    if (!returnDate) next.returnDate = t("validation.returnDateRequired");
     if (borrowDate && borrowDate < today)
-      next.borrowDate = "วันที่ยืมต้องไม่เป็นวันในอดีต";
+      next.borrowDate = t("validation.borrowDatePast");
     if (borrowDate && returnDate && returnDate < borrowDate)
-      next.returnDate = "วันที่คืนต้องไม่อยู่ก่อนวันที่ยืม";
-    if (!reason.trim()) next.reason = "กรุณาระบุเหตุผลการยืม";
+      next.returnDate = t("validation.returnDateBeforeBorrow");
+    if (!reason.trim()) next.reason = t("validation.reasonRequired");
     setErrors(next);
     if (Object.keys(next).length) return;
 

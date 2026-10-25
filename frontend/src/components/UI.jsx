@@ -1,7 +1,15 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowUpRight, UserRound, PackageOpen } from "lucide-react";
-import { getCategoryLabel } from "../data";
+import { useTranslation } from "react-i18next";
+import { getCategoryLabel, normalizeCategoryKey } from "../data";
+
+const STATUS_CONFIG = {
+  available: "badge-success",
+  pending: "badge-warning",
+  accepted: "badge-success",
+  rejected: "badge-danger",
+};
 
 export function PageHeading({ eyebrow, title, subtitle, action }) {
   return <div className="page-heading">
@@ -11,27 +19,29 @@ export function PageHeading({ eyebrow, title, subtitle, action }) {
 }
 
 export function StatusBadge({ status }) {
-  const map = {
-    available: ["พร้อมให้ยืม", "badge-success"],
-    pending: ["รอพิจารณา", "badge-warning"],
-    accepted: ["ยอมรับแล้ว", "badge-success"],
-    rejected: ["ปฏิเสธแล้ว", "badge-danger"]
-  };
-  const [label, cls] = map[status] || [status, "badge-neutral"];
+  const { t } = useTranslation();
+  const normalized = String(status || "").toLowerCase();
+  const cls = STATUS_CONFIG[normalized] || "badge-neutral";
+  const label = t(`status.${normalized}`, { defaultValue: status });
   return <span className={`badge ${cls}`}>{label}</span>;
 }
 
 export function ItemCard({ item }) {
+  const { t } = useTranslation();
+  const categoryKey = normalizeCategoryKey(item.category);
+  const categoryLabel = t(`categories.${categoryKey}`, {
+    defaultValue: getCategoryLabel(item.category),
+  });
   return <article className="item-card">
     <Link to={`/items/${item.id}`} className="item-image-wrap">
       {item.image ? <img src={item.image} alt={item.name} className="item-image" /> : <div className="image-placeholder"><PackageOpen size={42} /></div>}
       <span className="image-arrow"><ArrowUpRight size={16} /></span>
     </Link>
     <div className="item-card-body">
-      <span className="category-label">{getCategoryLabel(item.category)}</span>
+      <span className="category-label">{categoryLabel}</span>
       <Link to={`/items/${item.id}`} className="item-title">{item.name}</Link>
       <div className="item-owner"><span className="mini-avatar"><UserRound size={13} /></span>{item.owner}</div>
-      <div className="item-card-bottom"><StatusBadge status={item.status} /><Link to={`/items/${item.id}`} className="text-link">ดูรายละเอียด <ArrowUpRight size={14} /></Link></div>
+      <div className="item-card-bottom"><StatusBadge status={item.status} /><Link to={`/items/${item.id}`} className="text-link">{t("common.viewDetails")} <ArrowUpRight size={14} /></Link></div>
     </div>
   </article>;
 }

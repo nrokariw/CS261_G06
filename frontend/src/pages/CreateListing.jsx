@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   ImagePlus,
   UploadCloud,
@@ -25,6 +26,7 @@ import {
 
 export default function CreateListing({ items, setItems }) {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const editId = params.get("edit");
@@ -47,9 +49,9 @@ export default function CreateListing({ items, setItems }) {
 
   function validate() {
     const next = {};
-    if (!name.trim()) next.name = "กรุณากรอกชื่อสิ่งของ";
-    if (!category) next.category = "กรุณาเลือกหมวดหมู่";
-    if (!detail.trim()) next.detail = "กรุณากรอกรายละเอียด";
+    if (!name.trim()) next.name = t("validation.itemNameRequired");
+    if (!category) next.category = t("validation.categoryRequired");
+    if (!detail.trim()) next.detail = t("validation.detailRequired");
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -62,7 +64,7 @@ export default function CreateListing({ items, setItems }) {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       setErrors((prev) => ({ 
         ...prev, 
-        image: "กรุณาเลือกไฟล์รูปภาพสกุล JPG, PNG หรือ WEBP เท่านั้น" 
+        image: t("validation.invalidImageType") 
       }));
       return;
     }
@@ -71,7 +73,7 @@ export default function CreateListing({ items, setItems }) {
     if (file.size > MAX_IMAGE_SIZE_BYTES) {
       setErrors((prev) => ({ 
         ...prev, 
-        image: `ขนาดไฟล์ต้องไม่เกิน ${MAX_IMAGE_SIZE_MB} MB` 
+        image: t("validation.imageTooLarge", { max: MAX_IMAGE_SIZE_MB }) 
       }));
       return;
     }
@@ -129,12 +131,12 @@ export default function CreateListing({ items, setItems }) {
         );
       else setItems((prev) => [record, ...prev]);
       setSuccess(
-        editingItem ? "แก้ไขประกาศเรียบร้อยแล้ว" : "สร้างประกาศเรียบร้อยแล้ว",
+        editingItem ? t("validation.listingUpdated") : t("validation.listingCreated"),
       );
       window.setTimeout(() => navigate("/my-listings"), REDIRECT_DELAY_MS);
     } catch (err) {
-      setErrors((prev) => ({ ...prev, submit: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" }));
-      setSubmitError(err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+      setErrors((prev) => ({ ...prev, submit: t("validation.submitFailed") }));
+      setSubmitError(err.message || t("validation.submitFailed"));
     }
 }
 
@@ -194,7 +196,7 @@ export default function CreateListing({ items, setItems }) {
             <option value="">เลือกหมวดหมู่</option>
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
-                {getCategoryLabel(c)}
+                {t(`categories.${c}`, { defaultValue: getCategoryLabel(c) })}
               </option>
             ))}
           </select>

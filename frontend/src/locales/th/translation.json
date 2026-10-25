@@ -1,0 +1,52 @@
+{
+  "nav": {
+    "home": "หน้าหลัก",
+    "create": "สร้างประกาศ",
+    "myListings": "ประกาศของฉัน",
+    "requests": "คำขอยืมเข้า",
+    "editListing": "แก้ไขประกาศ",
+    "itemDetails": "รายละเอียดสิ่งของ",
+    "notFound": "ไม่พบหน้า",
+    "studentRole": "นักศึกษาผู้ใช้งาน",
+    "openMenu": "เปิดเมนู",
+    "closeMenu": "ปิดเมนู"
+  },
+  "status": {
+    "available": "พร้อมให้ยืม",
+    "pending": "รอพิจารณา",
+    "accepted": "ยอมรับแล้ว",
+    "rejected": "ปฏิเสธแล้ว",
+    "borrowed": "กำลังยืม",
+    "reserved": "จองแล้ว"
+  },
+  "categories": {
+    "ALL": "ทั้งหมด",
+    "STUDY": "อุปกรณ์การเรียน",
+    "ELECTRONICS": "อุปกรณ์อิเล็กทรอนิกส์",
+    "SPORTS": "อุปกรณ์กีฬา",
+    "GENERAL": "ของใช้ทั่วไป"
+  },
+  "validation": {
+    "itemNameRequired": "กรุณากรอกชื่อสิ่งของ",
+    "categoryRequired": "กรุณาเลือกหมวดหมู่",
+    "detailRequired": "กรุณากรอกรายละเอียด",
+    "invalidImageType": "กรุณาเลือกไฟล์รูปภาพสกุล JPG, PNG หรือ WEBP เท่านั้น",
+    "imageTooLarge": "ขนาดไฟล์ต้องไม่เกิน {{max}} MB",
+    "submitFailed": "เกิดข้อผิดพลาดในการบันทึกข้อมูล",
+    "saveFailed": "ไม่สามารถบันทึกข้อมูลได้",
+    "listingCreated": "สร้างประกาศเรียบร้อยแล้ว",
+    "listingUpdated": "แก้ไขประกาศเรียบร้อยแล้ว",
+    "borrowDateRequired": "กรุณาเลือกวันที่ยืม",
+    "returnDateRequired": "กรุณาเลือกวันที่คืน",
+    "borrowDatePast": "วันที่ยืมต้องไม่เป็นวันในอดีต",
+    "returnDateBeforeBorrow": "วันที่คืนต้องไม่อยู่ก่อนวันที่ยืม",
+    "reasonRequired": "กรุณาระบุเหตุผลการยืม"
+  },
+  "common": {
+    "viewDetails": "ดูรายละเอียด",
+    "back": "กลับ",
+    "cancel": "ยกเลิก",
+    "publish": "เผยแพร่",
+    "saveChanges": "บันทึกการแก้ไข"
+  }
+}

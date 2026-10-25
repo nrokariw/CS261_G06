@@ -8,7 +8,9 @@ import {
   Menu,
   X,
   ChevronRight,
+  Globe,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { SEED_ITEMS, SEED_REQUESTS } from "./data";
 import { Avatar } from "./components/UI";
 import Browse from "./pages/Browse";
@@ -39,6 +41,7 @@ function BrandMark() {
 
 export default function App() {
   const { user } = useAuth();
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState(() =>
     readStore("campusshare-items", SEED_ITEMS),
   );
@@ -61,18 +64,20 @@ export default function App() {
 
   const pendingCount = requests.filter((r) => r.status === "pending").length;
   const navItems = [
-    { to: "/", label: "หน้าหลัก", icon: LayoutGrid, end: true },
-    { to: "/create", label: "สร้างประกาศ", icon: PlusCircle },
-    { to: "/my-listings", label: "ประกาศของฉัน", icon: ClipboardList },
-    { to: "/requests", label: "คำขอยืมเข้า", icon: Inbox, count: pendingCount },
+    { to: "/", label: t("nav.home"), icon: LayoutGrid, end: true },
+    { to: "/create", label: t("nav.create"), icon: PlusCircle },
+    { to: "/my-listings", label: t("nav.myListings"), icon: ClipboardList },
+    { to: "/requests", label: t("nav.requests"), icon: Inbox, count: pendingCount },
   ];
 
   const { pathname, search } = location;
   let currentLabel = navItems.find((n) => n.to === pathname)?.label;
   if (pathname === "/create" && search.includes("edit="))
-    currentLabel = "แก้ไขประกาศ";
-  if (pathname.startsWith("/items/")) currentLabel = "รายละเอียดสิ่งของ";
-  if (!currentLabel) currentLabel = "ไม่พบหน้า";
+    currentLabel = t("nav.editListing");
+  if (pathname.startsWith("/items/")) currentLabel = t("nav.itemDetails");
+  if (!currentLabel) currentLabel = t("nav.notFound");
+
+  const nextLanguage = i18n.language === "en" ? "th" : "en";
 
   return (
     <div className="app-shell">
@@ -130,6 +135,15 @@ export default function App() {
             <strong aria-current="page">{currentLabel}</strong>
           </nav>
           <span className="top-user">
+            <button
+              type="button"
+              className="button button-outline button-sm"
+              onClick={() => i18n.changeLanguage(nextLanguage)}
+              aria-label="Switch language"
+            >
+              <Globe size={15} />
+              <span>{i18n.language === "en" ? "EN" : "TH"}</span>
+            </button>
             <Avatar name={user.name} size="sm" />
             <span>{user.name}</span>
           </span>
