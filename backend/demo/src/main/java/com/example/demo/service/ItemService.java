@@ -68,4 +68,49 @@ public class ItemService {
     public List<Item> getAvailableItems(ItemStatus status) {
         return itemRepository.findByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(status);
     }  
+    
+    // ==========================================
+    // US-04: แก้ไขและลบประกาศสิ่งของ (T-4.1)
+    // ==========================================
+
+    // 6. แก้ไขข้อมูลประกาศ (PUT /api/items/{id})
+    public Item updateItem(Long itemId, String userId, ItemCreateDto requestDto) {
+        // ตรวจสอบว่ามีไอเท็มนี้อยู่จริง และยังไม่ถูกลบ
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบรายการสิ่งของที่ต้องการแก้ไข"));
+
+        if (item.getDeletedAt() != null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "รายการสิ่งของนี้ถูกลบไปแล้ว");
+        }
+
+        // ตรวจสอบสิทธิ์ความเป็นเจ้าของ (403 Forbidden หากไม่ใช่เจ้าของ)
+        if (!item.getOwnerId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "คุณไม่มีสิทธิ์แก้ไขประกาศนี้");
+        }
+
+        // ตรวจสอบสถานะต้องเป็น Available เท่านั้น (409 Conflict)
+        if (item.getStatus() != ItemStatus.AVAILABLE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "ไม่สามารถแก้ไขได้ เนื่องจากสิ่งของไม่อยู่ในสถานะพร้อมให้ยืม (Available)");
+        }
+
+        // อัปเดตข้อมูลเฉพาะที่มีการส่งมา
+        if (requestDto.getTitle() != null && !requestDto.getTitle().trim().isEmpty()) {
+            item.setTitle(requestDto.getTitle());
+        }
+        if (requestDto.getCategory() != null && !requestDto.getCategory().trim().isEmpty()) {
+            item.setCategory(requestDto.getCategory());
+        }
+        if (requestDto.getDescription() != null) {
+            item.setDescription(requestDto.getDescription());
+        }
+
+        // อัปโหลดรูปภาพใหม่ (ถ้ามี)
+        if (requestDto.getImageFile() != null && !requestDto.getImageFile().isEmpty()) {
+            String newImageUrl = fileStorageService.storeFile(requestDto.getImageFile());
+            item.setImageUrl(newImageUrl);
+        }
+
+        item.setUpdatedAt(LocalDateTime.now());
+        return itemRepository.save(item);
+    }
 }
