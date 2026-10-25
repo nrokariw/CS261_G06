@@ -9,6 +9,8 @@ import {
   X,
   ChevronRight,
   Globe,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SEED_ITEMS, SEED_REQUESTS } from "./data";
@@ -20,6 +22,7 @@ import MyListings from "./pages/MyListings";
 import IncomingRequests from "./pages/IncomingRequests";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./contexts/AuthContext";
+import { useTheme } from "./contexts/ThemeContext";
 
 function readStore(key, fallback) {
   try {
@@ -33,14 +36,15 @@ function readStore(key, fallback) {
 function BrandMark() {
   return (
     <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
-      <circle cx="12.5" cy="17" r="10" fill="#F8A91F" />
-      <circle cx="21.5" cy="17" r="10" fill="#EC6426" fillOpacity=".92" />
+      <circle cx="12.5" cy="17" r="10" fill="var(--accent)" />
+      <circle cx="21.5" cy="17" r="10" fill="var(--primary)" fillOpacity=".92" />
     </svg>
   );
 }
 
 export default function App() {
   const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const [items, setItems] = useState(() =>
     readStore("campusshare-items", SEED_ITEMS),
@@ -135,6 +139,14 @@ export default function App() {
             <strong aria-current="page">{currentLabel}</strong>
           </nav>
           <span className="top-user">
+            <button
+              type="button"
+              className="button button-outline button-sm"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
             <button
               type="button"
               className="button button-outline button-sm"
