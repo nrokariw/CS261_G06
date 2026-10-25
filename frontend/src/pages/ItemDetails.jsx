@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { PageHeading, StatusBadge } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
+import { BORROW_REASON_MAX_LENGTH } from "../constants/config";
 
 export default function ItemDetails({ items, setRequests }) {
   const { user } = useAuth();
@@ -82,11 +83,13 @@ export default function ItemDetails({ items, setRequests }) {
               </div>
             )}
           </div>
-          <div className="detail-thumbnails">
-            {item.image && <img src={item.image} alt="" />}
-            {item.image && <img src={item.image} alt="" />}
-            {item.image && <img src={item.image} alt="" />}
-          </div>
+          {Array.isArray(item.images) && item.images.length > 1 && (
+            <div className="detail-thumbnails">
+              {item.images.map((imgSrc, idx) => (
+                <img key={idx} src={imgSrc} alt={`${item.name} ${idx + 1}`} />
+              ))}
+            </div>
+          )}
           <div className="detail-info">
             <StatusBadge status={item.status} />
             <span className="category-label">{item.category}</span>
@@ -181,7 +184,7 @@ export default function ItemDetails({ items, setRequests }) {
                 <textarea
                   id="reason"
                   rows={4}
-                  maxLength={300}
+                  maxLength={BORROW_REASON_MAX_LENGTH}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="เช่น ใช้ทำงานกลุ่มหรือทำรายงาน..."
@@ -191,7 +194,7 @@ export default function ItemDetails({ items, setRequests }) {
                   <small className="field-error">{errors.reason}</small>
                 )}
                 <small className="helper-text">
-                  {reason.length}/300 ตัวอักษร
+                  {reason.length}/{BORROW_REASON_MAX_LENGTH} ตัวอักษร
                 </small>
               </div>
               <div className="borrow-note">

@@ -10,6 +10,13 @@ import {
 import { CATEGORIES } from "../data";
 import { PageHeading } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
+import {
+  ALLOWED_IMAGE_TYPES,
+  ITEM_DETAIL_MAX_LENGTH,
+  MAX_IMAGE_SIZE_BYTES,
+  MAX_IMAGE_SIZE_MB,
+  REDIRECT_DELAY_MS,
+} from "../constants/config";
 
 export default function CreateListing({ items, setItems }) {
   const { user } = useAuth();
@@ -45,8 +52,7 @@ export default function CreateListing({ items, setItems }) {
     if (!file) return;
 
     // 1. ตรวจสอบนามสกุลไฟล์ก่อนถึง backend (JPG, PNG, WEBP)
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       setErrors((prev) => ({ 
         ...prev, 
         image: "กรุณาเลือกไฟล์รูปภาพสกุล JPG, PNG หรือ WEBP เท่านั้น" 
@@ -54,12 +60,11 @@ export default function CreateListing({ items, setItems }) {
       return;
     }
 
-    // 2. ตรวจสอบขนาดไม่ให้เกิน 3MB ก่อนถึง backend 
-    const maxSizeInBytes = 3 * 1024 * 1024;
-    if (file.size > maxSizeInBytes) {
+    // 2. ตรวจสอบขนาดไม่ให้เกินขีดจำกัดก่อนถึง backend 
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
       setErrors((prev) => ({ 
         ...prev, 
-        image: "ขนาดไฟล์ต้องไม่เกิน 3 MB" 
+        image: `ขนาดไฟล์ต้องไม่เกิน ${MAX_IMAGE_SIZE_MB} MB` 
       }));
       return;
     }
@@ -133,7 +138,7 @@ export default function CreateListing({ items, setItems }) {
     setSuccess(
       editingItem ? "แก้ไขประกาศเรียบร้อยแล้ว" : "สร้างประกาศเรียบร้อยแล้ว",
     );
-    window.setTimeout(() => navigate("/my-listings"), 650);
+    window.setTimeout(() => navigate("/my-listings"), REDIRECT_DELAY_MS);
   } catch (err) {
       setErrors((prev) => ({ ...prev, submit: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" }));
       setSubmitError(err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
@@ -210,11 +215,11 @@ export default function CreateListing({ items, setItems }) {
             <label htmlFor="item-detail">
               รายละเอียด <span className="required">*</span>
             </label>
-            <span className="character-count">{detail.length}/500</span>
+            <span className="character-count">{detail.length}/{ITEM_DETAIL_MAX_LENGTH}</span>
           </div>
           <textarea
             id="item-detail"
-            maxLength={500}
+            maxLength={ITEM_DETAIL_MAX_LENGTH}
             rows={5}
             value={detail}
             onChange={(e) => setDetail(e.target.value)}
