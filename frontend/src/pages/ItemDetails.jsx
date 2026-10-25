@@ -12,6 +12,8 @@ import {
 import { PageHeading, StatusBadge } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { BORROW_REASON_MAX_LENGTH } from "../constants/config";
+import { getCategoryLabel } from "../data";
+import { createBorrowRequest } from "../api/requestsApi";
 
 export default function ItemDetails({ items, setRequests }) {
   const { user } = useAuth();
@@ -25,7 +27,7 @@ export default function ItemDetails({ items, setRequests }) {
   const [success, setSuccess] = useState(false);
   const today = new Date().toLocaleDateString("en-CA");
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
     const next = {};
     if (!borrowDate) next.borrowDate = "กรุณาเลือกวันที่ยืม";
@@ -37,9 +39,21 @@ export default function ItemDetails({ items, setRequests }) {
     if (!reason.trim()) next.reason = "กรุณาระบุเหตุผลการยืม";
     setErrors(next);
     if (Object.keys(next).length) return;
+
+    const payload = {
+      itemId: item.id,
+      borrowerId: user?.studentId || user?.id,
+      startDate: borrowDate,
+      endDate: returnDate,
+      reason: reason.trim(),
+    };
+    const apiResult = await createBorrowRequest(payload, user?.token).catch(
+      () => null,
+    );
+
     setRequests((prev) => [
       {
-        id: crypto.randomUUID(),
+        id: apiResult?.id || crypto.randomUUID(),
         itemId: item.id,
         itemName: item.name,
         borrower: user.name,
@@ -92,7 +106,7 @@ export default function ItemDetails({ items, setRequests }) {
           )}
           <div className="detail-info">
             <StatusBadge status={item.status} />
-            <span className="category-label">{item.category}</span>
+            <span className="category-label">{getCategoryLabel(item.category)}</span>
             <h1>{item.name}</h1>
             <div className="owner-row">
               <span className="owner-avatar">

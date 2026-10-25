@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Pencil, Trash2, Plus, PackageOpen, Search } from "lucide-react";
 import { PageHeading, StatusBadge, EmptyState } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
+import { getCategoryLabel } from "../data";
 
 export default function MyListings({ items, setItems }) {
   const { user } = useAuth();
@@ -11,7 +12,7 @@ export default function MyListings({ items, setItems }) {
   const [notice, setNotice] = useState("");
   const mine = items.filter(
     (item) =>
-      item.ownerId === user.id &&
+      (item.ownerId ? item.ownerId === user.id : item.owner === user.name) &&
       item.status !== "deleted" &&
       item.name.toLowerCase().includes(query.toLowerCase()),
   );
@@ -75,7 +76,7 @@ export default function MyListings({ items, setItems }) {
                 </div>
               )}
               <div className="listing-details">
-                <span className="category-label">{item.category}</span>
+                <span className="category-label">{getCategoryLabel(item.category)}</span>
                 <h3>{item.name}</h3>
                 <p>{item.detail}</p>
                 <StatusBadge status={item.status} />

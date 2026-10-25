@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowUpRight, UserRound, PackageOpen } from "lucide-react";
+import { getCategoryLabel } from "../data";
 
 export function PageHeading({ eyebrow, title, subtitle, action }) {
   return <div className="page-heading">
@@ -27,7 +28,7 @@ export function ItemCard({ item }) {
       <span className="image-arrow"><ArrowUpRight size={16} /></span>
     </Link>
     <div className="item-card-body">
-      <span className="category-label">{item.category}</span>
+      <span className="category-label">{getCategoryLabel(item.category)}</span>
       <Link to={`/items/${item.id}`} className="item-title">{item.name}</Link>
       <div className="item-owner"><span className="mini-avatar"><UserRound size={13} /></span>{item.owner}</div>
       <div className="item-card-bottom"><StatusBadge status={item.status} /><Link to={`/items/${item.id}`} className="text-link">ดูรายละเอียด <ArrowUpRight size={14} /></Link></div>

@@ -7,9 +7,14 @@ import {
   AlertCircle,
   ArrowLeft,
 } from "lucide-react";
-import { CATEGORIES } from "../data";
+import {
+  CATEGORIES,
+  getCategoryLabel,
+  normalizeCategoryKey,
+} from "../data";
 import { PageHeading } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
+import { createItem, normalizeItem } from "../api/itemsApi";
 import {
   ALLOWED_IMAGE_TYPES,
   ITEM_DETAIL_MAX_LENGTH,
@@ -25,7 +30,9 @@ export default function CreateListing({ items, setItems }) {
   const editId = params.get("edit");
   const editingItem = items.find((i) => i.id === editId);
   const [name, setName] = useState(editingItem?.name || "");
-  const [category, setCategory] = useState(editingItem?.category || "");
+  const [category, setCategory] = useState(
+    normalizeCategoryKey(editingItem?.category) || "",
+  );
   const [detail, setDetail] = useState(editingItem?.detail || "");
   
   // เปลี่ยนเก็บเป็น File Object แทน Base64 String
@@ -102,47 +109,33 @@ export default function CreateListing({ items, setItems }) {
     try {
       // ส่ง Request หรือ ยิง API ไปหา Backend
       const studentId = user?.studentId || "6400000001"; // ดึงจาก Auth หรือค่าเริ่มต้น
-      const response = await fetch(`/api/items/${studentId}`, {
-        method: "POST",
-        headers: {
-          // แนบ JWT Token ใน Header ตามที่ระบบ Backend ตรวจสอบสิทธิ์
-          "Authorization": `Bearer ${user?.token || localStorage.getItem("token")}`
-          // หมายเหตุ: ห้ามใส่ Content-Type: application/json เด็ดขาด เพราะใช้ FormData
-        },
-        body: formData, // ส่ง FormData (ห้ามใส่ Content-Type เด็ดขาด เดี๋ยว Browser จัดการให้เอง)
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.message || "ไม่สามารถบันทึกข้อมูลได้");
-      }
-
-      const result = await response.json();
+      const result = await createItem(studentId, formData, user?.token);
+      const normalized = normalizeItem(result, editingItem?.owner || user.name);
 
       // บันทึกลง State ฝั่ง frontend (อันเดิม)
       const record = {
-        id: editingItem?.id || crypto.randomUUID(),
-        name: name.trim(),
-        category,
-        detail,
-        image: imagePreview,
+        id: editingItem?.id || normalized?.id,
+        name: normalized?.name || name.trim(),
+        category: normalized?.category || category,
+        detail: normalized?.detail || detail.trim(),
+        image: imagePreview || normalized?.image || "",
         owner: editingItem?.owner || user.name,
-        owner: editingItem?.ownerId || user.id,
-        status: "available",
+        ownerId: editingItem?.ownerId || user.id || normalized?.ownerId || studentId,
+        status: normalized?.status || "available",
       };
-    if (editingItem)
-      setItems((prev) =>
-        prev.map((item) => (item.id === editingItem.id ? record : item)),
+      if (editingItem)
+        setItems((prev) =>
+          prev.map((item) => (item.id === editingItem.id ? record : item)),
+        );
+      else setItems((prev) => [record, ...prev]);
+      setSuccess(
+        editingItem ? "แก้ไขประกาศเรียบร้อยแล้ว" : "สร้างประกาศเรียบร้อยแล้ว",
       );
-    else setItems((prev) => [record, ...prev]);
-    setSuccess(
-      editingItem ? "แก้ไขประกาศเรียบร้อยแล้ว" : "สร้างประกาศเรียบร้อยแล้ว",
-    );
-    window.setTimeout(() => navigate("/my-listings"), REDIRECT_DELAY_MS);
-  } catch (err) {
+      window.setTimeout(() => navigate("/my-listings"), REDIRECT_DELAY_MS);
+    } catch (err) {
       setErrors((prev) => ({ ...prev, submit: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" }));
       setSubmitError(err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
-  }
+    }
 }
 
   return (
@@ -200,7 +193,9 @@ export default function CreateListing({ items, setItems }) {
           >
             <option value="">เลือกหมวดหมู่</option>
             {CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
+              <option key={c} value={c}>
+                {getCategoryLabel(c)}
+              </option>
             ))}
           </select>
           {errors.category && (

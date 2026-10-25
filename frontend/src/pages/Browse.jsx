@@ -1,21 +1,23 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, Plus, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
-import { CATEGORIES } from "../data";
+import { CATEGORIES, getCategoryLabel, normalizeCategoryKey } from "../data";
 import { ItemCard, PageHeading, EmptyState } from "../components/UI";
 
 export default function Browse({ items }) {
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("ทั้งหมด");
+  const [category, setCategory] = useState("ALL");
   const availableItems = useMemo(
     () =>
       items.filter((item) => {
+        const itemCategoryKey = normalizeCategoryKey(item.category);
+        const categoryText = getCategoryLabel(itemCategoryKey);
         const text =
-          `${item.name} ${item.category} ${item.owner}`.toLowerCase();
+          `${item.name} ${categoryText} ${item.owner}`.toLowerCase();
         return (
           item.status !== "deleted" &&
           text.includes(query.toLowerCase()) &&
-          (category === "ทั้งหมด" || item.category === category)
+          (category === "ALL" || !category || itemCategoryKey === category)
         );
       }),
     [items, query, category],
@@ -46,22 +48,24 @@ export default function Browse({ items }) {
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
-            <option>ทั้งหมด</option>
+            <option value="ALL">{getCategoryLabel("ALL")}</option>
             {CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
+              <option key={c} value={c}>
+                {getCategoryLabel(c)}
+              </option>
             ))}
           </select>
         </label>
       </section>
 
       <div className="category-chips">
-        {["ทั้งหมด", ...CATEGORIES].map((c) => (
+        {["ALL", ...CATEGORIES].map((c) => (
           <button
             key={c}
             onClick={() => setCategory(c)}
             className={`chip ${category === c ? "chip-active" : ""}`}
           >
-            {c}
+            {getCategoryLabel(c)}
           </button>
         ))}
       </div>
