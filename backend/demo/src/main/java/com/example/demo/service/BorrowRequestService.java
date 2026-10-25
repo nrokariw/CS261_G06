@@ -47,6 +47,7 @@ public class BorrowRequestService {
 
         // เรียกใช้ฟังก์ชัน requestBorrow จาก User Model (ข้างในกำหนด createdAt เป็น UTC+0 แล้ว)
         BorrowRequest request = borrower.requestBorrow(itemId, startDate, endDate);
+        request.setId(java.util.UUID.randomUUID().toString());
 
         return borrowRequestRepository.save(request);
     }
