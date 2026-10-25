@@ -42,6 +42,7 @@ export default function ItemDetails({ items, setRequests }) {
         itemId: item.id,
         itemName: item.name,
         borrower: user.name,
+        borrowerId: user.id,
         borrowDate,
         returnDate,
         reason: reason.trim(),

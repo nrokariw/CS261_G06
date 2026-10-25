@@ -122,6 +122,7 @@ export default function CreateListing({ items, setItems }) {
         detail,
         image: imagePreview,
         owner: editingItem?.owner || user.name,
+        owner: editingItem?.ownerId || user.id,
         status: "available",
       };
     if (editingItem)

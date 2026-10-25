@@ -131,7 +131,7 @@ export default function App() {
           </nav>
           <span className="top-user">
             <Avatar name={user.name} size="sm" />
-            <span>Ploy S.</span>
+            <span>{user.name}</span>
           </span>
         </header>
 
