@@ -12,7 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 @RestController 
-@RequestMapping ("/api/items")
+@RequestMapping ("${app.api.items-path:/api/items}")
 
 public class ItemController {
 

@@ -44,6 +44,13 @@ services:
       SPRING_DATASOURCE_USERNAME: "${DB_USER:-sa}"
       SPRING_DATASOURCE_PASSWORD: "${MSSQL_SA_PASSWORD:-StrongPassw0rd!}"
       SPRING_JPA_HIBERNATE_DDL_AUTO: "${HIBERNATE_DDL_AUTO:-update}"
+      API_BASE_PATH: "${API_BASE_PATH:-/api}"
+      API_AUTH_PATH: "${API_AUTH_PATH:-/api/auth}"
+      API_ITEMS_PATH: "${API_ITEMS_PATH:-/api/items}"
+      API_REQUESTS_PATH: "${API_REQUESTS_PATH:-/api/requests}"
+      API_USERS_PATH: "${API_USERS_PATH:-/api/users}"
+      API_TRANSACTIONS_PATH: "${API_TRANSACTIONS_PATH:-/api/transactions}"
+      API_EVIDENCE_PATH: "${API_EVIDENCE_PATH:-/api/evidence}"
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:

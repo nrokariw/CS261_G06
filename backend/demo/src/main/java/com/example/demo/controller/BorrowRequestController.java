@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController 
-@RequestMapping ({"/api/borrow-requests", "/api/requests"})
+@RequestMapping ({"${app.api.requests-path:/api/requests}", "/api/borrow-requests"})
 
 public class BorrowRequestController {
     
