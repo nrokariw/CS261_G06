@@ -20,13 +20,13 @@ public class Item {
     @Column(name = "owner_id", nullable = false)
     private String ownerId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "NVARCHAR(255)")
     private String title;
 
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "NVARCHAR(100)")
     private String category;
 
     @Enumerated(EnumType.STRING)
