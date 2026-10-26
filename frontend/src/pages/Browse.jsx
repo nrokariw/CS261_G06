@@ -1,21 +1,25 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Search, Plus, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
-import { CATEGORIES } from "../data";
+import { CATEGORIES, getCategoryLabel, normalizeCategoryKey } from "../data";
 import { ItemCard, PageHeading, EmptyState } from "../components/UI";
 
 export default function Browse({ items }) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("ทั้งหมด");
+  const [category, setCategory] = useState("ALL");
   const availableItems = useMemo(
     () =>
       items.filter((item) => {
+        const itemCategoryKey = normalizeCategoryKey(item.category);
+        const categoryText = getCategoryLabel(itemCategoryKey);
         const text =
-          `${item.name} ${item.category} ${item.owner}`.toLowerCase();
+          `${item.name} ${categoryText} ${item.owner}`.toLowerCase();
         return (
           item.status !== "deleted" &&
           text.includes(query.toLowerCase()) &&
-          (category === "ทั้งหมด" || item.category === category)
+          (category === "ALL" || !category || itemCategoryKey === category)
         );
       }),
     [items, query, category],
@@ -24,11 +28,11 @@ export default function Browse({ items }) {
   return (
     <div className="page-stack">
       <PageHeading
-        eyebrow="DISCOVER & BORROW"
-        title="ค้นหาสิ่งของ"
-        subtitle="ค้นหาของที่เพื่อนๆ เปิดให้ยืมภายในมหาวิทยาลัย"
+        eyebrow={t("browse.eyebrow")}
+        title={t("browse.title")}
+        subtitle={t("browse.subtitle")}
         action={
-          <span className="result-count">{availableItems.length} รายการ</span>
+          <span className="result-count">{t("browse.resultCount", { count: availableItems.length })}</span>
         }
       />
       <section className="filter-panel">
@@ -37,31 +41,33 @@ export default function Browse({ items }) {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="ค้นหาชื่อสิ่งของหรือเจ้าของ"
+            placeholder={t("browse.searchPlaceholder")}
           />
         </label>
         <label className="select-box">
-          <span>หมวดหมู่</span>
+          <span>{t("browse.categoryLabel")}</span>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
-            <option>ทั้งหมด</option>
+            <option value="ALL">{t("categories.ALL", { defaultValue: getCategoryLabel("ALL") })}</option>
             {CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
+              <option key={c} value={c}>
+                {t(`categories.${c}`, { defaultValue: getCategoryLabel(c) })}
+              </option>
             ))}
           </select>
         </label>
       </section>
 
       <div className="category-chips">
-        {["ทั้งหมด", ...CATEGORIES].map((c) => (
+        {["ALL", ...CATEGORIES].map((c) => (
           <button
             key={c}
             onClick={() => setCategory(c)}
             className={`chip ${category === c ? "chip-active" : ""}`}
           >
-            {c}
+            {t(`categories.${c}`, { defaultValue: getCategoryLabel(c) })}
           </button>
         ))}
       </div>
@@ -73,17 +79,17 @@ export default function Browse({ items }) {
         </section>
       ) : (
         <EmptyState
-          title="ไม่พบสิ่งของที่ค้นหา"
-          description="ลองเปลี่ยนคำค้นหาหรือเลือกหมวดหมู่อื่น"
+          title={t("browse.emptyTitle")}
+          description={t("browse.emptyDesc")}
         />
       )}
       <div className="bottom-cta">
         <div>
-          <strong>ลงประกาศของที่ให้ยืม</strong>
-          <p>เพิ่มรายละเอียดของที่อยากให้เพื่อนยืมได้เลย</p>
+          <strong>{t("browse.ctaTitle")}</strong>
+          <p>{t("browse.ctaDesc")}</p>
         </div>
         <Link to="/create" className="button button-primary">
-          <Plus size={17} /> สร้างประกาศ
+          <Plus size={17} /> {t("browse.ctaButton")}
         </Link>
       </div>
     </div>
