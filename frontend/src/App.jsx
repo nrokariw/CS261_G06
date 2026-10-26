@@ -11,6 +11,7 @@ import {
   Globe,
   Sun,
   Moon,
+  History
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SEED_ITEMS, SEED_REQUESTS } from "./data";
@@ -23,6 +24,7 @@ import IncomingRequests from "./pages/IncomingRequests";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./contexts/AuthContext";
 import { useTheme } from "./contexts/ThemeContext";
+import MyBorrows from "./pages/MyBorrows";
 
 function readStore(key, fallback) {
   try {
@@ -184,6 +186,14 @@ export default function App() {
                   setRequests={setRequests}
                 />
               }
+            />
+            <Route 
+              path="/my-borrows" 
+              element={
+                <MyBorrows 
+                  requests={requests} 
+                />
+              } 
             />
             <Route path="*" element={<NotFound />} />
           </Routes>
