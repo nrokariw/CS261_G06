@@ -8,21 +8,29 @@ import java.time.ZoneOffset;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 
 @Entity
+@Table(name = "borrow_request")
 public class BorrowRequest {
     @Id
     //define attributes
     private String id;
     private String itemId;
     private String borrowerId;
+    @Column(columnDefinition = "DATETIME2")
     private LocalDateTime startDate;
+    @Column(columnDefinition = "DATETIME2")
     private LocalDateTime endDate;
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String reason;
+    @Enumerated(EnumType.STRING)
     private RequestStatus status = RequestStatus.PENDING;
+    @Column(columnDefinition = "DATETIME2")
     private LocalDateTime createdAt;
 
     // สั่งให้สุ่มสร้าง UUID และกำหนดเวลาเป็น UTC+0 อัตโนมัติก่อนบันทึกลง Database

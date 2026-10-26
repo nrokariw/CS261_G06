@@ -26,7 +26,7 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**") // ใช้กับทุก API Routes
                 .allowedOrigins(corsProperties.getProcessedOrigins()) // เรียกใช้เมธอด trim ที่เตรียมไว้
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")
                 .allowCredentials(true);
     }

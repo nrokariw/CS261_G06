@@ -86,7 +86,7 @@ public class BorrowRequestController {
         );
     }
 
-    @PatchMapping("/{requestId}/status")
+    @RequestMapping(value = "/{requestId}/status", method = {RequestMethod.PATCH, RequestMethod.POST})
     public BorrowRequest updateRequestStatus(
             @PathVariable String requestId,
             @RequestParam(required = false) String ownerId,

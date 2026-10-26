@@ -83,10 +83,21 @@ export async function apiRequest(endpoint, options = {}) {
     } catch {
       errData = { message: rawText };
     }
+    const baseMsg =
+      errData.message || errData.error || `Request failed (${response.status})`;
+    const detailSuffix =
+      errData.detail && errData.detail !== baseMsg
+        ? ` — ${errData.detail}`
+        : "";
     const error = new Error(
-      errData.message || errData.error || `Request failed (${response.status})`,
+      `[HTTP ${response.status}] ${baseMsg}${detailSuffix}`,
     );
     error.status = response.status;
+    error.data = errData;
+    console.error(`[API Error] ${rest.method || "GET"} ${url}:`, {
+      status: response.status,
+      ...errData,
+    });
     throw error;
   }
 
