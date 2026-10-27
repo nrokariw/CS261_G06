@@ -15,6 +15,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { BORROW_REASON_MAX_LENGTH } from "../constants/config";
 import { getCategoryLabel, normalizeCategoryKey } from "../data";
 import { createBorrowRequest } from "../api/requestsApi";
+import { getItemById } from "../api/itemsApi";
 
 export default function ItemDetails({ setRequests }) {
   const { user } = useAuth();
@@ -32,6 +33,21 @@ export default function ItemDetails({ setRequests }) {
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState(false);
   const today = new Date().toLocaleDateString("en-CA");
+
+  useEffect(() => {
+    async function loadItem() {
+      try {
+        setLoading(true); 
+        const data = await getItemById(id, user?.token);
+        setItem(data);
+      } catch (err) {
+        setErrorMsg(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadItem();
+  }, [id, user]);
 
   async function submit(e) {
     e.preventDefault();
@@ -75,7 +91,9 @@ export default function ItemDetails({ setRequests }) {
     setTimeout(() => navigate("/my-borrows"), 1500);
   }
 
-  if (!item)
+  if(loading) return <div className="page-stack">กำลังโหลดข้อมูล...</div>
+
+  if (errorMsg || !item)
     return (
       <div className="not-found">
         <h1>{t("itemDetails.notFoundTitle")}</h1>
@@ -89,6 +107,9 @@ export default function ItemDetails({ setRequests }) {
   const categoryLabel = t(`categories.${categoryKey}`, {
     defaultValue: getCategoryLabel(item.category),
   });
+
+  const isOwner = item.ownerId === user.id || item.owner === user.name;
+  const isAvailable = item.status === "available";
 
   return (
     <div className="page-stack">

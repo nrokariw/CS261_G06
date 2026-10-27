@@ -5,19 +5,34 @@ import { Search, Plus, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
 import { CATEGORIES, getCategoryLabel, normalizeCategoryKey } from "../data";
 import { ItemCard, PageHeading, EmptyState } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
-import { fetchItems } from "../api/items";
+import { getAvailableItems } from "../api/itemsApi";
 
 export default function Browse() {
   const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-}
 
-export default function Browse({ items }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("ALL");
+
+  // เพิ่ม useEffect เพื่อดึงข้อมูลจาก API
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+        const data = await getAvailableItems("AVAILABLE", user?.token); 
+        setItems(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, [user]);
+
   const availableItems = useMemo(
     () =>
       items.filter((item) => {

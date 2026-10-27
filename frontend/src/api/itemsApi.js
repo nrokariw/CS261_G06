@@ -38,3 +38,11 @@ export async function createItem(studentId, formData, token) {
     token,
   });
 }
+
+export async function getItemById(id, token) {
+  const raw = await apiRequest(`/items/${id}`, {
+    method: "GET",
+    token,
+  });
+  return normalizeItem(raw);
+}

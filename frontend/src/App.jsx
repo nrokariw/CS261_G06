@@ -74,6 +74,7 @@ export default function App() {
     { to: "/create", label: t("nav.create"), icon: PlusCircle },
     { to: "/my-listings", label: t("nav.myListings"), icon: ClipboardList },
     { to: "/requests", label: t("nav.requests"), icon: Inbox, count: pendingCount },
+    { to: "/my-borrows", label: t("nav.myBorrows"), icon: History },
   ];
 
   const { pathname, search } = location;
@@ -165,14 +166,14 @@ export default function App() {
 
         <main className="page-container">
           <Routes>
-            <Route path="/" element={<Browse items={items} />} />
+            <Route path="/" element={<Browse />} />
             <Route
               path="/create"
               element={<CreateListing items={items} setItems={setItems} />}
             />
             <Route
               path="/items/:id"
-              element={<ItemDetails items={items} setRequests={setRequests} />}
+              element={<ItemDetails setRequests={setRequests} />}
             />
             <Route
               path="/my-listings"
