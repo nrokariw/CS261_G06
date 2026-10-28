@@ -13,6 +13,8 @@ ARG VITE_API_AUTH_PATH=/api/auth
 ARG VITE_API_ITEMS_PATH=/api/items
 ARG VITE_API_REQUESTS_PATH=/api/requests
 ARG VITE_API_USERS_PATH=/api/users
+ARG VITE_API_TRANSACTIONS_PATH=/api/transactions
+ARG VITE_API_EVIDENCE_PATH=/api/evidence
 
 RUN npm run build
 
@@ -27,7 +29,7 @@ COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 
 # Generate /config.json at container startup so frontend can read central .env routes at runtime without rebuilds
-RUN printf '#!/bin/sh\ncat <<EOF > /usr/share/nginx/html/config.json\n{\n  "publicWebUrl": "${PUBLIC_WEB_URL}",\n  "tuApiBaseUrl": "${TU_API_BASE_URL}",\n  "api": {\n    "base": "${API_BASE_PATH}",\n    "auth": "${API_AUTH_PATH}",\n    "items": "${API_ITEMS_PATH}",\n    "requests": "${API_REQUESTS_PATH}",\n    "users": "${API_USERS_PATH}"\n  }\n}\nEOF\n' > /docker-entrypoint.d/30-runtime-config.sh && chmod +x /docker-entrypoint.d/30-runtime-config.sh
+RUN printf '#!/bin/sh\ncat <<EOF > /usr/share/nginx/html/config.json\n{\n  "publicWebUrl": "${PUBLIC_WEB_URL}",\n  "tuApiBaseUrl": "${TU_API_BASE_URL}",\n  "api": {\n    "base": "${API_BASE_PATH}",\n    "auth": "${API_AUTH_PATH}",\n    "items": "${API_ITEMS_PATH}",\n    "requests": "${API_REQUESTS_PATH}",\n    "users": "${API_USERS_PATH}",\n    "transactions": "${API_TRANSACTIONS_PATH}",\n    "evidence": "${API_EVIDENCE_PATH}"\n  }\n}\nEOF\n' > /docker-entrypoint.d/30-runtime-config.sh && chmod +x /docker-entrypoint.d/30-runtime-config.sh
 
 EXPOSE 80
 

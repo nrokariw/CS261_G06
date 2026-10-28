@@ -1,28 +1,40 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { PageHeading, StatusBadge, EmptyState, Avatar } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 
-function formatDate(date) {
+function formatDate(date, locale = "th-TH") {
   if (!date) return "—";
-  return new Date(`${date}T12:00:00`).toLocaleDateString("th-TH", {
+  const dateStr = String(date);
+  const parsed = dateStr.includes("T") ? new Date(dateStr) : new Date(`${dateStr}T12:00:00`);
+  if (isNaN(parsed.getTime())) return dateStr;
+  return parsed.toLocaleDateString(locale, {
     day: "numeric",
     month: "short",
     year: "numeric",
   });
 }
 
-export default function MyBorrows({ requests }) {
+export default function MyBorrows({ requests = [] }) {
   const { user } = useAuth();
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === "en" ? "en-US" : "th-TH";
   
   // คัดกรองมาเฉพาะรายการที่ "ฉัน" (ผู้ใช้ปัจจุบัน) เป็นคนกดยืม
-  const myBorrows = requests.filter(r => r.borrower === user.name);
+  const myBorrows = (requests || []).filter((r) =>
+    Boolean(
+      (user?.studentId && r.borrowerId === user.studentId) ||
+      (user?.id && r.borrowerId === user.id) ||
+      (user?.name && r.borrower === user.name)
+    )
+  );
 
   return (
     <div className="page-stack">
       <PageHeading
-        eyebrow="MY BORROWS"
-        title="การยืมของฉัน"
-        subtitle="ติดตามสถานะคำขอยืมสิ่งของที่คุณส่งไปให้เพื่อนพิจารณา"
+        eyebrow={t("myBorrows.eyebrow", { defaultValue: "MY BORROWS" })}
+        title={t("myBorrows.title", { defaultValue: "การยืมของฉัน" })}
+        subtitle={t("myBorrows.subtitle", { defaultValue: "ติดตามสถานะคำขอยืมสิ่งของที่คุณส่งไปให้เพื่อนพิจารณา" })}
       />
 
       {myBorrows.length ? (
@@ -35,23 +47,28 @@ export default function MyBorrows({ requests }) {
                   <div className="request-title">
                     <h3>{req.itemName}</h3>
                     <p>
-                      ส่งคำขอถึงเจ้าของเมื่อ <strong>{formatDate(req.borrowDate)}</strong>
+                      {t("myBorrows.requestedAt", {
+                        date: formatDate(req.borrowDate, dateLocale),
+                        defaultValue: `ส่งคำขอถึงเจ้าของเมื่อ ${formatDate(req.borrowDate, dateLocale)}`,
+                      })}
                     </p>
                   </div>
                   <StatusBadge status={req.status} />
                 </div>
-                <p className="request-reason">เหตุผล: {req.reason}</p>
+                <p className="request-reason">
+                  {t("myBorrows.reasonPrefix", { defaultValue: "เหตุผล: " })}{req.reason}
+                </p>
               </div>
 
               <div className="request-side">
                 <dl className="request-dates">
                   <div>
-                    <dt>วันที่ต้องการยืม</dt>
-                    <dd>{formatDate(req.borrowDate)}</dd>
+                    <dt>{t("myBorrows.borrowDate", { defaultValue: "วันที่ต้องการยืม" })}</dt>
+                    <dd>{formatDate(req.borrowDate, dateLocale)}</dd>
                   </div>
                   <div>
-                    <dt>วันที่กำหนดคืน</dt>
-                    <dd>{formatDate(req.returnDate)}</dd>
+                    <dt>{t("myBorrows.returnDate", { defaultValue: "วันที่กำหนดคืน" })}</dt>
+                    <dd>{formatDate(req.returnDate, dateLocale)}</dd>
                   </div>
                 </dl>
               </div>
@@ -60,8 +77,8 @@ export default function MyBorrows({ requests }) {
         </div>
       ) : (
         <EmptyState
-          title="ยังไม่มีประวัติการยืม"
-          description="คุณยังไม่ได้ส่งคำขอยืมสิ่งของชิ้นใดเลย ลองค้นหาของที่สนใจดูสิ"
+          title={t("myBorrows.emptyTitle", { defaultValue: "ยังไม่มีประวัติการยืม" })}
+          description={t("myBorrows.emptyDesc", { defaultValue: "คุณยังไม่ได้ส่งคำขอยืมสิ่งของชิ้นใดเลย ลองค้นหาของที่สนใจดูสิ" })}
         />
       )}
     </div>

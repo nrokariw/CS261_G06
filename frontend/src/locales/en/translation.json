@@ -4,6 +4,7 @@
     "create": "Create Listing",
     "myListings": "My Listings",
     "requests": "Incoming Requests",
+    "myBorrows": "My Borrows",
     "editListing": "Edit Listing",
     "itemDetails": "Item Details",
     "notFound": "Page Not Found",
@@ -89,7 +90,21 @@
     "reasonPlaceholder": "e.g. Needed for a group project or lab report...",
     "charCount": "{{count}}/{{max}} characters",
     "borrowNote": "Your request will be sent to the owner for approval before borrowing",
-    "submitRequest": "Send Borrow Request"
+    "submitRequest": "Send Borrow Request",
+    "cannotBorrowOwnItem": "You are the owner of this item and cannot borrow it",
+    "itemNotAvailable": "This item is not available for borrowing (may be reserved or borrowed)",
+    "viewMyBorrows": "View My Borrows"
+  },
+  "myBorrows": {
+    "eyebrow": "MY BORROWS",
+    "title": "My Borrows",
+    "subtitle": "Track the status of borrow requests you've sent to classmates",
+    "requestedAt": "Requested on {{date}}",
+    "reasonPrefix": "Reason: ",
+    "borrowDate": "Borrow Date",
+    "returnDate": "Return Date",
+    "emptyTitle": "No borrow history yet",
+    "emptyDesc": "You haven't requested to borrow any items yet. Explore the catalog!"
   },
   "myListings": {
     "eyebrow": "MY LISTINGS",
@@ -147,6 +162,8 @@
     "reasonRequired": "Please provide a reason for borrowing"
   },
   "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
     "viewDetails": "View Details",
     "back": "Back",
     "cancel": "Cancel",

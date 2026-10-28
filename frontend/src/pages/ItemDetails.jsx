@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   CalendarDays,
   CheckCircle2,
+  AlertCircle,
   MapPin,
   ShieldCheck,
   UserRound,
@@ -14,11 +15,11 @@ import { PageHeading, StatusBadge } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { BORROW_REASON_MAX_LENGTH } from "../constants/config";
 import { getCategoryLabel, normalizeCategoryKey } from "../data";
-import { createBorrowRequest } from "../api/requestsApi";
+import { createBorrowRequest, normalizeBorrowRequest } from "../api/requestsApi";
 import { getItemById } from "../api/itemsApi";
 
-export default function ItemDetails({ setRequests }) {
-  const { user } = useAuth();
+export default function ItemDetails({ items, setRequests }) {
+  const { user, token } = useAuth();
   const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
@@ -31,6 +32,7 @@ export default function ItemDetails({ setRequests }) {
   const [returnDate, setReturnDate] = useState("");
   const [reason, setReason] = useState("");
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState("");
   const [success, setSuccess] = useState(false);
   const today = new Date().toLocaleDateString("en-CA");
 
@@ -38,7 +40,7 @@ export default function ItemDetails({ setRequests }) {
     async function loadItem() {
       try {
         setLoading(true); 
-        const data = await getItemById(id, user?.token);
+        const data = await getItemById(id, token);
         setItem(data);
       } catch (err) {
         setErrorMsg(err.message);
@@ -47,10 +49,11 @@ export default function ItemDetails({ setRequests }) {
       }
     }
     loadItem();
-  }, [id, user]);
+  }, [id, token]);
 
   async function submit(e) {
     e.preventDefault();
+    setSubmitError("");
     const next = {};
     if (!borrowDate) next.borrowDate = t("validation.borrowDateRequired");
     if (!returnDate) next.returnDate = t("validation.returnDateRequired");
@@ -65,30 +68,35 @@ export default function ItemDetails({ setRequests }) {
     const payload = {
       itemId: item.id,
       borrowerId: user?.studentId || user?.id,
-      startDate: borrowDate,
-      endDate: returnDate,
+      startDate: borrowDate.includes("T") ? borrowDate : `${borrowDate}T00:00:00`,
+      endDate: returnDate.includes("T") ? returnDate : `${returnDate}T23:59:59`,
       reason: reason.trim(),
     };
-    const apiResult = await createBorrowRequest(payload, user?.token).catch(
-      () => null,
-    );
 
-    setRequests((prev) => [
-      {
-        id: apiResult?.id || crypto.randomUUID(),
-        itemId: item.id,
-        itemName: item.name,
-        borrower: user.name,
-        borrowerId: user.id,
-        borrowDate,
-        returnDate,
-        reason: reason.trim(),
-        status: "pending",
-      },
-      ...prev,
-    ]);
-    setSuccess(true);
-    setTimeout(() => navigate("/my-borrows"), 1500);
+    try {
+      const apiResult = await createBorrowRequest(payload, token);
+      const normalized = normalizeBorrowRequest(apiResult, items || [item]);
+      if (setRequests) {
+        setRequests((prev) => [
+          {
+            id: normalized?.id || apiResult?.id || crypto.randomUUID(),
+            itemId: item.id,
+            itemName: item.name,
+            borrower: user?.name || payload.borrowerId,
+            borrowerId: payload.borrowerId,
+            borrowDate: normalized?.borrowDate || borrowDate,
+            returnDate: normalized?.returnDate || returnDate,
+            reason: normalized?.reason || reason.trim(),
+            status: normalized?.status || "pending",
+          },
+          ...prev,
+        ]);
+      }
+      setSuccess(true);
+      setTimeout(() => navigate("/my-borrows"), 1500);
+    } catch (err) {
+      setSubmitError(err.message || t("validation.submitFailed"));
+    }
   }
 
   if(loading) return <div className="page-stack">กำลังโหลดข้อมูล...</div>
@@ -108,8 +116,12 @@ export default function ItemDetails({ setRequests }) {
     defaultValue: getCategoryLabel(item.category),
   });
 
-  const isOwner = item.ownerId === user.id || item.owner === user.name;
-  const isAvailable = item.status === "available";
+  const isOwner = Boolean(
+    (user?.studentId && item.ownerId === user.studentId) ||
+    (user?.id && item.ownerId === user.id) ||
+    (user?.name && item.owner === user.name)
+  );
+  const isAvailable = String(item.status || "").toLowerCase() === "available";
 
   return (
     <div className="page-stack">
@@ -181,14 +193,24 @@ export default function ItemDetails({ setRequests }) {
               <span>
                 <CheckCircle2 size={28} />
               </span>
-              <h3>{t("itemDetails.requestSentTitle")}</h3>
-              <p>{t("itemDetails.requestSentDesc")}</p>
+              <h3>{t("itemDetails.requestSentTitle", { defaultValue: "ส่งคำขอเรียบร้อยแล้ว!" })}</h3>
+              <p>{t("itemDetails.requestSentDesc", { defaultValue: "เจ้าของสิ่งของจะตรวจสอบคำขอของคุณ" })}</p>
               <button
                 className="button button-primary button-full"
-                onClick={() => navigate("/my-listings")}
+                onClick={() => navigate("/my-borrows")}
               >
-                {t("itemDetails.backToListings")}
+                {t("itemDetails.viewMyBorrows", { defaultValue: "ดูรายการยืมของฉัน" })}
               </button>
+            </div>
+          ) : isOwner ? (
+            <div className="borrow-note" style={{ color: "var(--accent-strong, #3b82f6)", marginTop: "15px" }}>
+              <ShieldCheck size={17} />
+              <span>{t("itemDetails.cannotBorrowOwnItem", { defaultValue: "คุณเป็นเจ้าของสิ่งของชิ้นนี้ ไม่สามารถยืมของตัวเองได้" })}</span>
+            </div>
+          ) : !isAvailable ? (
+            <div className="borrow-note" style={{ color: "var(--danger, #ef4444)", marginTop: "15px" }}>
+              <AlertCircle size={17} />
+              <span>{t("itemDetails.itemNotAvailable", { defaultValue: "สิ่งของชิ้นนี้ไม่อยู่ในสถานะพร้อมให้ยืม (อาจถูกจองหรือยืมไปแล้ว)" })}</span>
             </div>
           ) : (
             <form onSubmit={submit} noValidate>
@@ -248,6 +270,12 @@ export default function ItemDetails({ setRequests }) {
                 <ShieldCheck size={17} />
                 <span>{t("itemDetails.borrowNote")}</span>
               </div>
+              {submitError && (
+                <small className="field-error" style={{ marginBottom: "12px" }}>
+                  <AlertCircle size={13} />
+                  {submitError}
+                </small>
+              )}
               <button
                 className="button button-primary button-full"
                 type="submit"
@@ -255,33 +283,6 @@ export default function ItemDetails({ setRequests }) {
                 <Send size={16} /> {t("itemDetails.submitRequest")}
               </button>
             </form>
-          )}
-
-          {/*แสดงข้อความสำเร็จเมื่อกดส่งคำขอเรียบร้อยแล้ว*/}
-          {success && (
-            <div className="request-success">
-              <span>
-                <CheckCircle2 size={28} />
-              </span>
-              <h3>ส่งคำขอเรียบร้อยแล้ว!</h3>
-              <p>ระบบกำลังพาคุณไปยังหน้าประวัติการยืม...</p>
-            </div>
-          )}
-
-          {/*แจ้งเตือนหากผู้ใช้คือเจ้าของสิ่งของ*/}
-          {isOwner && (
-            <div className="borrow-note" style={{ color: 'blue', marginTop: '15px' }}>
-              <ShieldCheck size={17} /> 
-              <span>คุณเป็นเจ้าของสิ่งของชิ้นนี้ ไม่สามารถยืมของตัวเองได้</span>
-            </div>
-          )}
-
-          {/*แจ้งเตือนหากสิ่งของถูกยืมหรือจองไปแล้ว*/}
-          {!isAvailable && !isOwner && (
-            <div className="borrow-note" style={{ color: 'red', marginTop: '15px' }}>
-              <ShieldCheck size={17} /> 
-              <span>สิ่งของชิ้นนี้ไม่อยู่ในสถานะพร้อมให้ยืม (อาจถูกจองหรือยืมไปแล้ว)</span>
-            </div>
           )}
         </aside>
       </div>

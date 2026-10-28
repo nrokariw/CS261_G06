@@ -15,7 +15,7 @@ import {
 } from "../data";
 import { PageHeading } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
-import { createItem, normalizeItem } from "../api/itemsApi";
+import { createItem, updateItem, normalizeItem } from "../api/itemsApi";
 import {
   ALLOWED_IMAGE_TYPES,
   ITEM_DETAIL_MAX_LENGTH,
@@ -25,7 +25,7 @@ import {
 } from "../constants/config";
 
 export default function CreateListing({ items, setItems }) {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -111,18 +111,35 @@ export default function CreateListing({ items, setItems }) {
     try {
       // ส่ง Request หรือ ยิง API ไปหา Backend
       const studentId = user?.studentId || "6400000001"; // ดึงจาก Auth หรือค่าเริ่มต้น
-      const result = await createItem(studentId, formData, user?.token);
-      const normalized = normalizeItem(result, editingItem?.owner || user.name);
+      const authToken = token || user?.token;
+      const result = editingItem
+        ? await updateItem(
+            editingItem.id,
+            imageFile
+              ? formData
+              : {
+                  title: name.trim(),
+                  category,
+                  description: detail.trim(),
+                },
+            authToken,
+          )
+        : await createItem(studentId, formData, authToken);
+      const normalized = normalizeItem(result, editingItem?.owner || user?.name);
 
       // บันทึกลง State ฝั่ง frontend (อันเดิม)
       const record = {
-        id: editingItem?.id || normalized?.id,
+        id: normalized?.id || editingItem?.id,
         name: normalized?.name || name.trim(),
         category: normalized?.category || category,
         detail: normalized?.detail || detail.trim(),
-        image: imagePreview || normalized?.image || "",
-        owner: editingItem?.owner || user.name,
-        ownerId: editingItem?.ownerId || user.id || normalized?.ownerId || studentId,
+        image: normalized?.image || imagePreview || "",
+        owner: editingItem?.owner || user?.name,
+        ownerId:
+          normalized?.ownerId ||
+          editingItem?.ownerId ||
+          studentId ||
+          user?.id,
         status: normalized?.status || "available",
       };
       if (editingItem)

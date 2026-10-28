@@ -34,9 +34,14 @@ public class BorrowRequestService {
     // 1. ผู้ยืมสร้างคำขอยืม (Borrow Request)
     @Transactional
     public BorrowRequest requestBorrow(String borrowerId, String itemId, LocalDateTime startDate, LocalDateTime endDate) {
+        return requestBorrow(borrowerId, itemId, startDate, endDate, null);
+    }
+
+    @Transactional
+    public BorrowRequest requestBorrow(String borrowerId, String itemId, LocalDateTime startDate, LocalDateTime endDate, String reason) {
         // ตรวจสอบว่ามี User และ Item อยู่จริงไหม
         User borrower = userRepository.findById(borrowerId)
-                .orElseThrow(() -> new RuntimeException("Borrower not found"));
+                .orElseGet(() -> userRepository.save(new User(borrowerId, borrowerId, borrowerId, "", "")));
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Item not found"));
         
@@ -47,6 +52,9 @@ public class BorrowRequestService {
 
         // เรียกใช้ฟังก์ชัน requestBorrow จาก User Model (ข้างในกำหนด createdAt เป็น UTC+0 แล้ว)
         BorrowRequest request = borrower.requestBorrow(itemId, startDate, endDate);
+        if (reason != null && !reason.trim().isEmpty()) {
+            request.setReason(reason.trim());
+        }
 
         return borrowRequestRepository.save(request);
     }
@@ -83,7 +91,7 @@ public class BorrowRequestService {
                 .orElseThrow(() -> new RuntimeException("Item not found"));
 
         // ตรวจสอบว่าคนที่กดอนุมัติ เป็นเจ้าของไอเท็มชิ้นนี้จริงๆ หรือไม่ (Security Check)
-        if (!item.getOwnerId().equals(ownerId)) {
+        if (ownerId != null && !ownerId.isEmpty() && !item.getOwnerId().equals(ownerId)) {
             throw new SecurityException("Unauthorized: You are not the owner of this item");
         }
 
@@ -109,7 +117,7 @@ public class BorrowRequestService {
         Item item = itemRepository.findById(request.getItemId())
                 .orElseThrow(() -> new RuntimeException("Item not found"));
 
-        if (!item.getOwnerId().equals(ownerId)) {
+        if (ownerId != null && !ownerId.isEmpty() && !item.getOwnerId().equals(ownerId)) {
             throw new SecurityException("Unauthorized: You are not the owner of this item");
         }
 
@@ -126,8 +134,47 @@ public class BorrowRequestService {
         return borrowRequestRepository.save(request);
     } 
 
+    @Transactional
+    public BorrowRequest resetRequestToPending(String requestId, String ownerId) {
+        BorrowRequest request = borrowRequestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Request not found"));
+
+        Item item = itemRepository.findById(request.getItemId())
+                .orElseThrow(() -> new RuntimeException("Item not found"));
+
+        if (ownerId != null && !ownerId.isEmpty() && !item.getOwnerId().equals(ownerId)) {
+            throw new SecurityException("Unauthorized: You are not the owner of this item");
+        }
+
+        request.resetToPending();
+        item.setStatus(ItemStatus.AVAILABLE);
+
+        itemRepository.save(item);
+        return borrowRequestRepository.save(request);
+    }
+
     // 5.ค้นหาคำขอทั้งหมดของผู้ยืม
     public List<BorrowRequest> getRequestsByBorrower(String borrowerId) {
         return borrowRequestRepository.findByBorrowerId(borrowerId);
+    }
+
+    // 6.ค้นหาคำขอยืมที่เข้ามาสำหรับสิ่งของทั้งหมดของเจ้าของ (Owner)
+    public List<BorrowRequest> getRequestsByOwner(String ownerId) {
+        List<String> ownerItemIds = itemRepository.findByOwnerId(ownerId)
+                .stream()
+                .map(Item::getId)
+                .toList();
+        if (ownerItemIds.isEmpty()) {
+            return List.of();
+        }
+        return borrowRequestRepository.findAll()
+                .stream()
+                .filter(req -> ownerItemIds.contains(req.getItemId()))
+                .toList();
+    }
+
+    // 7.ค้นหาคำขอทั้งหมดในระบบ
+    public List<BorrowRequest> getAllRequests() {
+        return borrowRequestRepository.findAll();
     }
 }

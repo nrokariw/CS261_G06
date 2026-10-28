@@ -8,7 +8,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { getAvailableItems } from "../api/itemsApi";
 
 export default function Browse() {
-  const { user } = useAuth();
+  const { token } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,7 +22,7 @@ export default function Browse() {
     async function loadData() {
       try {
         setLoading(true);
-        const data = await getAvailableItems("AVAILABLE", user?.token); 
+        const data = await getAvailableItems("AVAILABLE", token); 
         setItems(data);
       } catch (err) {
         setError(err.message);
@@ -31,7 +31,7 @@ export default function Browse() {
       }
     }
     loadData();
-  }, [user]);
+  }, [token]);
 
   const availableItems = useMemo(
     () =>
@@ -39,9 +39,9 @@ export default function Browse() {
         const itemCategoryKey = normalizeCategoryKey(item.category);
         const categoryText = getCategoryLabel(itemCategoryKey);
         const text =
-          `${item.name} ${categoryText} ${item.owner}`.toLowerCase();
+          `${item.name || ""} ${categoryText} ${item.owner || ""}`.toLowerCase();
         return (
-          item.status === "available" &&
+          String(item.status || "").toLowerCase() === "available" &&
           text.includes(query.toLowerCase()) &&
           (category === "ALL" || !category || itemCategoryKey === category)
         );
@@ -49,8 +49,8 @@ export default function Browse() {
     [items, query, category],
   );
 
-  if(loading) return <div className="page-stack">กำลังโหลดข้อมูล...</div>;
-  if(error) return <div className="page-stack"><EmptyState title="เกิดข้อผิดพลาด" description={error}/></div>
+  if (loading) return <div className="page-stack">{t("common.loading", { defaultValue: "กำลังโหลดข้อมูล..." })}</div>;
+  if (error) return <div className="page-stack"><EmptyState title={t("common.error", { defaultValue: "เกิดข้อผิดพลาด" })} description={error} /></div>;
 
   return (
     <div className="page-stack">
