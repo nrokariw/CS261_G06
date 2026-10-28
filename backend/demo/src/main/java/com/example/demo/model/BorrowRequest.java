@@ -22,10 +22,10 @@ public class BorrowRequest {
     @Column(name = "borrower_id", nullable = false)
     private String borrowerId;
 
-    @Column(name = "start_date", nullable = false)
+    @Column(columnDefinition = "DATETIME2")
     private LocalDateTime startDate;
 
-    @Column(name = "end_date", nullable = false)
+    @Column(columnDefinition = "DATETIME2")
     private LocalDateTime endDate;
 
     @Column(columnDefinition = "NVARCHAR(MAX)")
@@ -35,7 +35,7 @@ public class BorrowRequest {
     @Column(name = "request_status", nullable = false)
     private RequestStatus status = RequestStatus.PENDING;
 
-    @Column(name = "created_at", updatable = false)
+    @Column(columnDefinition = "DATETIME2")
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
@@ -116,12 +116,24 @@ public class BorrowRequest {
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
     //define methods
-     public void approve() {
-         this.status = RequestStatus.ACCEPTED;
+    public void approve() {
+        if (this.status != RequestStatus.PENDING) {
+            throw new IllegalStateException("Cannot approve request that is not pending");
+        }
+        this.status = RequestStatus.ACCEPTED;
     }
+
     public void reject() {
+        if (this.status != RequestStatus.PENDING) {
+            throw new IllegalStateException("Cannot reject request that is not pending");
+        }
         this.status = RequestStatus.REJECTED;
     }
+
+    public void resetToPending() {
+        this.status = RequestStatus.PENDING;
+    }
+
     public void cancel() {
         // ตรวจสอบว่าสถานะปัจจุบันอนุญาตให้ยกเลิกได้ไหม (เช่น ต้องเป็น PENDING อยู่)
         if (this.status != RequestStatus.PENDING) {

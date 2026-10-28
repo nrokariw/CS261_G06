@@ -66,6 +66,9 @@ public class BorrowRequestService {
             dto.getEndDate(),
             dto.getReason()
         );
+        if (dto.getReason() != null && !dto.getReason().trim().isEmpty()) {
+            request.setReason(dto.getReason().trim());
+        }
 
         return borrowRequestRepository.save(request);
     }
@@ -102,7 +105,7 @@ public class BorrowRequestService {
                 .orElseThrow(() -> new RuntimeException("Item not found: " + request.getItemId()));
 
         // ตรวจสอบว่าคนที่กดอนุมัติ เป็นเจ้าของไอเท็มชิ้นนี้จริงๆ หรือไม่ (Security Check)
-        if (!item.getOwnerId().equals(ownerId)) {
+        if (ownerId != null && !ownerId.isEmpty() && !item.getOwnerId().equals(ownerId)) {
             throw new SecurityException("Unauthorized: You are not the owner of this item");
         }
 
@@ -128,7 +131,7 @@ public class BorrowRequestService {
         Item item = itemRepository.findById(request.getItemId())
                 .orElseThrow(() -> new RuntimeException("Item not found: " + request.getItemId()));
 
-        if (!item.getOwnerId().equals(ownerId)) {
+        if (ownerId != null && !ownerId.isEmpty() && !item.getOwnerId().equals(ownerId)) {
             throw new SecurityException("Unauthorized: You are not the owner of this item");
         }
 
@@ -145,8 +148,47 @@ public class BorrowRequestService {
         return borrowRequestRepository.save(request);
     } 
 
+    @Transactional
+    public BorrowRequest resetRequestToPending(String requestId, String ownerId) {
+        BorrowRequest request = borrowRequestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Request not found"));
+
+        Item item = itemRepository.findById(request.getItemId())
+                .orElseThrow(() -> new RuntimeException("Item not found"));
+
+        if (ownerId != null && !ownerId.isEmpty() && !item.getOwnerId().equals(ownerId)) {
+            throw new SecurityException("Unauthorized: You are not the owner of this item");
+        }
+
+        request.resetToPending();
+        item.setStatus(ItemStatus.AVAILABLE);
+
+        itemRepository.save(item);
+        return borrowRequestRepository.save(request);
+    }
+
     // 5.ค้นหาคำขอทั้งหมดของผู้ยืม
     public List<BorrowRequest> getRequestsByBorrower(String borrowerId) {
         return borrowRequestRepository.findByBorrowerId(borrowerId);
+    }
+
+    // 6.ค้นหาคำขอยืมที่เข้ามาสำหรับสิ่งของทั้งหมดของเจ้าของ (Owner)
+    public List<BorrowRequest> getRequestsByOwner(String ownerId) {
+        List<String> ownerItemIds = itemRepository.findByOwnerId(ownerId)
+                .stream()
+                .map(Item::getId)
+                .toList();
+        if (ownerItemIds.isEmpty()) {
+            return List.of();
+        }
+        return borrowRequestRepository.findAll()
+                .stream()
+                .filter(req -> ownerItemIds.contains(req.getItemId()))
+                .toList();
+    }
+
+    // 7.ค้นหาคำขอทั้งหมดในระบบ
+    public List<BorrowRequest> getAllRequests() {
+        return borrowRequestRepository.findAll();
     }
 }

@@ -17,9 +17,13 @@ public class User {
     @Id 
     @Column(name = "student_id")
     private String studentId;
+    @Column(columnDefinition = "NVARCHAR(255)")
     private String username;
+    @Column(columnDefinition = "NVARCHAR(255)")
     private String fullName;
+    @Column(columnDefinition = "NVARCHAR(255)")
     private String email;
+    @Column(columnDefinition = "NVARCHAR(255)")
     private String faculty;
 
     /**

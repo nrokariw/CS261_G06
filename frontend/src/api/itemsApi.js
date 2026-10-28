@@ -1,4 +1,4 @@
-import { apiRequest } from "./client";
+import { apiRequest, getApiPaths } from "./client";
 import { normalizeCategoryKey } from "../data";
 
 export function normalizeItem(raw, fallbackOwner = "") {
@@ -16,7 +16,8 @@ export function normalizeItem(raw, fallbackOwner = "") {
 }
 
 export async function getAvailableItems(status = "AVAILABLE", token) {
-  const list = await apiRequest(`/items?status=${encodeURIComponent(status)}`, {
+  const { items } = getApiPaths();
+  const list = await apiRequest(`${items}?status=${encodeURIComponent(status)}`, {
     method: "GET",
     token,
   });
@@ -24,17 +25,68 @@ export async function getAvailableItems(status = "AVAILABLE", token) {
 }
 
 export async function getAllItems(token) {
-  const list = await apiRequest("/items/all", {
-    method: "GET",
-    token,
-  });
-  return Array.isArray(list) ? list.map((item) => normalizeItem(item)) : [];
+  const { items } = getApiPaths();
+  try {
+    const list = await apiRequest(`${items}/all`, {
+      method: "GET",
+      token,
+    });
+    return Array.isArray(list) ? list.map((item) => normalizeItem(item)) : [];
+  } catch (err) {
+    if (err.status === 404) {
+      return getAvailableItems("AVAILABLE", token);
+    }
+    throw err;
+  }
 }
 
 export async function createItem(studentId, formData, token) {
-  return apiRequest(`/items/${encodeURIComponent(studentId)}`, {
-    method: "POST",
-    body: formData,
+  const { items } = getApiPaths();
+  try {
+    return await apiRequest(`${items}/${encodeURIComponent(studentId)}`, {
+      method: "POST",
+      body: formData,
+      token,
+    });
+  } catch (err) {
+    if (err.status === 404) {
+      return apiRequest(items, {
+        method: "POST",
+        body: formData,
+        token,
+      });
+    }
+    throw err;
+  }
+}
+
+export async function updateItem(itemId, payload, token) {
+  const { items } = getApiPaths();
+  return apiRequest(`${items}/${encodeURIComponent(itemId)}`, {
+    method: "PUT",
+    body: payload,
     token,
   });
+}
+
+export async function deleteItem(itemId, token) {
+  const { items } = getApiPaths();
+  return apiRequest(`${items}/${encodeURIComponent(itemId)}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+export async function getItemById(id, token) {
+  const { items } = getApiPaths();
+  try {
+    const raw = await apiRequest(`${items}/${encodeURIComponent(id)}`, {
+      method: "GET",
+      token,
+    });
+    return normalizeItem(raw);
+  } catch {
+    const allItems = await getAllItems(token);
+    return allItems.find((item) => String(item.id) === String(id)) || null;
+  }
 }
