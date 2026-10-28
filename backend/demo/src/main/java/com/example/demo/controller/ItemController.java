@@ -55,6 +55,22 @@ public class ItemController {
         return ResponseEntity.ok(items);
     }
 
+    // 2.1 ดึงข้อมูลสิ่งของตาม ID (US-02.2)
+    @GetMapping("/{id}")
+    public ResponseEntity<Item> getItemById(
+            @PathVariable("id") String id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
+        }
+
+        return itemService.getItemById(id)
+                .filter(item -> item.getDeletedAt() == null)
+                .map(ResponseEntity::ok)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found"));
+    }
+
 
     // 3. เพิ่มไอเท็มใหม่ (รองรับ Multipart และตรวจสอบ Token / StudentId)
     @PostMapping(value = "/{studentId}", consumes = {"multipart/form-data"})

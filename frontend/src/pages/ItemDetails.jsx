@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -16,13 +16,18 @@ import { useAuth } from "../contexts/AuthContext";
 import { BORROW_REASON_MAX_LENGTH } from "../constants/config";
 import { getCategoryLabel, normalizeCategoryKey } from "../data";
 import { createBorrowRequest, normalizeBorrowRequest } from "../api/requestsApi";
+import { getItemById } from "../api/itemsApi";
 
 export default function ItemDetails({ items, setRequests }) {
   const { user, token } = useAuth();
   const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
-  const item = items.find((i) => i.id === id && i.status !== "deleted");
+
+  const [item, setItem] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState(""); 
+
   const [borrowDate, setBorrowDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [reason, setReason] = useState("");
@@ -30,6 +35,21 @@ export default function ItemDetails({ items, setRequests }) {
   const [submitError, setSubmitError] = useState("");
   const [success, setSuccess] = useState(false);
   const today = new Date().toLocaleDateString("en-CA");
+
+  useEffect(() => {
+    async function loadItem() {
+      try {
+        setLoading(true); 
+        const data = await getItemById(id, token);
+        setItem(data);
+      } catch (err) {
+        setErrorMsg(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadItem();
+  }, [id, token]);
 
   async function submit(e) {
     e.preventDefault();
@@ -48,37 +68,40 @@ export default function ItemDetails({ items, setRequests }) {
     const payload = {
       itemId: item.id,
       borrowerId: user?.studentId || user?.id,
-      startDate: borrowDate,
-      endDate: returnDate,
+      startDate: borrowDate.includes("T") ? borrowDate : `${borrowDate}T00:00:00`,
+      endDate: returnDate.includes("T") ? returnDate : `${returnDate}T23:59:59`,
       reason: reason.trim(),
     };
+
     try {
-      const apiResult = await createBorrowRequest(
-        payload,
-        token || user?.token,
-      );
-      const normalized = normalizeBorrowRequest(apiResult, items);
-      setRequests((prev) => [
-        {
-          id: normalized?.id || apiResult?.id,
-          itemId: item.id,
-          itemName: item.name,
-          borrower: user?.name || payload.borrowerId,
-          borrowerId: payload.borrowerId,
-          borrowDate: normalized?.borrowDate || borrowDate,
-          returnDate: normalized?.returnDate || returnDate,
-          reason: normalized?.reason || reason.trim(),
-          status: normalized?.status || "pending",
-        },
-        ...prev,
-      ]);
+      const apiResult = await createBorrowRequest(payload, token);
+      const normalized = normalizeBorrowRequest(apiResult, items || [item]);
+      if (setRequests) {
+        setRequests((prev) => [
+          {
+            id: normalized?.id || apiResult?.id || crypto.randomUUID(),
+            itemId: item.id,
+            itemName: item.name,
+            borrower: user?.name || payload.borrowerId,
+            borrowerId: payload.borrowerId,
+            borrowDate: normalized?.borrowDate || borrowDate,
+            returnDate: normalized?.returnDate || returnDate,
+            reason: normalized?.reason || reason.trim(),
+            status: normalized?.status || "pending",
+          },
+          ...prev,
+        ]);
+      }
       setSuccess(true);
+      setTimeout(() => navigate("/my-borrows"), 1500);
     } catch (err) {
       setSubmitError(err.message || t("validation.submitFailed"));
     }
   }
 
-  if (!item)
+  if(loading) return <div className="page-stack">กำลังโหลดข้อมูล...</div>
+
+  if (errorMsg || !item)
     return (
       <div className="not-found">
         <h1>{t("itemDetails.notFoundTitle")}</h1>
@@ -92,6 +115,13 @@ export default function ItemDetails({ items, setRequests }) {
   const categoryLabel = t(`categories.${categoryKey}`, {
     defaultValue: getCategoryLabel(item.category),
   });
+
+  const isOwner = Boolean(
+    (user?.studentId && item.ownerId === user.studentId) ||
+    (user?.id && item.ownerId === user.id) ||
+    (user?.name && item.owner === user.name)
+  );
+  const isAvailable = String(item.status || "").toLowerCase() === "available";
 
   return (
     <div className="page-stack">
@@ -163,14 +193,24 @@ export default function ItemDetails({ items, setRequests }) {
               <span>
                 <CheckCircle2 size={28} />
               </span>
-              <h3>{t("itemDetails.requestSentTitle")}</h3>
-              <p>{t("itemDetails.requestSentDesc")}</p>
+              <h3>{t("itemDetails.requestSentTitle", { defaultValue: "ส่งคำขอเรียบร้อยแล้ว!" })}</h3>
+              <p>{t("itemDetails.requestSentDesc", { defaultValue: "เจ้าของสิ่งของจะตรวจสอบคำขอของคุณ" })}</p>
               <button
                 className="button button-primary button-full"
-                onClick={() => navigate("/my-listings")}
+                onClick={() => navigate("/my-borrows")}
               >
-                {t("itemDetails.backToListings")}
+                {t("itemDetails.viewMyBorrows", { defaultValue: "ดูรายการยืมของฉัน" })}
               </button>
+            </div>
+          ) : isOwner ? (
+            <div className="borrow-note" style={{ color: "var(--accent-strong, #3b82f6)", marginTop: "15px" }}>
+              <ShieldCheck size={17} />
+              <span>{t("itemDetails.cannotBorrowOwnItem", { defaultValue: "คุณเป็นเจ้าของสิ่งของชิ้นนี้ ไม่สามารถยืมของตัวเองได้" })}</span>
+            </div>
+          ) : !isAvailable ? (
+            <div className="borrow-note" style={{ color: "var(--danger, #ef4444)", marginTop: "15px" }}>
+              <AlertCircle size={17} />
+              <span>{t("itemDetails.itemNotAvailable", { defaultValue: "สิ่งของชิ้นนี้ไม่อยู่ในสถานะพร้อมให้ยืม (อาจถูกจองหรือยืมไปแล้ว)" })}</span>
             </div>
           ) : (
             <form onSubmit={submit} noValidate>

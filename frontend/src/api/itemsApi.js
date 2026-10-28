@@ -76,3 +76,17 @@ export async function deleteItem(itemId, token) {
     token,
   });
 }
+
+export async function getItemById(id, token) {
+  const { items } = getApiPaths();
+  try {
+    const raw = await apiRequest(`${items}/${encodeURIComponent(id)}`, {
+      method: "GET",
+      token,
+    });
+    return normalizeItem(raw);
+  } catch {
+    const allItems = await getAllItems(token);
+    return allItems.find((item) => String(item.id) === String(id)) || null;
+  }
+}

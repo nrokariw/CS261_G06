@@ -1,29 +1,56 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Search, Plus, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
 import { CATEGORIES, getCategoryLabel, normalizeCategoryKey } from "../data";
 import { ItemCard, PageHeading, EmptyState } from "../components/UI";
+import { useAuth } from "../contexts/AuthContext";
+import { getAvailableItems } from "../api/itemsApi";
 
-export default function Browse({ items }) {
+export default function Browse() {
+  const { token } = useAuth();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("ALL");
+
+  // เพิ่ม useEffect เพื่อดึงข้อมูลจาก API
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+        const data = await getAvailableItems("AVAILABLE", token); 
+        setItems(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, [token]);
+
   const availableItems = useMemo(
     () =>
       items.filter((item) => {
         const itemCategoryKey = normalizeCategoryKey(item.category);
         const categoryText = getCategoryLabel(itemCategoryKey);
         const text =
-          `${item.name} ${categoryText} ${item.owner}`.toLowerCase();
+          `${item.name || ""} ${categoryText} ${item.owner || ""}`.toLowerCase();
         return (
-          item.status !== "deleted" &&
+          String(item.status || "").toLowerCase() === "available" &&
           text.includes(query.toLowerCase()) &&
           (category === "ALL" || !category || itemCategoryKey === category)
         );
       }),
     [items, query, category],
   );
+
+  if (loading) return <div className="page-stack">{t("common.loading", { defaultValue: "กำลังโหลดข้อมูล..." })}</div>;
+  if (error) return <div className="page-stack"><EmptyState title={t("common.error", { defaultValue: "เกิดข้อผิดพลาด" })} description={error} /></div>;
 
   return (
     <div className="page-stack">

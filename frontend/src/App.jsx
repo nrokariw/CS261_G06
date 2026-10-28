@@ -11,6 +11,7 @@ import {
   Globe,
   Sun,
   Moon,
+  History
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "./components/UI";
@@ -22,6 +23,7 @@ import IncomingRequests from "./pages/IncomingRequests";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./contexts/AuthContext";
 import { useTheme } from "./contexts/ThemeContext";
+import MyBorrows from "./pages/MyBorrows";
 import { loadRuntimeConfig } from "./api/client";
 import { createUser } from "./api/authApi";
 import { getAllItems, getAvailableItems } from "./api/itemsApi";
@@ -90,6 +92,7 @@ export default function App() {
     { to: "/create", label: t("nav.create"), icon: PlusCircle },
     { to: "/my-listings", label: t("nav.myListings"), icon: ClipboardList },
     { to: "/requests", label: t("nav.requests"), icon: Inbox, count: pendingCount },
+    { to: "/my-borrows", label: t("nav.myBorrows"), icon: History },
   ];
 
   const { pathname, search } = location;
@@ -181,14 +184,14 @@ export default function App() {
 
         <main className="page-container">
           <Routes>
-            <Route path="/" element={<Browse items={items} />} />
+            <Route path="/" element={<Browse />} />
             <Route
               path="/create"
               element={<CreateListing items={items} setItems={setItems} />}
             />
             <Route
               path="/items/:id"
-              element={<ItemDetails items={items} setRequests={setRequests} />}
+              element={<ItemDetails setRequests={setRequests} />}
             />
             <Route
               path="/my-listings"
@@ -203,6 +206,14 @@ export default function App() {
                   setItems={setItems}
                 />
               }
+            />
+            <Route 
+              path="/my-borrows" 
+              element={
+                <MyBorrows 
+                  requests={requests} 
+                />
+              } 
             />
             <Route path="*" element={<NotFound />} />
           </Routes>
