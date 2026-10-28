@@ -44,8 +44,17 @@ public class BorrowRequestController {
     }
 
     @GetMapping
-    public List<BorrowRequest> getAllRequests() {
+    public List<BorrowRequest> getAllRequests(@RequestParam(required = false) String ownerId) {
+        if (ownerId != null && !ownerId.trim().isEmpty()) {
+            return borrowService.getRequestsByOwner(ownerId.trim());
+        }
         return borrowService.getAllRequests();
+    }
+
+    // ดึงรายการคำขอยืมที่เข้ามาหาเจ้าของสิ่งของ (US-05.1)
+    @GetMapping("/owner/{ownerId}")
+    public List<BorrowRequest> getRequestsByOwner(@PathVariable String ownerId) {
+        return borrowService.getRequestsByOwner(ownerId);
     }
 
     @PostMapping

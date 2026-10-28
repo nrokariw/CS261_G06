@@ -158,7 +158,22 @@ public class BorrowRequestService {
         return borrowRequestRepository.findByBorrowerId(borrowerId);
     }
 
-    // 6.ค้นหาคำขอทั้งหมดในระบบ
+    // 6.ค้นหาคำขอยืมที่เข้ามาสำหรับสิ่งของทั้งหมดของเจ้าของ (Owner)
+    public List<BorrowRequest> getRequestsByOwner(String ownerId) {
+        List<String> ownerItemIds = itemRepository.findByOwnerId(ownerId)
+                .stream()
+                .map(Item::getId)
+                .toList();
+        if (ownerItemIds.isEmpty()) {
+            return List.of();
+        }
+        return borrowRequestRepository.findAll()
+                .stream()
+                .filter(req -> ownerItemIds.contains(req.getItemId()))
+                .toList();
+    }
+
+    // 7.ค้นหาคำขอทั้งหมดในระบบ
     public List<BorrowRequest> getAllRequests() {
         return borrowRequestRepository.findAll();
     }

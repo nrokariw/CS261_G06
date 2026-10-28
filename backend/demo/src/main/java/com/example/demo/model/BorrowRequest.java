@@ -93,15 +93,24 @@ public class BorrowRequest {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
     //define methods
-     public void approve() {
-         this.status = RequestStatus.ACCEPTED;
+    public void approve() {
+        if (this.status != RequestStatus.PENDING) {
+            throw new IllegalStateException("Cannot approve request that is not pending");
+        }
+        this.status = RequestStatus.ACCEPTED;
     }
+
     public void reject() {
+        if (this.status != RequestStatus.PENDING) {
+            throw new IllegalStateException("Cannot reject request that is not pending");
+        }
         this.status = RequestStatus.REJECTED;
     }
+
     public void resetToPending() {
         this.status = RequestStatus.PENDING;
     }
+
     public void cancel() {
         // ตรวจสอบว่าสถานะปัจจุบันอนุญาตให้ยกเลิกได้ไหม (เช่น ต้องเป็น PENDING อยู่)
         if (this.status != RequestStatus.PENDING) {
