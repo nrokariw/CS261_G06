@@ -5,7 +5,10 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 
@@ -16,9 +19,12 @@ public class EvidenceProof {
     private String id;
     private String transactionId;
     private String uploaderId;
+    @Enumerated(EnumType.STRING)
     private ProofType proofType;
     private String imageUrl;
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String note;
+    @Column(columnDefinition = "DATETIME2")
     private LocalDateTime capturedAt;
 
     // สั่งให้สุ่มสร้าง UUID และกำหนดเวลาเป็น UTC+0 อัตโนมัติหากไม่ได้ระบุมา

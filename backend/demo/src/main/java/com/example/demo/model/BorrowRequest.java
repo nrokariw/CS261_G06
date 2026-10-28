@@ -6,20 +6,31 @@ import java.util.UUID;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 
 @Entity
+@Table(name = "borrow_request")
 public class BorrowRequest {
     @Id
     //define attributes
     private String id;
     private String itemId;
     private String borrowerId;
+    @Column(columnDefinition = "DATETIME2")
     private LocalDateTime startDate;
+    @Column(columnDefinition = "DATETIME2")
     private LocalDateTime endDate;
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String reason;
+    @Enumerated(EnumType.STRING)
     private RequestStatus status = RequestStatus.PENDING;
+    @Column(columnDefinition = "DATETIME2")
     private LocalDateTime createdAt;
 
     // สั่งให้สุ่มสร้าง UUID และกำหนดเวลาเป็น UTC+0 อัตโนมัติก่อนบันทึกลง Database
@@ -68,6 +79,7 @@ public class BorrowRequest {
     public String getBorrowerId() { return borrowerId; }
     public LocalDateTime getStartDate() { return startDate; }
     public LocalDateTime getEndDate() { return endDate; }
+    public String getReason() { return reason; }
     public RequestStatus getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     
@@ -76,6 +88,7 @@ public class BorrowRequest {
     public void setBorrowerId(String borrowerId) { this.borrowerId = borrowerId; }
     public void setStartDate(LocalDateTime startDate) { this.startDate = startDate; }
     public void setEndDate(LocalDateTime endDate) { this.endDate = endDate; }
+    public void setReason(String reason) { this.reason = reason; }
     public void setStatus(RequestStatus status) { this.status = status; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
@@ -85,6 +98,9 @@ public class BorrowRequest {
     }
     public void reject() {
         this.status = RequestStatus.REJECTED;
+    }
+    public void resetToPending() {
+        this.status = RequestStatus.PENDING;
     }
     public void cancel() {
         // ตรวจสอบว่าสถานะปัจจุบันอนุญาตให้ยกเลิกได้ไหม (เช่น ต้องเป็น PENDING อยู่)

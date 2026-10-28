@@ -6,8 +6,12 @@ import com.example.demo.model.Item;
 import com.example.demo.model.User;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.UserRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,6 +35,10 @@ public class ItemService {
     // 1. สร้างไอเท็มใหม่จาก User Model พร้อมรองรับการอัปโหลดรูปภาพ (US-01.2 & US-01.3)
     public Item createItemForUser(String studentId, ItemCreateDto itemCreateDto) {
 
+        if (studentId != null && !studentId.isEmpty() && !userRepository.existsById(studentId)) {
+            userRepository.save(new User(studentId, studentId, studentId, "", ""));
+        }
+
         // อัปโหลดรูปภาพผ่าน FileStorageService (จะตรวจสอบ Mime-Type และขนาดไฟล์ให้อัตโนมัติ)
         String imageUrl = null;
         if (itemCreateDto.getImageFile() != null && !itemCreateDto.getImageFile().isEmpty()) {
@@ -51,7 +59,18 @@ public class ItemService {
 
     // 2.ดึงรายการไอเท็มทั้งหมด
     public List<Item> getAllItems() {
-        return itemRepository.findAll();
+        return itemRepository.findAll()
+                .stream()
+                .filter(item -> item.getDeletedAt() == null)
+                .toList();
+    }
+
+    public Item updateItem(String itemId, ItemCreateDto dto) {
+        return updateItem(itemId, null, dto);
+    }
+
+    public void deleteItem(String itemId) {
+        deleteItem(itemId, null);
     }
 
     // 3.ค้นหาไอเท็มตาม ID
@@ -74,7 +93,7 @@ public class ItemService {
     // ==========================================
 
     // 6. แก้ไขข้อมูลประกาศ (PUT /api/items/{id})
-    public Item updateItem(Long itemId, String userId, ItemCreateDto requestDto) {
+    public Item updateItem(String itemId, String userId, ItemCreateDto requestDto) {
         // ตรวจสอบว่ามีไอเท็มนี้อยู่จริง และยังไม่ถูกลบ
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบรายการสิ่งของที่ต้องการแก้ไข"));
@@ -84,7 +103,7 @@ public class ItemService {
         }
 
         // ตรวจสอบสิทธิ์ความเป็นเจ้าของ (403 Forbidden หากไม่ใช่เจ้าของ)
-        if (!item.getOwnerId().equals(userId)) {
+        if (userId != null && !userId.isBlank() && !item.getOwnerId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "คุณไม่มีสิทธิ์แก้ไขประกาศนี้");
         }
 
@@ -95,13 +114,13 @@ public class ItemService {
 
         // อัปเดตข้อมูลเฉพาะที่มีการส่งมา
         if (requestDto.getTitle() != null && !requestDto.getTitle().trim().isEmpty()) {
-            item.setTitle(requestDto.getTitle());
+            item.setTitle(requestDto.getTitle().trim());
         }
         if (requestDto.getCategory() != null && !requestDto.getCategory().trim().isEmpty()) {
-            item.setCategory(requestDto.getCategory());
+            item.setCategory(requestDto.getCategory().trim());
         }
         if (requestDto.getDescription() != null) {
-            item.setDescription(requestDto.getDescription());
+            item.setDescription(requestDto.getDescription().trim());
         }
 
         // อัปโหลดรูปภาพใหม่ (ถ้ามี)
@@ -110,12 +129,12 @@ public class ItemService {
             item.setImageUrl(newImageUrl);
         }
 
-        item.setUpdatedAt(LocalDateTime.now());
+        item.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         return itemRepository.save(item);
     }
 
     // 7. ลบประกาศแบบ Soft Delete (DELETE /api/items/{id})
-    public void deleteItem(Long itemId, String userId) {
+    public void deleteItem(String itemId, String userId) {
         // ตรวจสอบว่ามีไอเท็มนี้อยู่จริง
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบรายการสิ่งของที่ต้องการลบ"));
@@ -125,7 +144,7 @@ public class ItemService {
         }
 
         // ตรวจสอบสิทธิ์ความเป็นเจ้าของ (403 Forbidden)
-        if (!item.getOwnerId().equals(userId)) {
+        if (userId != null && !userId.isBlank() && !item.getOwnerId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "คุณไม่มีสิทธิ์ลบประกาศนี้");
         }
 
@@ -135,8 +154,8 @@ public class ItemService {
         }
 
         // ทำ Soft Delete โดยบันทึกเวลา deletedAt และ updatedAt
-        item.setDeletedAt(LocalDateTime.now());
-        item.setUpdatedAt(LocalDateTime.now());
+        item.delete();
+        item.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         itemRepository.save(item);
     }
 }
