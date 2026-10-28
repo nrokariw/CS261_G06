@@ -68,8 +68,8 @@ export default function ItemDetails({ items, setRequests }) {
     const payload = {
       itemId: item.id,
       borrowerId: user?.studentId || user?.id,
-      startDate: borrowDate.includes("T") ? borrowDate : `${borrowDate}T00:00:00`,
-      endDate: returnDate.includes("T") ? returnDate : `${returnDate}T23:59:59`,
+      startDate: `${borrowDate}T00:00:00`,
+      endDate: `${returnDate}T23:59:59`,
       reason: reason.trim(),
     };
 
