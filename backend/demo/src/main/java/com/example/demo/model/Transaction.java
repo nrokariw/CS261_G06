@@ -5,7 +5,10 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
@@ -20,8 +23,11 @@ public class Transaction {
     private String borrowerId;
     private String lenderId;
     private String itemId;
+    @Enumerated(EnumType.STRING)
     private TransactionStatus status = TransactionStatus.ACTIVE;
+    @Column(columnDefinition = "DATETIME2")
     private LocalDateTime borrowedAt;
+    @Column(columnDefinition = "DATETIME2")
     private LocalDateTime returnedAt;
 
     // สั่งให้สุ่มสร้าง UUID และกำหนดเวลาเป็น UTC+0 อัตโนมัติก่อนบันทึกลง Database

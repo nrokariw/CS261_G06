@@ -1,32 +1,43 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Pencil, Trash2, Plus, PackageOpen, Search } from "lucide-react";
+import { Pencil, Trash2, Plus, PackageOpen, Search, AlertCircle } from "lucide-react";
 import { PageHeading, StatusBadge, EmptyState } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { getCategoryLabel, normalizeCategoryKey } from "../data";
+import { deleteItem } from "../api/itemsApi";
 
 export default function MyListings({ items, setItems }) {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [deleteId, setDeleteId] = useState(null);
   const [notice, setNotice] = useState("");
+  const [errorNotice, setErrorNotice] = useState("");
   const mine = items.filter(
     (item) =>
-      (item.ownerId ? item.ownerId === user.id : item.owner === user.name) &&
+      (item.ownerId
+        ? item.ownerId === user?.id || item.ownerId === user?.studentId
+        : item.owner === user?.name) &&
       item.status !== "deleted" &&
       item.name.toLowerCase().includes(query.toLowerCase()),
   );
 
-  function removeItem(id) {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, status: "deleted" } : item,
-      ),
-    );
-    setDeleteId(null);
-    setNotice(t("myListings.deletedNotice"));
+  async function removeItem(id) {
+    setErrorNotice("");
+    try {
+      await deleteItem(id, token || user?.token);
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, status: "deleted" } : item,
+        ),
+      );
+      setDeleteId(null);
+      setNotice(t("myListings.deletedNotice"));
+    } catch (err) {
+      setDeleteId(null);
+      setErrorNotice(err.message || t("validation.submitFailed"));
+    }
   }
 
   return (
@@ -45,6 +56,15 @@ export default function MyListings({ items, setItems }) {
         <div className="alert alert-success">
           {notice}
           <button onClick={() => setNotice("")} className="alert-close">
+            {t("myListings.closeAlert")}
+          </button>
+        </div>
+      )}
+      {errorNotice && (
+        <div className="alert alert-error" style={{ background: "#FCE8E4", color: "#B9382B" }}>
+          <AlertCircle size={17} />
+          <span>{errorNotice}</span>
+          <button onClick={() => setErrorNotice("")} className="alert-close">
             {t("myListings.closeAlert")}
           </button>
         </div>

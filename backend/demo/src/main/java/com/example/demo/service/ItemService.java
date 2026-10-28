@@ -31,6 +31,10 @@ public class ItemService {
     // 1. สร้างไอเท็มใหม่จาก User Model พร้อมรองรับการอัปโหลดรูปภาพ (US-01.2 & US-01.3)
     public Item createItemForUser(String studentId, ItemCreateDto itemCreateDto) {
 
+        if (studentId != null && !studentId.isEmpty() && !userRepository.existsById(studentId)) {
+            userRepository.save(new User(studentId, studentId, studentId, "", ""));
+        }
+
         // อัปโหลดรูปภาพผ่าน FileStorageService (จะตรวจสอบ Mime-Type และขนาดไฟล์ให้อัตโนมัติ)
         String imageUrl = null;
         if (itemCreateDto.getImageFile() != null && !itemCreateDto.getImageFile().isEmpty()) {
@@ -51,7 +55,37 @@ public class ItemService {
 
     // 2.ดึงรายการไอเท็มทั้งหมด
     public List<Item> getAllItems() {
-        return itemRepository.findAll();
+        return itemRepository.findAll()
+                .stream()
+                .filter(item -> item.getDeletedAt() == null)
+                .toList();
+    }
+
+    public Item updateItem(String itemId, ItemCreateDto dto) {
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Item not found"));
+
+        if (dto.getTitle() != null && !dto.getTitle().trim().isEmpty()) {
+            item.setTitle(dto.getTitle().trim());
+        }
+        if (dto.getCategory() != null && !dto.getCategory().trim().isEmpty()) {
+            item.setCategory(dto.getCategory().trim());
+        }
+        if (dto.getDescription() != null) {
+            item.setDescription(dto.getDescription().trim());
+        }
+        if (dto.getImageFile() != null && !dto.getImageFile().isEmpty()) {
+            String imageUrl = fileStorageService.storeFile(dto.getImageFile());
+            item.setImageUrl(imageUrl);
+        }
+        return itemRepository.save(item);
+    }
+
+    public void deleteItem(String itemId) {
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Item not found"));
+        item.delete();
+        itemRepository.save(item);
     }
 
     // 3.ค้นหาไอเท็มตาม ID
