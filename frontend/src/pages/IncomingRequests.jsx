@@ -18,12 +18,25 @@ function formatDate(date, language = "th") {
   });
 }
 
-export default function IncomingRequests({ requests, setRequests, setItems }) {
+export default function IncomingRequests({ requests = [], setRequests, setItems, items = [] }) {
   const { user, token } = useAuth();
   const { t, i18n } = useTranslation();
   const [actionError, setActionError] = useState("");
-  const pending = requests.filter((r) => r.status === "pending").length;
-  const accepted = requests.filter((r) => r.status === "accepted").length;
+
+  const checkIsItemOwner = (req) => {
+    const matchedItem = (items || []).find((i) => i.id === req.itemId);
+    const ownerId = req.ownerId || matchedItem?.ownerId;
+    const ownerName = req.owner || matchedItem?.owner;
+    return Boolean(
+      (user?.studentId && ownerId === user.studentId) ||
+      (user?.id && ownerId === user.id) ||
+      (user?.name && ownerName === user.name)
+    );
+  };
+
+  const myIncomingRequests = requests.filter((r) => checkIsItemOwner(r));
+  const pending = myIncomingRequests.filter((r) => r.status === "pending").length;
+  const accepted = myIncomingRequests.filter((r) => r.status === "accepted").length;
 
   async function updateStatus(id, status) {
     setActionError("");
@@ -69,7 +82,7 @@ export default function IncomingRequests({ requests, setRequests, setItems }) {
           <div className="request-summary">
             <div className="request-summary-item">
               <small>{t("incomingRequests.totalRequests")}</small>
-              <strong>{requests.length}</strong>
+              <strong>{myIncomingRequests.length}</strong>
             </div>
             <div className="request-summary-item request-summary-pending">
               <small>{t("incomingRequests.pendingRequests")}</small>
@@ -93,9 +106,9 @@ export default function IncomingRequests({ requests, setRequests, setItems }) {
         </div>
       )}
 
-      {requests.length ? (
+      {myIncomingRequests.length ? (
         <div className="requests-list requests-list-updated">
-          {requests.map((req) => (
+          {myIncomingRequests.map((req) => (
             <article className="request-card request-card-updated" key={req.id}>
               <div className="request-main">
                 <div className="request-card-top">
@@ -123,30 +136,32 @@ export default function IncomingRequests({ requests, setRequests, setItems }) {
                   </div>
                 </dl>
 
-                {req.status === "pending" ? (
-                  <div className="request-actions">
-                    <button
-                      className="button button-primary"
-                      onClick={() => updateStatus(req.id, "accepted")}
-                    >
-                      <Check size={16} /> {t("incomingRequests.accept")}
-                    </button>
-                    <button
-                      className="button button-danger-outline"
-                      onClick={() => updateStatus(req.id, "rejected")}
-                    >
-                      <X size={16} /> {t("incomingRequests.reject")}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="request-status-updated">
-                    <button
-                      className="text-button"
-                      onClick={() => updateStatus(req.id, "pending")}
-                    >
-                      {t("incomingRequests.resetToPending")}
-                    </button>
-                  </div>
+                {checkIsItemOwner(req) && (
+                  req.status === "pending" ? (
+                    <div className="request-actions">
+                      <button
+                        className="button button-primary"
+                        onClick={() => updateStatus(req.id, "accepted")}
+                      >
+                        <Check size={16} /> {t("incomingRequests.accept")}
+                      </button>
+                      <button
+                        className="button button-danger-outline"
+                        onClick={() => updateStatus(req.id, "rejected")}
+                      >
+                        <X size={16} /> {t("incomingRequests.reject")}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="request-status-updated">
+                      <button
+                        className="text-button"
+                        onClick={() => updateStatus(req.id, "pending")}
+                      >
+                        {t("incomingRequests.resetToPending")}
+                      </button>
+                    </div>
+                  )
                 )}
               </div>
             </article>
