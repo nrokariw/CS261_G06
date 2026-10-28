@@ -8,8 +8,11 @@ import {
   Menu,
   X,
   ChevronRight,
+  Globe,
+  Sun,
+  Moon,
 } from "lucide-react";
-import { SEED_ITEMS, SEED_REQUESTS } from "./data";
+import { useTranslation } from "react-i18next";
 import { Avatar } from "./components/UI";
 import Browse from "./pages/Browse";
 import CreateListing from "./pages/CreateListing";
@@ -18,70 +21,94 @@ import MyListings from "./pages/MyListings";
 import IncomingRequests from "./pages/IncomingRequests";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./contexts/AuthContext";
-
-function readStore(key, fallback) {
-  try {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
-  } catch {
-    return fallback;
-  }
-}
+import { useTheme } from "./contexts/ThemeContext";
+import { loadRuntimeConfig } from "./api/client";
+import { createUser } from "./api/authApi";
+import { getAllItems, getAvailableItems } from "./api/itemsApi";
+import { getBorrowRequests } from "./api/requestsApi";
 
 function BrandMark() {
   return (
     <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
-      <circle cx="12.5" cy="17" r="10" fill="#F8A91F" />
-      <circle cx="21.5" cy="17" r="10" fill="#EC6426" fillOpacity=".92" />
+      <circle cx="12.5" cy="17" r="10" fill="var(--accent)" />
+      <circle cx="21.5" cy="17" r="10" fill="var(--primary)" fillOpacity=".92" />
     </svg>
   );
 }
 
 export default function App() {
-  const { user } = useAuth();
-  const [items, setItems] = useState(() =>
-    readStore("campusshare-items", SEED_ITEMS),
-  );
-  const [requests, setRequests] = useState(() =>
-    readStore("campusshare-requests", SEED_REQUESTS),
-  );
+  const { user, token } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const { t, i18n } = useTranslation();
+  const [items, setItems] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [mobileMenu, setMobileMenu] = useState(false);
   const location = useLocation();
 
-  useEffect(
-    () => localStorage.setItem("campusshare-items", JSON.stringify(items)),
-    [items],
-  );
-  useEffect(
-    () =>
-      localStorage.setItem("campusshare-requests", JSON.stringify(requests)),
-    [requests],
-  );
+  useEffect(() => {
+    let active = true;
+    async function fetchInitialData() {
+      await loadRuntimeConfig();
+      const studentId = user?.studentId || user?.id;
+      if (studentId) {
+        await createUser(
+          {
+            studentId,
+            username: studentId,
+            fullName: user?.name || studentId,
+            email: user?.email || "",
+            faculty: user?.faculty || "",
+          },
+          token,
+        ).catch(() => null);
+      }
+      const loadedItems = await getAllItems(token)
+        .catch(() => getAvailableItems("AVAILABLE", token))
+        .catch(() => []);
+      if (!active) return;
+      setItems(loadedItems);
+
+      const loadedRequests = await getBorrowRequests(
+        user,
+        token,
+        loadedItems,
+      ).catch(() => []);
+      if (!active) return;
+      setRequests(loadedRequests);
+    }
+    fetchInitialData();
+    return () => {
+      active = false;
+    };
+  }, [user, token]);
+
   useEffect(() => setMobileMenu(false), [location.pathname]);
 
   const pendingCount = requests.filter((r) => r.status === "pending").length;
   const navItems = [
-    { to: "/", label: "หน้าหลัก", icon: LayoutGrid, end: true },
-    { to: "/create", label: "สร้างประกาศ", icon: PlusCircle },
-    { to: "/my-listings", label: "ประกาศของฉัน", icon: ClipboardList },
-    { to: "/requests", label: "คำขอยืมเข้า", icon: Inbox, count: pendingCount },
+    { to: "/", label: t("nav.home"), icon: LayoutGrid, end: true },
+    { to: "/create", label: t("nav.create"), icon: PlusCircle },
+    { to: "/my-listings", label: t("nav.myListings"), icon: ClipboardList },
+    { to: "/requests", label: t("nav.requests"), icon: Inbox, count: pendingCount },
   ];
 
   const { pathname, search } = location;
   let currentLabel = navItems.find((n) => n.to === pathname)?.label;
   if (pathname === "/create" && search.includes("edit="))
-    currentLabel = "แก้ไขประกาศ";
-  if (pathname.startsWith("/items/")) currentLabel = "รายละเอียดสิ่งของ";
-  if (!currentLabel) currentLabel = "ไม่พบหน้า";
+    currentLabel = t("nav.editListing");
+  if (pathname.startsWith("/items/")) currentLabel = t("nav.itemDetails");
+  if (!currentLabel) currentLabel = t("nav.notFound");
+
+  const nextLanguage = i18n.language === "en" ? "th" : "en";
 
   return (
     <div className="app-shell">
       <aside className={`sidebar ${mobileMenu ? "sidebar-open" : ""}`}>
-        <NavLink to="/" className="brand" aria-label="CampusShare หน้าหลัก">
+        <NavLink to="/" className="brand" aria-label={t("nav.brandAria")}>
           <BrandMark />
           <span className="brand-name">CampusShare</span>
         </NavLink>
-        <nav className="side-nav" aria-label="เมนูหลัก">
+        <nav className="side-nav" aria-label={t("nav.mainMenuAria")}>
           {navItems.map(({ to, label, icon: Icon, end, count }) => (
             <NavLink
               key={to}
@@ -101,7 +128,7 @@ export default function App() {
           <Avatar name={user.name} />
           <div>
             <strong>{user.name}</strong>
-            <small>นักศึกษาผู้ใช้งาน</small>
+            <small>{t("nav.studentRole")}</small>
           </div>
         </div>
       </aside>
@@ -109,7 +136,7 @@ export default function App() {
       {mobileMenu && (
         <button
           className="scrim"
-          aria-label="ปิดเมนู"
+          aria-label={t("nav.closeMenu")}
           onClick={() => setMobileMenu(false)}
         />
       )}
@@ -119,17 +146,34 @@ export default function App() {
           <button
             className="menu-toggle"
             onClick={() => setMobileMenu(!mobileMenu)}
-            aria-label={mobileMenu ? "ปิดเมนู" : "เปิดเมนู"}
+            aria-label={mobileMenu ? t("nav.closeMenu") : t("nav.openMenu")}
             aria-expanded={mobileMenu}
           >
             {mobileMenu ? <X size={22} /> : <Menu size={22} />}
           </button>
-          <nav className="breadcrumbs" aria-label="ตำแหน่งปัจจุบัน">
+          <nav className="breadcrumbs" aria-label={t("nav.breadcrumbAria")}>
             <Link to="/">CampusShare</Link>
             <ChevronRight size={15} aria-hidden="true" />
             <strong aria-current="page">{currentLabel}</strong>
           </nav>
           <span className="top-user">
+            <button
+              type="button"
+              className="button button-outline button-sm"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? t("nav.switchToLight") : t("nav.switchToDark")}
+            >
+              {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
+            <button
+              type="button"
+              className="button button-outline button-sm"
+              onClick={() => i18n.changeLanguage(nextLanguage)}
+              aria-label={t("nav.switchLanguage")}
+            >
+              <Globe size={15} />
+              <span>{i18n.language === "en" ? "EN" : "TH"}</span>
+            </button>
             <Avatar name={user.name} size="sm" />
             <span>{user.name}</span>
           </span>
@@ -156,6 +200,7 @@ export default function App() {
                 <IncomingRequests
                   requests={requests}
                   setRequests={setRequests}
+                  setItems={setItems}
                 />
               }
             />

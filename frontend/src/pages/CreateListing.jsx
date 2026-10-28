@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   ImagePlus,
   UploadCloud,
@@ -7,18 +8,33 @@ import {
   AlertCircle,
   ArrowLeft,
 } from "lucide-react";
-import { CATEGORIES } from "../data";
+import {
+  CATEGORIES,
+  getCategoryLabel,
+  normalizeCategoryKey,
+} from "../data";
 import { PageHeading } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
+import { createItem, updateItem, normalizeItem } from "../api/itemsApi";
+import {
+  ALLOWED_IMAGE_TYPES,
+  ITEM_DETAIL_MAX_LENGTH,
+  MAX_IMAGE_SIZE_BYTES,
+  MAX_IMAGE_SIZE_MB,
+  REDIRECT_DELAY_MS,
+} from "../constants/config";
 
 export default function CreateListing({ items, setItems }) {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const editId = params.get("edit");
   const editingItem = items.find((i) => i.id === editId);
   const [name, setName] = useState(editingItem?.name || "");
-  const [category, setCategory] = useState(editingItem?.category || "");
+  const [category, setCategory] = useState(
+    normalizeCategoryKey(editingItem?.category) || "",
+  );
   const [detail, setDetail] = useState(editingItem?.detail || "");
   
   // เปลี่ยนเก็บเป็น File Object แทน Base64 String
@@ -33,9 +49,9 @@ export default function CreateListing({ items, setItems }) {
 
   function validate() {
     const next = {};
-    if (!name.trim()) next.name = "กรุณากรอกชื่อสิ่งของ";
-    if (!category) next.category = "กรุณาเลือกหมวดหมู่";
-    if (!detail.trim()) next.detail = "กรุณากรอกรายละเอียด";
+    if (!name.trim()) next.name = t("validation.itemNameRequired");
+    if (!category) next.category = t("validation.categoryRequired");
+    if (!detail.trim()) next.detail = t("validation.detailRequired");
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -45,21 +61,19 @@ export default function CreateListing({ items, setItems }) {
     if (!file) return;
 
     // 1. ตรวจสอบนามสกุลไฟล์ก่อนถึง backend (JPG, PNG, WEBP)
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       setErrors((prev) => ({ 
         ...prev, 
-        image: "กรุณาเลือกไฟล์รูปภาพสกุล JPG, PNG หรือ WEBP เท่านั้น" 
+        image: t("validation.invalidImageType") 
       }));
       return;
     }
 
-    // 2. ตรวจสอบขนาดไม่ให้เกิน 3MB ก่อนถึง backend 
-    const maxSizeInBytes = 3 * 1024 * 1024;
-    if (file.size > maxSizeInBytes) {
+    // 2. ตรวจสอบขนาดไม่ให้เกินขีดจำกัดก่อนถึง backend 
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
       setErrors((prev) => ({ 
         ...prev, 
-        image: "ขนาดไฟล์ต้องไม่เกิน 3 MB" 
+        image: t("validation.imageTooLarge", { max: MAX_IMAGE_SIZE_MB }) 
       }));
       return;
     }
@@ -97,58 +111,61 @@ export default function CreateListing({ items, setItems }) {
     try {
       // ส่ง Request หรือ ยิง API ไปหา Backend
       const studentId = user?.studentId || "6400000001"; // ดึงจาก Auth หรือค่าเริ่มต้น
-      const response = await fetch(`/api/items/${studentId}`, {
-        method: "POST",
-        headers: {
-          // แนบ JWT Token ใน Header ตามที่ระบบ Backend ตรวจสอบสิทธิ์
-          "Authorization": `Bearer ${user?.token || localStorage.getItem("token")}`
-          // หมายเหตุ: ห้ามใส่ Content-Type: application/json เด็ดขาด เพราะใช้ FormData
-        },
-        body: formData, // ส่ง FormData (ห้ามใส่ Content-Type เด็ดขาด เดี๋ยว Browser จัดการให้เอง)
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.message || "ไม่สามารถบันทึกข้อมูลได้");
-      }
-
-      const result = await response.json();
+      const authToken = token || user?.token;
+      const result = editingItem
+        ? await updateItem(
+            editingItem.id,
+            imageFile
+              ? formData
+              : {
+                  title: name.trim(),
+                  category,
+                  description: detail.trim(),
+                },
+            authToken,
+          )
+        : await createItem(studentId, formData, authToken);
+      const normalized = normalizeItem(result, editingItem?.owner || user?.name);
 
       // บันทึกลง State ฝั่ง frontend (อันเดิม)
       const record = {
-        id: editingItem?.id || crypto.randomUUID(),
-        name: name.trim(),
-        category,
-        detail,
-        image: imagePreview,
-        owner: editingItem?.owner || user.name,
-        owner: editingItem?.ownerId || user.id,
-        status: "available",
+        id: normalized?.id || editingItem?.id,
+        name: normalized?.name || name.trim(),
+        category: normalized?.category || category,
+        detail: normalized?.detail || detail.trim(),
+        image: normalized?.image || imagePreview || "",
+        owner: editingItem?.owner || user?.name,
+        ownerId:
+          normalized?.ownerId ||
+          editingItem?.ownerId ||
+          studentId ||
+          user?.id,
+        status: normalized?.status || "available",
       };
-    if (editingItem)
-      setItems((prev) =>
-        prev.map((item) => (item.id === editingItem.id ? record : item)),
+      if (editingItem)
+        setItems((prev) =>
+          prev.map((item) => (item.id === editingItem.id ? record : item)),
+        );
+      else setItems((prev) => [record, ...prev]);
+      setSuccess(
+        editingItem ? t("validation.listingUpdated") : t("validation.listingCreated"),
       );
-    else setItems((prev) => [record, ...prev]);
-    setSuccess(
-      editingItem ? "แก้ไขประกาศเรียบร้อยแล้ว" : "สร้างประกาศเรียบร้อยแล้ว",
-    );
-    window.setTimeout(() => navigate("/my-listings"), 650);
-  } catch (err) {
-      setErrors((prev) => ({ ...prev, submit: "เกิดข้อผิดพลาดในการบันทึกข้อมูล" }));
-      setSubmitError(err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
-  }
+      window.setTimeout(() => navigate("/my-listings"), REDIRECT_DELAY_MS);
+    } catch (err) {
+      setErrors((prev) => ({ ...prev, submit: t("validation.submitFailed") }));
+      setSubmitError(err.message || t("validation.submitFailed"));
+    }
 }
 
   return (
     <div className="page-stack narrow-page">
       <button className="back-link" onClick={() => navigate(-1)}>
-        <ArrowLeft size={16} /> กลับ
+        <ArrowLeft size={16} /> {t("common.back")}
       </button>
       <PageHeading
-        eyebrow={editingItem ? "EDIT LISTING" : "CREATE LISTING"}
-        title={editingItem ? "แก้ไขประกาศ" : "ลงประกาศสิ่งของ"}
-        subtitle="กรอกข้อมูลให้ครบเพื่อให้เพื่อนค้นหาและขอยืมสิ่งของได้ง่ายขึ้น"
+        eyebrow={editingItem ? t("createListing.eyebrowEdit") : t("createListing.eyebrowCreate")}
+        title={editingItem ? t("createListing.titleEdit") : t("createListing.titleCreate")}
+        subtitle={t("createListing.subtitle")}
       />{" "}
       {/* หัวประกาศ */}
       <form className="form-card" onSubmit={submit} noValidate>
@@ -161,19 +178,19 @@ export default function CreateListing({ items, setItems }) {
         <div className="form-section-title">
           <span className="section-number">01</span>
           <div>
-            <h2>ข้อมูลสิ่งของ</h2>
-            <p>รายละเอียดพื้นฐานของสิ่งของที่ต้องการแบ่งปัน</p>
+            <h2>{t("createListing.section1Title")}</h2>
+            <p>{t("createListing.section1Desc")}</p>
           </div>
         </div>
         <div className="field">
           <label htmlFor="item-name">
-            ชื่อสิ่งของ <span className="required">*</span>
+            {t("createListing.nameLabel")} <span className="required">*</span>
           </label>
           <input
             id="item-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="เช่น เครื่องคิดเลขวิทยาศาสตร์"
+            placeholder={t("createListing.namePlaceholder")}
             aria-invalid={!!errors.name}
           />
           {errors.name && (
@@ -185,7 +202,7 @@ export default function CreateListing({ items, setItems }) {
         </div>
         <div className="field">
           <label htmlFor="item-category">
-            หมวดหมู่ <span className="required">*</span>
+            {t("createListing.categoryLabel")} <span className="required">*</span>
           </label>
           <select
             id="item-category"
@@ -193,9 +210,11 @@ export default function CreateListing({ items, setItems }) {
             onChange={(e) => setCategory(e.target.value)}
             aria-invalid={!!errors.category}
           >
-            <option value="">เลือกหมวดหมู่</option>
+            <option value="">{t("createListing.categoryPlaceholder")}</option>
             {CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
+              <option key={c} value={c}>
+                {t(`categories.${c}`, { defaultValue: getCategoryLabel(c) })}
+              </option>
             ))}
           </select>
           {errors.category && (
@@ -208,17 +227,17 @@ export default function CreateListing({ items, setItems }) {
         <div className="field">
           <div className="label-row">
             <label htmlFor="item-detail">
-              รายละเอียด <span className="required">*</span>
+              {t("createListing.detailLabel")} <span className="required">*</span>
             </label>
-            <span className="character-count">{detail.length}/500</span>
+            <span className="character-count">{detail.length}/{ITEM_DETAIL_MAX_LENGTH}</span>
           </div>
           <textarea
             id="item-detail"
-            maxLength={500}
+            maxLength={ITEM_DETAIL_MAX_LENGTH}
             rows={5}
             value={detail}
             onChange={(e) => setDetail(e.target.value)}
-            placeholder="ระบุสภาพสิ่งของ เงื่อนไขการยืม และสถานที่นัดรับ"
+            placeholder={t("createListing.detailPlaceholder")}
             aria-invalid={!!errors.detail}
           />
           {errors.detail && (
@@ -231,8 +250,8 @@ export default function CreateListing({ items, setItems }) {
         <div className="form-section-title section-spaced">
           <span className="section-number">02</span>
           <div>
-            <h2>รูปภาพสิ่งของ</h2>
-            <p>เพิ่มรูปเพื่อให้ผู้ยืมเห็นสภาพสิ่งของ (ไม่บังคับ)</p>
+            <h2>{t("createListing.section2Title")}</h2>
+            <p>{t("createListing.section2Desc")}</p>
           </div>
         </div>
         <input
@@ -251,21 +270,21 @@ export default function CreateListing({ items, setItems }) {
             <img
               className="upload-preview"
               src={imagePreview}
-              alt="ตัวอย่างรูปสิ่งของ"
+              alt={t("createListing.previewAlt")}
             />
           ) : (
             <>
               <span className="upload-icon">
                 <ImagePlus size={28} />
               </span>
-              <strong>คลิกเพื่ออัปโหลดรูปภาพ</strong>
-              <span>รองรับ JPG, PNG หรือ WEBP</span>
+              <strong>{t("createListing.uploadPrompt")}</strong>
+              <span>{t("createListing.uploadHint")}</span>
             </>
           )}{" "}
           {/* จะกำหนดขนาดเท่าไรเช่น ไม่เกิน 3 MB */}
           {imagePreview && (
             <span className="upload-change">
-              <UploadCloud size={15} /> {imageFileName || "เปลี่ยนรูปภาพ"}
+              <UploadCloud size={15} /> {imageFileName || t("createListing.changeImage")}
             </span>
           )}
         </button>
@@ -273,7 +292,7 @@ export default function CreateListing({ items, setItems }) {
         <div className="form-note">
           <AlertCircle size={16} />
           <span>
-            ช่องที่มีเครื่องหมาย <b>*</b> จำเป็นต้องกรอก
+            {t("createListing.requiredNotePrefix")} <b>*</b> {t("createListing.requiredNoteSuffix")}
           </span>
         </div>
         {/* Inline Alert สำหรับแสดง Error ตอนกดบันทึก */}
@@ -289,11 +308,11 @@ export default function CreateListing({ items, setItems }) {
             className="button button-outline"
             onClick={() => navigate(-1)}
           >
-            ยกเลิก
+            {t("common.cancel")}
           </button>
           <button type="submit" className="button button-primary">
             <CheckCircle2 size={17} />
-            {editingItem ? "บันทึกการแก้ไข" : "เผยแพร่"}
+            {editingItem ? t("common.saveChanges") : t("common.publish")}
           </button>
         </div>
       </form>

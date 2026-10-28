@@ -1,13 +1,17 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+
 export default function NotFound() {
+  const { t } = useTranslation();
   return (
     <div className="not-found">
-      <div className="not-found-code">404</div>\n      <div className="eyebrow">PAGE NOT FOUND</div>
-      <h1>ไม่พบหน้าที่ต้องการ</h1>
-      <p>หน้าที่คุณเปิดอาจถูกย้ายหรือลบไปแล้ว</p>
+      <div className="not-found-code">404</div>
+      <div className="eyebrow">{t("notFoundPage.eyebrow")}</div>
+      <h1>{t("notFoundPage.title")}</h1>
+      <p>{t("notFoundPage.description")}</p>
       <Link to="/" className="button button-primary">
-        กลับหน้าหลัก
+        {t("notFoundPage.backHome")}
       </Link>
     </div>
   );

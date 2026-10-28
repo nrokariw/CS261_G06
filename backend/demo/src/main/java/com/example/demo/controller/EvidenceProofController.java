@@ -5,7 +5,7 @@ import com.example.demo.service.EvidenceProofService;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/evidence")
+@RequestMapping("${app.api.evidence-path:/api/evidence}")
 public class EvidenceProofController {
 
     private final EvidenceProofService evidenceProofService;

@@ -10,9 +10,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController 
-@RequestMapping ("/api/items")
+@RequestMapping ("${app.api.items-path:/api/items}")
 
 public class ItemController {
 
@@ -86,6 +87,59 @@ public class ItemController {
             // ดักจับ Error จากการอัปโหลดไฟล์ผิดประเภท/เกินขนาด (ตอบ 400 Bad Request)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         } 
+    }
+
+    // ==========================================
+    // US-04: แก้ไขและลบประกาศสิ่งของ (T-4.1)
+    // ==========================================
+
+    // 4. PUT /api/items/{id} - แก้ไขข้อมูลประกาศ (รองรับทั้ง multipart/form-data และ application/json)
+    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
+    public ResponseEntity<Item> updateItem(
+            @PathVariable("id") String itemId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam(value = "userId", required = false) String userId,
+            @ModelAttribute ItemCreateDto requestDto) {
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
+        }
+
+        // TODO: ดึง userId จาก JWT Token เมื่อเชื่อมต่อระบบ Auth จริง
+        Item updatedItem = itemService.updateItem(itemId, userId, requestDto);
+        return ResponseEntity.ok(updatedItem);
+    }
+
+    @PutMapping(value = "/{id}", consumes = {"application/json"})
+    public ResponseEntity<Item> updateItemJson(
+            @PathVariable("id") String itemId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam(value = "userId", required = false) String userId,
+            @RequestBody ItemCreateDto requestDto) {
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
+        }
+
+        // TODO: ดึง userId จาก JWT Token เมื่อเชื่อมต่อระบบ Auth จริง
+        Item updatedItem = itemService.updateItem(itemId, userId, requestDto);
+        return ResponseEntity.ok(updatedItem);
+    }
+
+    // 5. DELETE /api/items/{id} - ลบประกาศแบบ Soft Delete
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteItem(
+            @PathVariable("id") String itemId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam(value = "userId", required = false) String userId) {
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
+        }
+
+        // TODO: ดึง userId จาก JWT Token เมื่อเชื่อมต่อระบบ Auth จริง
+        itemService.deleteItem(itemId, userId);
+        return ResponseEntity.ok(Map.of("message", "Item deleted successfully"));
     }
 }
 
