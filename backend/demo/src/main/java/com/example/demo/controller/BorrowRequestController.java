@@ -1,8 +1,11 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.BorrowRequestDto;
 import com.example.demo.model.BorrowRequest;
 import com.example.demo.service.BorrowRequestService;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.cglib.core.Local;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
@@ -58,7 +61,10 @@ public class BorrowRequestController {
     }
 
     @PostMapping
-    public BorrowRequest createRequest(@RequestBody Map<String, String> payload) {
+    public ResponseEntity<BorrowRequest> createRequest(
+        @RequestHeader(value = "Authorization", required = false) String authHeader,
+        @RequestBody Map<String, String> payload) {
+            
         String borrowerId = payload.get("borrowerId");
         String itemId = payload.get("itemId");
         String startStr = payload.getOrDefault("borrowDate", payload.get("startDate"));
@@ -68,82 +74,62 @@ public class BorrowRequestController {
         LocalDateTime utcStartDate = parseToUtcDateTime(startStr, false);
         LocalDateTime utcEndDate = parseToUtcDateTime(endStr, true);
 
-        return borrowService.requestBorrow(borrowerId, itemId, utcStartDate, utcEndDate, reason);
+        BorrowRequestDto dto = new BorrowRequestDto();
+        dto.setItemId(itemId);
+        dto.setStartDate(utcStartDate);
+        dto.setEndDate(utcEndDate);
+        dto.setReason(reason);
+
+        BorrowRequest savedRequest = borrowService.requestBorrow(borrowerId, dto);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedRequest);
     }
 
     // 1. ส่งคำขอยืมไอเท็ม (รองรับ Client local time พร้อม UTC tag หรือ Offset)
+    //    และบันทึกข้อมูลด้วยสถานะ Pending และตอบกลับ 201 Created
     @PostMapping("/request")
-    public BorrowRequest requestBorrow(
-            @RequestParam String borrowerId,
-            @RequestParam String itemId,
-            @RequestParam String startDate,
-            @RequestParam String endDate,
-            @RequestParam(required = false) String reason) {
+    public ResponseEntity<BorrowRequest> createBorrowRequest(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam(required = false) String borrowerId,
+            @RequestBody BorrowRequestDto requestDto) {
         
-        // ใช้ OffsetDateTime.parse() เพื่อรองรับเครื่องหมาย 'Z' (UTC) หรือ Offset เช่น '+07:00'
-        // แล้วแปลงให้เป็น LocalDateTime ในเขตเวลา UTC+0 ก่อนบันทึก
-        LocalDateTime utcStartDate = parseToUtcDateTime(startDate, false);
-                
-        LocalDateTime utcEndDate = parseToUtcDateTime(endDate, true);
+        // ตัวอย่างกำหนด Mock ID หากยังไม่ได้ต่อระบบ Token จริงเต็มรูปแบบ
+        if (borrowerId == null || borrowerId.isEmpty()) {
+            borrowerId = "6400000002"; 
+        }
 
-        return borrowService.requestBorrow(
-            borrowerId, 
-            itemId, 
-            utcStartDate, 
-            utcEndDate,
-            reason
-        );
-    }
+        // ส่ง DTO เข้า Service ไปใช้ต่อได้ทันที (วันที่ถูก parse เป็น LocalDateTime ให้เรียบร้อยแล้ว)
+        BorrowRequest savedRequest = borrowService.requestBorrow(borrowerId, requestDto);
 
-    @RequestMapping(value = "/{requestId}/status", method = {RequestMethod.PATCH, RequestMethod.POST})
-    public BorrowRequest updateRequestStatus(
-            @PathVariable String requestId,
-            @RequestParam(required = false) String ownerId,
-            @RequestBody(required = false) Map<String, String> body) {
-        String resolvedOwnerId = ownerId != null ? ownerId : (body != null ? body.get("ownerId") : null);
-        String status = body != null ? body.getOrDefault("status", body.getOrDefault("action", "")) : "";
-        String upper = status.toUpperCase();
-        if ("ACCEPTED".equals(upper) || "ACCEPT".equals(upper) || "APPROVE".equals(upper)) {
-            return borrowService.approveRequest(requestId, resolvedOwnerId);
-        }
-        if ("REJECTED".equals(upper) || "REJECT".equals(upper)) {
-            return borrowService.rejectRequest(requestId, resolvedOwnerId);
-        }
-        if ("PENDING".equals(upper) || "RESET".equals(upper)) {
-            return borrowService.resetRequestToPending(requestId, resolvedOwnerId);
-        }
-        if ("CANCELLED".equals(upper) || "CANCEL".equals(upper)) {
-            return borrowService.cancelRequest(requestId);
-        }
-        return borrowService.resetRequestToPending(requestId, resolvedOwnerId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedRequest);
     }
 
     // 2. เจ้าของกดอนุมัติคำขอ
     @PostMapping("/{requestId}/approve")
-    public BorrowRequest approveRequest(
+    public ResponseEntity<BorrowRequest> approveRequest(
             @PathVariable String requestId,
-            @RequestParam(required = false) String ownerId) {
-        return borrowService.approveRequest(requestId, ownerId);
+            @RequestParam String ownerId) {
+        return ResponseEntity.ok(borrowService.approveRequest(requestId, ownerId));
     }
 
     // 3. เจ้าของกดปฏิเสธคำขอ
     @PostMapping("/{requestId}/reject")
-    public BorrowRequest rejectRequest(
+    public ResponseEntity<BorrowRequest> rejectRequest(
             @PathVariable String requestId,
-            @RequestParam(required = false) String ownerId) {
-        return borrowService.rejectRequest(requestId, ownerId);
+            @RequestParam String ownerId) {
+        return ResponseEntity.ok(borrowService.rejectRequest(requestId, ownerId));
     }
 
     // 4. ผู้ยืมกดยกเลิกคำขอ
     @PostMapping("/{requestId}/cancel")
-    public BorrowRequest cancelRequest(@PathVariable String requestId) {
-        return borrowService.cancelRequest(requestId);
+    public ResponseEntity<BorrowRequest> cancelRequest(@PathVariable String requestId) {
+        return ResponseEntity.ok(borrowService.cancelRequest(requestId));
     }
 
     // 5. ค้นหาคำขอทั้งหมดของผู้ยืม
     @GetMapping("/borrower/{borrowerId}")
-    public List<BorrowRequest> getRequestsByBorrower(@PathVariable String borrowerId) {
-        return borrowService.getRequestsByBorrower(borrowerId);
+    public ResponseEntity<List<BorrowRequest>> getRequestsByBorrower(@PathVariable String borrowerId) {
+        return ResponseEntity.ok(borrowService.getRequestsByBorrower(borrowerId));
     }
 
 }

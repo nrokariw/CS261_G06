@@ -5,33 +5,42 @@ import com.example.demo.constant.RequestStatus;
 import java.util.UUID;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
-@Table(name = "borrow_request")
+@Table(name = "borrow_requests")
 public class BorrowRequest {
-    @Id
+ 
     //define attributes
+    @Id
+    @Column(name = "request_id", length = 36)
     private String id;
+
+    @Column(name = "item_id", nullable = false, length = 36)
     private String itemId;
+
+    @Column(name = "borrower_id", nullable = false)
     private String borrowerId;
+
     @Column(columnDefinition = "DATETIME2")
     private LocalDateTime startDate;
+
     @Column(columnDefinition = "DATETIME2")
     private LocalDateTime endDate;
+
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String reason;
+    
     @Enumerated(EnumType.STRING)
+    @Column(name = "request_status", nullable = false)
     private RequestStatus status = RequestStatus.PENDING;
+
     @Column(columnDefinition = "DATETIME2")
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
 
     // สั่งให้สุ่มสร้าง UUID และกำหนดเวลาเป็น UTC+0 อัตโนมัติก่อนบันทึกลง Database
     @PrePersist
@@ -42,10 +51,20 @@ public class BorrowRequest {
         if (this.createdAt == null) {
             this.createdAt = LocalDateTime.now(ZoneOffset.UTC); 
         }
+        if (this.updatedAt == null) {
+            this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+        }
         if (this.status == null) {
             this.status = RequestStatus.PENDING;
         }
     }
+
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
 
     /**
      * Default constructor สำหรับสร้างออบเจ็กต์ BorrowRequest เปล่า
@@ -60,15 +79,17 @@ public class BorrowRequest {
      * @param borrowerId  รหัสประจำตัวของผู้ขอยืม
      * @param startDate   วันที่เริ่มต้นยืม
      * @param endDate     กำหนดวันสิ้นสุดการยืม
+     * @param reason      เหตุผลในการยืม
      * @param status      สถานะเริ่มต้นของคำขอยืม (เช่น PENDING, ACCEPTED, REJECTED, CANCELLED)
      * @param createdAt   วันที่และเวลาที่สร้างคำขอยืมนี้ขึ้นมา
      */
-    public BorrowRequest(String id, String itemId, String borrowerId, LocalDateTime startDate, LocalDateTime endDate, RequestStatus status, LocalDateTime createdAt) {
+    public BorrowRequest(String id, String itemId, String borrowerId, LocalDateTime startDate, LocalDateTime endDate, String reason, RequestStatus status, LocalDateTime createdAt) {
         this.id = id;
         this.itemId = itemId;
         this.borrowerId = borrowerId;
         this.startDate = startDate;
         this.endDate = endDate;
+        this.reason = reason;
         this.status = status != null ? status : RequestStatus.PENDING;
         this.createdAt = createdAt != null ? createdAt : LocalDateTime.now(ZoneOffset.UTC);
     }
@@ -82,6 +103,7 @@ public class BorrowRequest {
     public String getReason() { return reason; }
     public RequestStatus getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
     
     public void setId(String id) { this.id = id; }
     public void setItemId(String itemId) { this.itemId = itemId; }
@@ -91,6 +113,7 @@ public class BorrowRequest {
     public void setReason(String reason) { this.reason = reason; }
     public void setStatus(RequestStatus status) { this.status = status; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
     //define methods
     public void approve() {

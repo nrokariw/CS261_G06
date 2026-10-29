@@ -6,17 +6,16 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
 import org.springframework.cglib.core.Local;
+import jakarta.persistence.*;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 
 @Entity 
-@Table(name = "app_user")
+@Table(name = "users")
 public class User {
-    @Id 
+
     //define attributes
+    @Id 
+    @Column(name = "student_id")
     private String studentId;
     @Column(columnDefinition = "NVARCHAR(255)")
     private String username;
@@ -55,6 +54,7 @@ public class User {
     public String getFullName() {return fullName;}
     public String getEmail() {return email;}
     public String getFaculty() {return faculty;}
+
     public void setStudentId(String studentId) {this.studentId = studentId;}
     public void setUsername(String username) {this.username = username;}
     public void setFullName(String fullName) {this.fullName = fullName;}
@@ -69,7 +69,7 @@ public class User {
     public Item createItem(Item itemData) {
         if (itemData.getStatus() == null) {
                 itemData.setStatus(ItemStatus.AVAILABLE);
-            }
+        }
 
         return new Item(
             itemData.getId(), 
@@ -81,7 +81,7 @@ public class User {
             itemData.getImageUrl()
         );
     }
-    public BorrowRequest requestBorrow(String itemId, LocalDateTime startDate, LocalDateTime endDate) {
+    public BorrowRequest requestBorrow(String itemId, LocalDateTime startDate, LocalDateTime endDate, String reason) {
         //id ของ BorrowRequest ให้ทาง Service หรือ Database จัดการสร้างให้ทีหลัง 
         return new BorrowRequest(
             null,                               // id
@@ -89,6 +89,7 @@ public class User {
             this.studentId,                         // borrowerId
             startDate,                              // startDate
             endDate,                                // endDate
+            reason,                                 // reason
             RequestStatus.PENDING,                  // status เริ่มต้น
             LocalDateTime.now(ZoneOffset.UTC)       // createdAt
         );
