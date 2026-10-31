@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import {
+  Link,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import {
   LayoutGrid,
   PlusCircle,
@@ -11,21 +18,25 @@ import {
   Globe,
   Sun,
   Moon,
-  History
+  History,
+  LogIn,
+  LogOut,
+  Users,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "./components/UI";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Browse from "./pages/Browse";
 import CreateListing from "./pages/CreateListing";
 import ItemDetails from "./pages/ItemDetails";
 import MyListings from "./pages/MyListings";
 import IncomingRequests from "./pages/IncomingRequests";
+import MyBorrows from "./pages/MyBorrows";
+import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./contexts/AuthContext";
 import { useTheme } from "./contexts/ThemeContext";
-import MyBorrows from "./pages/MyBorrows";
 import { loadRuntimeConfig } from "./api/client";
-import { createUser } from "./api/authApi";
 import { getAllItems, getAvailableItems } from "./api/itemsApi";
 import { getBorrowRequests } from "./api/requestsApi";
 
@@ -39,44 +50,38 @@ function BrandMark() {
 }
 
 export default function App() {
-  const { user, token } = useAuth();
+  const { user, token, logout, demoAccounts, quickSwitchAccount } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const [items, setItems] = useState([]);
   const [requests, setRequests] = useState([]);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [switchingAccount, setSwitchingAccount] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     let active = true;
     async function fetchInitialData() {
       await loadRuntimeConfig();
-      const studentId = user?.studentId || user?.id;
-      if (studentId) {
-        await createUser(
-          {
-            studentId,
-            username: studentId,
-            fullName: user?.name || studentId,
-            email: user?.email || "",
-            faculty: user?.faculty || "",
-          },
-          token,
-        ).catch(() => null);
-      }
+
       const loadedItems = await getAllItems(token)
         .catch(() => getAvailableItems("AVAILABLE", token))
         .catch(() => []);
       if (!active) return;
       setItems(loadedItems);
 
-      const loadedRequests = await getBorrowRequests(
-        user,
-        token,
-        loadedItems,
-      ).catch(() => []);
-      if (!active) return;
-      setRequests(loadedRequests);
+      if (user && token) {
+        const loadedRequests = await getBorrowRequests(
+          user,
+          token,
+          loadedItems,
+        ).catch(() => []);
+        if (!active) return;
+        setRequests(loadedRequests);
+      } else {
+        setRequests([]);
+      }
     }
     fetchInitialData();
     return () => {
@@ -86,17 +91,9 @@ export default function App() {
 
   useEffect(() => setMobileMenu(false), [location.pathname]);
 
-  const pendingCount = requests.filter((r) => {
-    if (r.status !== "pending") return false;
-    const matchedItem = items.find((i) => i.id === r.itemId);
-    const ownerId = r.ownerId || matchedItem?.ownerId;
-    const ownerName = r.owner || matchedItem?.owner;
-    return Boolean(
-      (user?.studentId && ownerId === user.studentId) ||
-      (user?.id && ownerId === user.id) ||
-      (user?.name && ownerName === user.name)
-    );
-  }).length;
+  const pendingCount = user
+    ? requests.filter((r) => r.status === "pending").length
+    : 0;
   const navItems = [
     { to: "/", label: t("nav.home"), icon: LayoutGrid, end: true },
     { to: "/create", label: t("nav.create"), icon: PlusCircle },
@@ -110,9 +107,27 @@ export default function App() {
   if (pathname === "/create" && search.includes("edit="))
     currentLabel = t("nav.editListing");
   if (pathname.startsWith("/items/")) currentLabel = t("nav.itemDetails");
+  if (pathname === "/login")
+    currentLabel = t("nav.login", { defaultValue: "เข้าสู่ระบบ" });
   if (!currentLabel) currentLabel = t("nav.notFound");
 
   const nextLanguage = i18n.language === "en" ? "th" : "en";
+
+  async function handleAccountSelect(e) {
+    const selectedId = e.target.value;
+    if (!selectedId || selectedId === user?.studentId) return;
+    setSwitchingAccount(true);
+    try {
+      await quickSwitchAccount(selectedId);
+    } finally {
+      setSwitchingAccount(false);
+    }
+  }
+
+  async function handleLogout() {
+    await logout();
+    navigate("/login");
+  }
 
   return (
     <div className="app-shell">
@@ -137,12 +152,40 @@ export default function App() {
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-bottom">
-          <Avatar name={user.name} />
-          <div>
-            <strong>{user.name}</strong>
-            <small>{t("nav.studentRole")}</small>
-          </div>
+        <div className="sidebar-bottom" style={{ flexDirection: "column", alignItems: "stretch", gap: "10px" }}>
+          {user ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <Avatar name={user.name} />
+                <div style={{ overflow: "hidden" }}>
+                  <strong style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {user.name}
+                  </strong>
+                  <small style={{ display: "block", opacity: 0.8 }}>
+                    {user.studentId} • {t("nav.studentRole")}
+                  </small>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="button button-outline button-sm"
+                onClick={handleLogout}
+                style={{ width: "100%", justifyContent: "center" }}
+              >
+                <LogOut size={15} />
+                <span>{t("nav.logout", { defaultValue: "ออกจากระบบ" })}</span>
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/login"
+              className="button button-primary button-sm"
+              style={{ width: "100%", justifyContent: "center" }}
+            >
+              <LogIn size={15} />
+              <span>{t("nav.login", { defaultValue: "เข้าสู่ระบบ" })}</span>
+            </Link>
+          )}
         </div>
       </aside>
 
@@ -169,7 +212,48 @@ export default function App() {
             <ChevronRight size={15} aria-hidden="true" />
             <strong aria-current="page">{currentLabel}</strong>
           </nav>
-          <span className="top-user">
+          <span className="top-user" style={{ gap: "8px", flexWrap: "wrap" }}>
+            <label
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "0.85rem",
+              }}
+              title={t("auth.quickSwitchTooltip", {
+                defaultValue: "สลับบัญชีทดสอบอย่างรวดเร็ว",
+              })}
+            >
+              <Users size={15} />
+              <select
+                aria-label={t("auth.quickSwitchAria", {
+                  defaultValue: "สลับบัญชีทดสอบ",
+                })}
+                value={user?.studentId || ""}
+                onChange={handleAccountSelect}
+                disabled={switchingAccount}
+                style={{
+                  padding: "4px 8px",
+                  borderRadius: "6px",
+                  fontSize: "0.82rem",
+                  background: "var(--surface, transparent)",
+                  color: "inherit",
+                  border: "1px solid var(--border, #d1d5db)",
+                }}
+              >
+                <option value="" disabled>
+                  {t("auth.selectDemoAccount", {
+                    defaultValue: "สลับบัญชีทดสอบ...",
+                  })}
+                </option>
+                {demoAccounts.map((acc) => (
+                  <option key={acc.studentId} value={acc.studentId}>
+                    {acc.name} ({acc.studentId})
+                  </option>
+                ))}
+              </select>
+            </label>
+
             <button
               type="button"
               className="button button-outline button-sm"
@@ -187,44 +271,73 @@ export default function App() {
               <Globe size={15} />
               <span>{i18n.language === "en" ? "EN" : "TH"}</span>
             </button>
-            <Avatar name={user.name} size="sm" />
-            <span>{user.name}</span>
+            {user ? (
+              <>
+                <Avatar name={user.name} size="sm" />
+                <span>
+                  {user.name} <small style={{ opacity: 0.75 }}>({user.studentId})</small>
+                </span>
+                <button
+                  type="button"
+                  className="button button-outline button-sm"
+                  onClick={handleLogout}
+                  title={t("nav.logout", { defaultValue: "ออกจากระบบ" })}
+                >
+                  <LogOut size={15} />
+                </button>
+              </>
+            ) : (
+              <Link to="/login" className="button button-primary button-sm">
+                <LogIn size={15} />
+                <span>{t("nav.login", { defaultValue: "เข้าสู่ระบบ" })}</span>
+              </Link>
+            )}
           </span>
         </header>
 
         <main className="page-container">
           <Routes>
             <Route path="/" element={<Browse />} />
+            <Route path="/login" element={<Login />} />
             <Route
               path="/create"
-              element={<CreateListing items={items} setItems={setItems} />}
+              element={
+                <ProtectedRoute>
+                  <CreateListing items={items} setItems={setItems} />
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/items/:id"
-              element={<ItemDetails setRequests={setRequests} />}
+              element={<ItemDetails items={items} setRequests={setRequests} />}
             />
             <Route
               path="/my-listings"
-              element={<MyListings items={items} setItems={setItems} />}
+              element={
+                <ProtectedRoute>
+                  <MyListings items={items} setItems={setItems} />
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/requests"
               element={
-                <IncomingRequests
-                  requests={requests}
-                  setRequests={setRequests}
-                  setItems={setItems}
-                  items={items}
-                />
+                <ProtectedRoute>
+                  <IncomingRequests
+                    requests={requests}
+                    setRequests={setRequests}
+                    setItems={setItems}
+                  />
+                </ProtectedRoute>
               }
             />
-            <Route 
-              path="/my-borrows" 
+            <Route
+              path="/my-borrows"
               element={
-                <MyBorrows 
-                  requests={requests} 
-                />
-              } 
+                <ProtectedRoute>
+                  <MyBorrows requests={requests} />
+                </ProtectedRoute>
+              }
             />
             <Route path="*" element={<NotFound />} />
           </Routes>

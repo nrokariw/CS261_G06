@@ -110,7 +110,7 @@ export default function CreateListing({ items, setItems }) {
 
     try {
       // ส่ง Request หรือ ยิง API ไปหา Backend
-      const studentId = user?.studentId || "6400000001"; // ดึงจาก Auth หรือค่าเริ่มต้น
+      const studentId = user?.studentId || user?.id;
       const authToken = token || user?.token;
       const result = editingItem
         ? await updateItem(

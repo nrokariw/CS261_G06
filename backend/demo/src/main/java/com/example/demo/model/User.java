@@ -2,10 +2,10 @@ package com.example.demo.model;
 
 import com.example.demo.constant.RequestStatus;
 import com.example.demo.constant.ItemStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
-import org.springframework.cglib.core.Local;
 import jakarta.persistence.*;
 
 
@@ -15,7 +15,7 @@ public class User {
 
     //define attributes
     @Id 
-    @Column(name = "student_id")
+    @Column(name = "student_id", length = 50)
     private String studentId;
     @Column(columnDefinition = "NVARCHAR(255)")
     private String username;
@@ -25,6 +25,15 @@ public class User {
     private String email;
     @Column(columnDefinition = "NVARCHAR(255)")
     private String faculty;
+    @Column(columnDefinition = "NVARCHAR(255)")
+    private String department;
+    @JsonIgnore
+    @Column(name = "password_hash", length = 255)
+    private String passwordHash;
+    @Column(name = "role", length = 50)
+    private String role = "STUDENT";
+    @Column(name = "auth_provider", length = 50)
+    private String authProvider = "LOCAL";
 
     /**
      * Default constructor สำหรับสร้างออบเจ็กต์ User เปล่า
@@ -46,6 +55,14 @@ public class User {
         this.fullName = fullName;
         this.email = email;
         this.faculty = faculty;
+        this.role = "STUDENT";
+        this.authProvider = "LOCAL";
+    }
+
+    public User(String studentId, String username, String fullName, String email, String faculty, String passwordHash, String role) {
+        this(studentId, username, fullName, email, faculty);
+        this.passwordHash = passwordHash;
+        this.role = (role != null && !role.isBlank()) ? role : "STUDENT";
     }
 
     //define getters and setters
@@ -54,12 +71,21 @@ public class User {
     public String getFullName() {return fullName;}
     public String getEmail() {return email;}
     public String getFaculty() {return faculty;}
+    public String getDepartment() {return department;}
+    @JsonIgnore
+    public String getPasswordHash() {return passwordHash;}
+    public String getRole() {return role != null ? role : "STUDENT";}
+    public String getAuthProvider() {return authProvider != null ? authProvider : "LOCAL";}
 
     public void setStudentId(String studentId) {this.studentId = studentId;}
     public void setUsername(String username) {this.username = username;}
     public void setFullName(String fullName) {this.fullName = fullName;}
     public void setEmail(String email) {this.email = email;}
     public void setFaculty(String faculty) {this.faculty = faculty;}
+    public void setDepartment(String department) {this.department = department;}
+    public void setPasswordHash(String passwordHash) {this.passwordHash = passwordHash;}
+    public void setRole(String role) {this.role = (role != null && !role.isBlank()) ? role : "STUDENT";}
+    public void setAuthProvider(String authProvider) {this.authProvider = (authProvider != null && !authProvider.isBlank()) ? authProvider : "LOCAL";}
 
     //define methods
     public Boolean login() {

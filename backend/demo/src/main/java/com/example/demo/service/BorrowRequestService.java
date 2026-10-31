@@ -76,11 +76,20 @@ public class BorrowRequestService {
     // 2. ผู้ยืมยกเลิกคำขอยืม 
     @Transactional
     public BorrowRequest cancelRequest(String requestId) {
+        return cancelRequest(requestId, null);
+    }
+
+    @Transactional
+    public BorrowRequest cancelRequest(String requestId, String borrowerId) {
         BorrowRequest request = borrowRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Borrow Request not found: " + requestId));
 
         Item item = itemRepository.findById(request.getItemId())
                 .orElseThrow(() -> new RuntimeException("Item not found: " + request.getItemId()));
+
+        if (borrowerId == null || borrowerId.isBlank() || !request.getBorrowerId().equals(borrowerId)) {
+            throw new SecurityException("Unauthorized: Only the borrower of this request can cancel it");
+        }
 
         // เปลี่ยนสถานะคำขอเป็น CANCELLED
         request.cancel();
@@ -105,7 +114,7 @@ public class BorrowRequestService {
                 .orElseThrow(() -> new RuntimeException("Item not found: " + request.getItemId()));
 
         // ตรวจสอบว่าคนที่กดอนุมัติ เป็นเจ้าของไอเท็มชิ้นนี้จริงๆ หรือไม่ (Security Check)
-        if (ownerId != null && !ownerId.isEmpty() && !item.getOwnerId().equals(ownerId)) {
+        if (ownerId == null || ownerId.isBlank() || !item.getOwnerId().equals(ownerId)) {
             throw new SecurityException("Unauthorized: You are not the owner of this item");
         }
 
@@ -131,7 +140,7 @@ public class BorrowRequestService {
         Item item = itemRepository.findById(request.getItemId())
                 .orElseThrow(() -> new RuntimeException("Item not found: " + request.getItemId()));
 
-        if (ownerId != null && !ownerId.isEmpty() && !item.getOwnerId().equals(ownerId)) {
+        if (ownerId == null || ownerId.isBlank() || !item.getOwnerId().equals(ownerId)) {
             throw new SecurityException("Unauthorized: You are not the owner of this item");
         }
 

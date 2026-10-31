@@ -3,12 +3,16 @@ package com.example.demo.config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
 import java.util.List;
 
 @Component
+@Order(1)
 public class DatabaseSchemaRepair implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseSchemaRepair.class);
@@ -23,6 +27,16 @@ public class DatabaseSchemaRepair implements CommandLineRunner {
     public void run(String... args) {
         log.info("[DatabaseSchemaRepair] Starting database schema verification...");
         try {
+            DataSource ds = jdbcTemplate.getDataSource();
+            if (ds != null) {
+                try (Connection conn = ds.getConnection()) {
+                    String dbProduct = conn.getMetaData().getDatabaseProductName();
+                    if (dbProduct != null && !dbProduct.toLowerCase().contains("microsoft")) {
+                        log.info("[DatabaseSchemaRepair] Non-MSSQL database detected ({}), skipping MSSQL-specific DDL repair.", dbProduct);
+                        return;
+                    }
+                }
+            }
             // ตรวจสอบว่าตารางเก่ามีคอลัมน์วันที่ที่ถูกสร้างเป็น varbinary จาก Hibernate หรือไม่
             List<String> legacyTables = jdbcTemplate.queryForList(
                 "SELECT DISTINCT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS " +
@@ -100,6 +114,14 @@ public class DatabaseSchemaRepair implements CommandLineRunner {
                 "IF OBJECT_ID('borrow_request', 'U') IS NOT NULL BEGIN " +
                 "ALTER TABLE borrow_request ALTER COLUMN reason NVARCHAR(MAX); " +
                 "ALTER TABLE borrow_request ALTER COLUMN status VARCHAR(50); " +
+                "END"
+            );
+            jdbcTemplate.execute(
+                "IF OBJECT_ID('users', 'U') IS NOT NULL BEGIN " +
+                "IF COL_LENGTH('users', 'password_hash') IS NULL ALTER TABLE users ADD password_hash VARCHAR(255) NULL; " +
+                "IF COL_LENGTH('users', 'role') IS NULL ALTER TABLE users ADD role VARCHAR(50) NULL DEFAULT 'STUDENT'; " +
+                "IF COL_LENGTH('users', 'auth_provider') IS NULL ALTER TABLE users ADD auth_provider VARCHAR(50) NULL DEFAULT 'LOCAL'; " +
+                "IF COL_LENGTH('users', 'department') IS NULL ALTER TABLE users ADD department NVARCHAR(255) NULL; " +
                 "END"
             );
             log.info("[DatabaseSchemaRepair] Database schema verification and NVARCHAR column alignment completed.");

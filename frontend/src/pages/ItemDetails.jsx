@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   UserRound,
   Send,
+  LogIn,
 } from "lucide-react";
 import { PageHeading, StatusBadge } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
@@ -23,6 +24,7 @@ export default function ItemDetails({ items, setRequests }) {
   const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -188,7 +190,27 @@ export default function ItemDetails({ items, setRequests }) {
               <p>{t("itemDetails.borrowSubtitle")}</p>
             </div>
           </div>
-          {success ? (
+          {!user ? (
+            <div style={{ marginTop: "15px", display: "grid", gap: "12px" }}>
+              <div className="borrow-note">
+                <ShieldCheck size={17} />
+                <span>
+                  {t("auth.loginRequiredToBorrow", {
+                    defaultValue:
+                      "กรุณาเข้าสู่ระบบด้วยบัญชีนักศึกษาก่อนส่งคำขอยืมสิ่งของชิ้นนี้",
+                  })}
+                </span>
+              </div>
+              <Link
+                to="/login"
+                state={{ from: location }}
+                className="button button-primary button-full"
+              >
+                <LogIn size={16} />{" "}
+                {t("nav.login", { defaultValue: "เข้าสู่ระบบ" })}
+              </Link>
+            </div>
+          ) : success ? (
             <div className="request-success">
               <span>
                 <CheckCircle2 size={28} />

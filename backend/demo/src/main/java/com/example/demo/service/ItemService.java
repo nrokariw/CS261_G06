@@ -103,7 +103,7 @@ public class ItemService {
         }
 
         // ตรวจสอบสิทธิ์ความเป็นเจ้าของ (403 Forbidden หากไม่ใช่เจ้าของ)
-        if (userId != null && !userId.isBlank() && !item.getOwnerId().equals(userId)) {
+        if (userId == null || userId.isBlank() || !item.getOwnerId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "คุณไม่มีสิทธิ์แก้ไขประกาศนี้");
         }
 
@@ -144,7 +144,7 @@ public class ItemService {
         }
 
         // ตรวจสอบสิทธิ์ความเป็นเจ้าของ (403 Forbidden)
-        if (userId != null && !userId.isBlank() && !item.getOwnerId().equals(userId)) {
+        if (userId == null || userId.isBlank() || !item.getOwnerId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "คุณไม่มีสิทธิ์ลบประกาศนี้");
         }
 
