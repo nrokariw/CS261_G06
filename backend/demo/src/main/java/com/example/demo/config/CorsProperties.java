@@ -6,8 +6,10 @@ import java.util.Arrays;
 @ConfigurationProperties(prefix = "app.cors")
 public class CorsProperties {
     
+    //define attributes
     private String allowedOrigins;
 
+    //define getters and setters
     public String getAllowedOrigins() {
         return allowedOrigins;
     }
@@ -16,7 +18,7 @@ public class CorsProperties {
         this.allowedOrigins = allowedOrigins;
     }
 
-    // เมธอดดึงค่าและตัดช่องว่าง (Trim)
+    // 1.เมธอดดึงค่าและตัดช่องว่าง (Trim)
     public String[] getProcessedOrigins() {
         if (allowedOrigins == null || allowedOrigins.isEmpty()) {
             return new String[0];
@@ -26,4 +28,5 @@ public class CorsProperties {
                 .filter(origin -> !origin.isEmpty())
                 .toArray(String[]::new);
     }
+
 }

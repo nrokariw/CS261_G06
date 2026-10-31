@@ -11,14 +11,20 @@ import java.util.List;
 @Component
 public class DatabaseSchemaRepair implements CommandLineRunner {
 
+    //define attributes
     private static final Logger log = LoggerFactory.getLogger(DatabaseSchemaRepair.class);
-
+    
     private final JdbcTemplate jdbcTemplate;
 
+    //define constructor
     public DatabaseSchemaRepair(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    /**
+     * ทำงานอัตโนมัติเมื่อแอปพลิเคชันเริ่มต้น (Startup) เพื่อตรวจสอบและซ่อมแซม Schema ของฐานข้อมูล 
+     * แก้ไขปัญหาคอลัมน์วันที่ที่กลายเป็น varbinary และปรับปรุงคอลัมน์ข้อความให้รองรับภาษาไทย (NVARCHAR)
+     */
     @Override
     public void run(String... args) {
         log.info("[DatabaseSchemaRepair] Starting database schema verification...");

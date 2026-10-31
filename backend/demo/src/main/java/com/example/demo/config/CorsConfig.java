@@ -11,6 +11,7 @@ import java.nio.file.Paths;
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {
 
+    //define attributes
     private final CorsProperties corsProperties;
     private final String uploadDir;
 
@@ -22,6 +23,10 @@ public class CorsConfig implements WebMvcConfigurer {
         this.uploadDir = uploadDir;
     }
 
+    /**
+     * ตั้งค่า CORS (Cross-Origin Resource Sharing) เพื่ออนุญาตให้ฝั่ง Frontend
+     * ที่รันอยู่คนละโดเมนหรือคนละพอร์ต สามารถยิง API มาใช้งาน Backend ได้
+     */ 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**") // ใช้กับทุก API Routes
@@ -31,6 +36,10 @@ public class CorsConfig implements WebMvcConfigurer {
                 .allowCredentials(true);
     }
 
+    /**
+     * ตั้งค่า Resource Handler เพื่อเปลี่ยนโฟลเดอร์เก็บไฟล์ในเครื่อง (Physical Path) 
+     * ให้กลายเป็น URL Path ที่คนภายนอกสามารถเรียกดูรูปภาพหรือไฟล์ผ่านเว็บเบราว์เซอร์ได้
+     */
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         String productsLocation = Paths.get(uploadDir).toAbsolutePath().normalize().toUri().toString();
@@ -40,4 +49,5 @@ public class CorsConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/uploads/products/**")
                 .addResourceLocations(productsLocation);
     }
+
 }

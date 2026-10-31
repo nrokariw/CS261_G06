@@ -6,20 +6,21 @@ public enum RequestStatus {
     REJECTED,
     CANCELLED;
 
+    // เมธอดแปลงสถานะคำขอปัจจุบัน ให้เป็นสถานะของสิ่งของที่สอดคล้องกัน
     public ItemStatus getItemStatus() {
         switch (this) {
-            case ACCEPTED:
+            case ACCEPTED: // ถ้าคำขอยืมได้รับการอนุมัติ สิ่งของจะถูกจองไว้ (RESERVED)
                 return ItemStatus.RESERVED;
-            case REJECTED:
+            case REJECTED: // ถ้าคำขอยืมถูกปฏิเสธ สิ่งของจะกลับมาว่างพร้อมใช้งาน (AVAILABLE)
                 return ItemStatus.AVAILABLE;
-            case CANCELLED:
+            case CANCELLED: // ถ้าคำขอยืมถูกยกเลิก สิ่งของจะถูกตั้งค่าเป็นไม่พร้อมใช้งาน (UNAVAILABLE) ป้องกันปัญหาจากการถูกยกเลิกซ้ำบ่อยจากผู้ยืม
                 return ItemStatus.UNAVAILABLE;
             default:
                 return null;
         }
     } 
 
-    // เพิ่มเมธอดแปลงจาก Request ที่ ACCEPTED กลายเป็น TransactionStatus เริ่มต้น
+    // เมธอดแปลงจาก Request ที่ ACCEPTED กลายเป็น TransactionStatus เริ่มต้น
     public TransactionStatus getInitialTransactionStatus() {
         if (this == ACCEPTED) {
             return TransactionStatus.ACTIVE;
