@@ -11,8 +11,10 @@ import java.util.List;
 
 public class UserController {
 
+    //define attributes
     private final UserService userService;
 
+    //define constructor
     public UserController(UserService userService) {
         this.userService = userService;
     }

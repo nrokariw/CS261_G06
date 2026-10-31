@@ -13,6 +13,11 @@ import java.time.format.DateTimeFormatter;
 @Configuration
 public class JacksonConfig {
 
+    /**
+     * สร้างและตั้งค่า ObjectMapper เป็น Bean หลักของระบบ (@Primary)
+     * เพื่อปรับแต่งการแปลงวัตถุ (Object) ให้เป็น JSON และในทางกลับกัน 
+     * โดยเน้นการจัดฟอร์แมตข้อมูลประเภทวันที่และเวลา (DateTime) ให้เป็นมาตรฐานสากล
+     */
     @Bean
     @Primary
     public ObjectMapper objectMapper() {

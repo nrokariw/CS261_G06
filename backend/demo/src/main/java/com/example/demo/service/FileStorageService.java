@@ -13,8 +13,10 @@ import java.util.UUID;
 @Service
 public class FileStorageService {
 
+    //define attributes
     private final Path fileStorageLocation;
 
+    //define constructor where injected from application.properties
     public FileStorageService(@Value("${file.upload-dir:uploads/products}") String uploadDir) {
         this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
         try {
@@ -24,12 +26,13 @@ public class FileStorageService {
         }
     }
 
+    // 1. จัดเก็บไฟล์
     public String storeFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             return null;
         }
 
-        // 1. ตรวจสอบ Mime-Type (อนุญาตเฉพาะ JPG, PNG, WEBP ตาม Frontend)
+        // 1) ตรวจสอบ Mime-Type (อนุญาตเฉพาะ JPG, PNG, WEBP ตาม Frontend)
         String contentType = file.getContentType();
         if (contentType == null || 
             (!contentType.equals("image/jpeg") && 
@@ -38,13 +41,13 @@ public class FileStorageService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid file type. Only JPG, PNG, and WEBP are allowed.");
         }
 
-        // 2. ตรวจสอบขนาดไฟล์ (ไม่เกิน 3MB)
+        // 2) ตรวจสอบขนาดไฟล์ (ไม่เกิน 3MB)
         long maxFileSize = 3L * 1024 * 1024; // 3MB
         if (file.getSize() > maxFileSize) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File size exceeds maximum limit of 3MB.");
         }
 
-        // 3. บันทึกไฟล์ลง Local Volume
+        // 3) บันทึกไฟล์ลง Local Volume
         try {
             String originalFileName = file.getOriginalFilename();
             String extension = "";
@@ -61,4 +64,5 @@ public class FileStorageService {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to store file.");
         }
     }
+    
 }

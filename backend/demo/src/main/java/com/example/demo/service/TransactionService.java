@@ -9,9 +9,9 @@ import com.example.demo.repository.BorrowRequestRepository;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.TransactionRepository;
 
-import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -19,10 +19,12 @@ import java.util.List;
 @Service
 public class TransactionService {
 
+    //define attributes
     private final TransactionRepository transactionRepository;
     private final BorrowRequestRepository borrowRequestRepository;
     private final ItemRepository itemRepository;
 
+    //define constructor
     public TransactionService(TransactionRepository transactionRepository,
                               BorrowRequestRepository borrowRequestRepository,
                               ItemRepository itemRepository) {
@@ -90,13 +92,14 @@ public class TransactionService {
         return transactionRepository.save(transaction);
     }
 
-    // 3.ค้นหาประวัติธุรกรรมทั้งหมดของผู้ยืม
+    // 3.1. ค้นหาประวัติธุรกรรมทั้งหมดของผู้ยืม
     public List<Transaction> getTransactionsByBorrower(String borrowerId) {
         return transactionRepository.findByBorrowerId(borrowerId);
     }
 
-    // 4.ค้นหาประวัติธุรกรรมของไอเท็มชิ้นนั้นๆ
+    // 3.2. ค้นหาประวัติธุรกรรมของไอเท็มชิ้นนั้นๆ
     public List<Transaction> getTransactionsByItem(String itemId) {
         return transactionRepository.findByItemId(itemId);
     }
+
 }
