@@ -1,41 +1,17 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import {
+  fetchDemoAccounts,
   getCurrentUserProfile,
   loginWithTuAccount,
   logoutAuthSession,
   refreshAuthSession,
 } from "../api/authApi";
-import { loadRuntimeConfig, registerAuthCallbacks } from "../api/client";
-
-export const DEMO_ACCOUNTS = [
-  {
-    studentId: "6809000001",
-    username: "6809000001",
-    password: "password123",
-    name: "Ploy S.",
-    faculty: "คณะวิทยาศาสตร์และเทคโนโลยี",
-    roleLabelTh: "ผู้ให้ยืม / เจ้าของสิ่งของ (Account A)",
-    roleLabelEn: "Lender / Item Owner (Account A)",
-  },
-  {
-    studentId: "6809000002",
-    username: "6809000002",
-    password: "password123",
-    name: "Boom N.",
-    faculty: "คณะวิทยาศาสตร์และเทคโนโลยี",
-    roleLabelTh: "ผู้ขอยืม (Account B)",
-    roleLabelEn: "Borrower (Account B)",
-  },
-  {
-    studentId: "6809000003",
-    username: "6809000003",
-    password: "password123",
-    name: "Somchai K.",
-    faculty: "คณะวิศวกรรมศาสตร์",
-    roleLabelTh: "นักศึกษาคนที่ 3 (Account C)",
-    roleLabelEn: "Third Student (Account C)",
-  },
-];
+import {
+  getAppEnv,
+  isProdEnv,
+  loadRuntimeConfig,
+  registerAuthCallbacks,
+} from "../api/client";
 
 export function normalizeUserProfile(raw) {
   if (!raw) return null;
@@ -78,6 +54,8 @@ export function AuthProvider({ children }) {
   });
 
   const [authLoading, setAuthLoading] = useState(true);
+  const [appEnv, setAppEnv] = useState(() => getAppEnv());
+  const [demoAccounts, setDemoAccounts] = useState([]);
 
   const persistSession = useCallback((nextToken, nextUser) => {
     const normalized = normalizeUserProfile(nextUser);
@@ -128,6 +106,31 @@ export function AuthProvider({ children }) {
     async function initializeAuth() {
       try {
         await loadRuntimeConfig();
+        const resolvedEnv = getAppEnv();
+        if (active) {
+          setAppEnv(resolvedEnv);
+        }
+
+        if (!isProdEnv(resolvedEnv)) {
+          try {
+            const demoData = await fetchDemoAccounts();
+            if (active && demoData) {
+              if (demoData.appEnv) {
+                setAppEnv(String(demoData.appEnv).trim().toLowerCase());
+              }
+              if (demoData.demoEnabled === false || isProdEnv(demoData.appEnv)) {
+                setDemoAccounts([]);
+              } else if (Array.isArray(demoData.accounts)) {
+                setDemoAccounts(demoData.accounts);
+              }
+            }
+          } catch {
+            // Ignore if demo-accounts endpoint is unreachable
+          }
+        } else if (active) {
+          setDemoAccounts([]);
+        }
+
         const savedToken = localStorage.getItem("token");
         if (savedToken) {
           try {
@@ -180,8 +183,8 @@ export function AuthProvider({ children }) {
   };
 
   const quickSwitchAccount = async (studentId) => {
-    const target = DEMO_ACCOUNTS.find((acc) => acc.studentId === studentId);
-    const pwd = target ? target.password : "password123";
+    const target = demoAccounts.find((acc) => acc.studentId === studentId);
+    const pwd = target?.password || "password123";
     return login(studentId, pwd);
   };
 
@@ -195,14 +198,18 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const demoEnabled = !isProdEnv(appEnv) && demoAccounts.length > 0;
+
   return (
     <AuthContext.Provider
       value={{
         user,
         token,
         authLoading,
+        appEnv,
+        demoEnabled,
         isAuthenticated: Boolean(user && token),
-        demoAccounts: DEMO_ACCOUNTS,
+        demoAccounts: demoEnabled ? demoAccounts : [],
         login,
         logout,
         quickSwitchAccount,

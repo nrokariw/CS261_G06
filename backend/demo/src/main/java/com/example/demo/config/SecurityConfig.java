@@ -31,10 +31,15 @@ import java.util.Map;
 public class SecurityConfig {
 
     private final CorsProperties corsProperties;
+    private final ExternalApiProperties externalApiProperties;
     private final ObjectMapper objectMapper;
 
-    public SecurityConfig(CorsProperties corsProperties, ObjectMapper objectMapper) {
+    public SecurityConfig(
+            CorsProperties corsProperties,
+            ExternalApiProperties externalApiProperties,
+            ObjectMapper objectMapper) {
         this.corsProperties = corsProperties;
+        this.externalApiProperties = externalApiProperties;
         this.objectMapper = objectMapper;
     }
 
@@ -74,7 +79,7 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout", "/api/auth/demo-accounts").permitAll()
                 .requestMatchers("/uploads/products/**", "/actuator/**", "/error").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/items", "/api/items/all", "/api/items/*").permitAll()
                 .anyRequest().authenticated()
@@ -88,10 +93,12 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         String[] origins = corsProperties.getProcessedOrigins();
-        if (origins != null && origins.length > 0) {
-            configuration.setAllowedOrigins(Arrays.asList(origins));
+        if (externalApiProperties.isDemoOrDevMode()) {
+            configuration.setAllowedOriginPatterns(List.of("*"));
+        } else if (origins != null && origins.length > 0) {
+            configuration.setAllowedOriginPatterns(Arrays.asList(origins));
         } else {
-            configuration.setAllowedOrigins(List.of("http://localhost:3000"));
+            configuration.setAllowedOriginPatterns(List.of("http://localhost:3000"));
         }
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));

@@ -37,11 +37,13 @@ services:
       - .env.example
     environment:
       # Spring Boot relaxed binding overrides application.properties keys without changing source code
+      APP_ENV: "${APP_ENV:-demo}"
+      APP_SEED_DEMO_ACCOUNTS_PATH: "${DEMO_ACCOUNTS_FILE:-classpath:seeds/demo-accounts.json}"
       APP_CORS_ALLOWED_ORIGINS: "${LOCAL_WEB_URL:-http://localhost:3000},${PUBLIC_WEB_URL:-https://your-production-domain.com}"
       APP_EXTERNAL_SERVICES_TU_API_BASE_URL: "${TU_API_BASE_URL:-https://api.tu.ac.th/v1}"
       APP_EXTERNAL_SERVICES_TU_API_VERIFY_PATH: "${TU_API_VERIFY_PATH:-/auth/Ad/verify}"
       APP_EXTERNAL_SERVICES_TU_API_TOKEN: "${TU_API_TOKEN:-TU80bc4cfe53981bd7140bb8d46ec714c4c4902999f65cd78faea7afb11263cad6f23b29387e7002f5eb51ed360b177e87}"
-      APP_AUTH_MODE: "${AUTH_MODE:-HYBRID}"
+      APP_AUTH_MODE: "${AUTH_MODE:-AUTO}"
       APP_AUTH_DEMO_PASSWORD: "${DEMO_DEFAULT_PASSWORD:-password123}"
       APP_JWT_SECRET: "${JWT_SECRET:-CampusShareSuperSecretJwtKeyForHS256Signing2026!CS261G06}"
       APP_JWT_ACCESS_EXPIRATION_MS: "${JWT_ACCESS_EXPIRATION_MS:-900000}"
@@ -76,6 +78,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
+        VITE_APP_ENV: ${APP_ENV:-demo}
         VITE_PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-https://your-production-domain.com}
         VITE_API_BASE_PATH: ${API_BASE_PATH:-/api}
         VITE_TU_API_BASE_URL: ${TU_API_BASE_URL:-https://api.tu.ac.th/v1}
@@ -89,6 +92,7 @@ services:
     env_file:
       - .env.example
     environment:
+      APP_ENV: ${APP_ENV:-demo}
       PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-https://your-production-domain.com}
       BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-http://backend:8080}
       TU_API_BASE_URL: ${TU_API_BASE_URL:-https://api.tu.ac.th/v1}

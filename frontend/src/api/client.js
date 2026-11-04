@@ -1,3 +1,7 @@
+const DEFAULT_APP_ENV = (import.meta.env.VITE_APP_ENV || "demo")
+  .trim()
+  .toLowerCase();
+
 const DEFAULT_API_PATHS = {
   base: import.meta.env.VITE_API_BASE_PATH || "/api",
   auth: import.meta.env.VITE_API_AUTH_PATH || "/api/auth",
@@ -9,6 +13,7 @@ const DEFAULT_API_PATHS = {
   evidence: import.meta.env.VITE_API_EVIDENCE_PATH || "/api/evidence",
 };
 
+let runtimeAppEnv = DEFAULT_APP_ENV;
 let runtimeApiPaths = { ...DEFAULT_API_PATHS };
 let configLoaded = false;
 let refreshPromise = null;
@@ -30,6 +35,12 @@ export async function loadRuntimeConfig() {
     const res = await fetch("/config.json", { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
+      if (data?.appEnv && typeof data.appEnv === "string") {
+        const cleanedEnv = data.appEnv.trim().toLowerCase();
+        if (cleanedEnv && !cleanedEnv.startsWith("$")) {
+          runtimeAppEnv = cleanedEnv;
+        }
+      }
       if (data?.api) {
         runtimeApiPaths = {
           base: data.api.base || DEFAULT_API_PATHS.base,
@@ -49,6 +60,15 @@ export async function loadRuntimeConfig() {
     configLoaded = true;
   }
   return runtimeApiPaths;
+}
+
+export function getAppEnv() {
+  return runtimeAppEnv || "demo";
+}
+
+export function isProdEnv(envOverride) {
+  const env = (envOverride || getAppEnv() || "demo").trim().toLowerCase();
+  return env === "prod" || env === "production";
 }
 
 export function getApiPaths() {

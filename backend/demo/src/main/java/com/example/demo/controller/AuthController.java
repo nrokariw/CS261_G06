@@ -1,5 +1,7 @@
 package com.example.demo.controller;
 
+import com.example.demo.config.DataSeeder;
+import com.example.demo.config.ExternalApiProperties;
 import com.example.demo.model.User;
 import com.example.demo.service.AuthService;
 import com.example.demo.service.AuthService.AuthResult;
@@ -25,10 +27,27 @@ public class AuthController {
 
     private final AuthService authService;
     private final JwtService jwtService;
+    private final DataSeeder dataSeeder;
+    private final ExternalApiProperties externalApiProperties;
 
-    public AuthController(AuthService authService, JwtService jwtService) {
+    public AuthController(
+            AuthService authService,
+            JwtService jwtService,
+            DataSeeder dataSeeder,
+            ExternalApiProperties externalApiProperties) {
         this.authService = authService;
         this.jwtService = jwtService;
+        this.dataSeeder = dataSeeder;
+        this.externalApiProperties = externalApiProperties;
+    }
+
+    @GetMapping("/demo-accounts")
+    public ResponseEntity<Map<String, Object>> getDemoAccounts() {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("appEnv", externalApiProperties.getAppEnv());
+        body.put("demoEnabled", externalApiProperties.isDemoOrDevMode());
+        body.put("accounts", dataSeeder.getPublicDemoAccounts());
+        return ResponseEntity.ok(body);
     }
 
     @PostMapping("/login")

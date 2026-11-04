@@ -316,7 +316,7 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                 </small>
               )}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "20px" }}>
+            <div className="modal-actions-grid">
               <button
                 type="button"
                 className="button button-outline"

@@ -268,7 +268,7 @@ export default function CreateListing({ items, setItems }) {
             </small>
           )}
         </div>
-        <div className="field-group" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+        <div className="field-group two-col-responsive">
           <div className="field">
             <label htmlFor="availableFrom">
               {t("createListing.availableFromLabel")}

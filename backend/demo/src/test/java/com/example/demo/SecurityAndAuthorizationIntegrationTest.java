@@ -1,5 +1,6 @@
 package com.example.demo;
 
+import com.example.demo.config.ExternalApiProperties;
 import com.example.demo.constant.ItemStatus;
 import com.example.demo.constant.RequestStatus;
 import com.example.demo.model.BorrowRequest;
@@ -64,6 +65,9 @@ class SecurityAndAuthorizationIntegrationTest {
 
     @Autowired
     private TuAuthClient tuAuthClient;
+
+    @Autowired
+    private ExternalApiProperties externalApiProperties;
 
     private String tokenA;
     private String tokenB;
@@ -651,5 +655,47 @@ class SecurityAndAuthorizationIntegrationTest {
         assertThat(profile.email()).isEqualTo("thepnatee.pho@dome.tu.ac.th");
         assertThat(profile.faculty()).isEqualTo("คณะวิทยาศาสตร์และเทคโนโลยี");
         assertThat(profile.department()).isEqualTo("สาขาวิชาวิทยาการคอมพิวเตอร์");
+    }
+
+    @Test
+    @DisplayName("TC-SEC-17: CORS allows Tailscale IP Origin (100.x.y.z) in demo/dev mode without 403 Forbidden")
+    void tcSec17_corsAllowsTailscaleOriginInDemoMode() throws Exception {
+        String tailscaleOrigin = "http://100.88.42.19:3000";
+
+        mockMvc.perform(options("/api/items/all")
+                        .header(HttpHeaders.ORIGIN, tailscaleOrigin)
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, tailscaleOrigin))
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"));
+
+        mockMvc.perform(get("/api/items/all")
+                        .header(HttpHeaders.ORIGIN, tailscaleOrigin))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, tailscaleOrigin));
+    }
+
+    @Test
+    @DisplayName("TC-SEC-18: Externalized demo-accounts.json is served in demo/dev mode and hidden in prod mode")
+    void tcSec18_demoAccountsEndpointRespectsAppEnv() throws Exception {
+        String originalEnv = externalApiProperties.getAppEnv();
+        try {
+            externalApiProperties.setAppEnv("demo");
+            mockMvc.perform(get("/api/auth/demo-accounts"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.appEnv").value("demo"))
+                    .andExpect(jsonPath("$.demoEnabled").value(true))
+                    .andExpect(jsonPath("$.accounts.length()").value(3))
+                    .andExpect(jsonPath("$.accounts[0].studentId").value("6809000001"));
+
+            externalApiProperties.setAppEnv("prod");
+            mockMvc.perform(get("/api/auth/demo-accounts"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.appEnv").value("prod"))
+                    .andExpect(jsonPath("$.demoEnabled").value(false))
+                    .andExpect(jsonPath("$.accounts.length()").value(0));
+        } finally {
+            externalApiProperties.setAppEnv(originalEnv);
+        }
     }
 }

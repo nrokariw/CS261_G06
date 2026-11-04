@@ -14,7 +14,7 @@ import { PageHeading } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function Login() {
-  const { login, demoAccounts, user } = useAuth();
+  const { login, demoAccounts, demoEnabled, user } = useAuth();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -78,10 +78,17 @@ export default function Login() {
       <PageHeading
         eyebrow={t("auth.eyebrow", { defaultValue: "TU & CAMPUSSHARE AUTHENTICATION" })}
         title={t("auth.loginTitle", { defaultValue: "เข้าสู่ระบบ CampusShare" })}
-        subtitle={t("auth.loginSubtitle", {
-          defaultValue:
-            "เข้าสู่ระบบด้วยรหัสนักศึกษา มหาวิทยาลัยธรรมศาสตร์ (TU API) หรือเลือกบัญชีทดสอบด้านล่าง",
-        })}
+        subtitle={
+          demoEnabled
+            ? t("auth.loginSubtitle", {
+                defaultValue:
+                  "เข้าสู่ระบบด้วยรหัสนักศึกษา มหาวิทยาลัยธรรมศาสตร์ (TU API) หรือเลือกบัญชีทดสอบด้านล่าง",
+              })
+            : t("auth.loginSubtitleProd", {
+                defaultValue:
+                  "เข้าสู่ระบบด้วยรหัสนักศึกษาและรหัสผ่าน มหาวิทยาลัยธรรมศาสตร์ (TU REST API)",
+              })
+        }
       />
 
       <div className="login-grid">
@@ -180,83 +187,85 @@ export default function Login() {
           </button>
         </form>
 
-        <section className="form-card" style={{ marginTop: "20px" }}>
-          <div className="form-section-title">
-            <span className="section-number">
-              <Sparkles size={16} />
-            </span>
-            <div>
-              <h2>
-                {t("auth.demoSwitcherTitle", {
-                  defaultValue: "สลับบัญชีทดสอบด่วน (Quick Demo Accounts)",
-                })}
-              </h2>
-              <p>
-                {t("auth.demoSwitcherDesc", {
-                  defaultValue:
-                    "คลิกเพื่อเข้าสู่ระบบทันทีสำหรับทดสอบบทบาทผู้ให้ยืม (Owner) และผู้ขอยืม (Borrower) — รหัสผ่านเริ่มต้น: password123",
-                })}
-              </p>
+        {demoEnabled && demoAccounts.length > 0 && (
+          <section className="form-card" style={{ marginTop: "20px" }}>
+            <div className="form-section-title">
+              <span className="section-number">
+                <Sparkles size={16} />
+              </span>
+              <div>
+                <h2>
+                  {t("auth.demoSwitcherTitle", {
+                    defaultValue: "สลับบัญชีทดสอบด่วน (Quick Demo Accounts)",
+                  })}
+                </h2>
+                <p>
+                  {t("auth.demoSwitcherDesc", {
+                    defaultValue:
+                      "คลิกเพื่อเข้าสู่ระบบทันทีสำหรับทดสอบบทบาทผู้ให้ยืม (Owner) และผู้ขอยืม (Borrower)",
+                  })}
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div
-            style={{
-              display: "grid",
-              gap: "12px",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            }}
-          >
-            {demoAccounts.map((acc) => {
-              const isCurrent = user?.studentId === acc.studentId;
-              return (
-                <button
-                  key={acc.studentId}
-                  type="button"
-                  className={
-                    isCurrent
-                      ? "button button-primary"
-                      : "button button-outline"
-                  }
-                  onClick={() => handleQuickDemoLogin(acc)}
-                  disabled={submitting}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    gap: "4px",
-                    padding: "14px 16px",
-                    textAlign: "left",
-                    height: "auto",
-                  }}
-                >
-                  <div
+            <div
+              style={{
+                display: "grid",
+                gap: "12px",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              }}
+            >
+              {demoAccounts.map((acc) => {
+                const isCurrent = user?.studentId === acc.studentId;
+                return (
+                  <button
+                    key={acc.studentId}
+                    type="button"
+                    className={
+                      isCurrent
+                        ? "button button-primary"
+                        : "button button-outline"
+                    }
+                    onClick={() => handleQuickDemoLogin(acc)}
+                    disabled={submitting}
                     style={{
                       display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      width: "100%",
-                      justifyContent: "space-between",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      gap: "4px",
+                      padding: "14px 16px",
+                      textAlign: "left",
+                      height: "auto",
                     }}
                   >
-                    <strong>
-                      {acc.name} ({acc.studentId})
-                    </strong>
-                    {isCurrent ? (
-                      <UserCheck size={16} />
-                    ) : (
-                      <UserRound size={16} />
-                    )}
-                  </div>
-                  <small style={{ opacity: 0.85 }}>
-                    {isEn ? acc.roleLabelEn : acc.roleLabelTh}
-                  </small>
-                  <small style={{ opacity: 0.7 }}>{acc.faculty}</small>
-                </button>
-              );
-            })}
-          </div>
-        </section>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        width: "100%",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <strong>
+                        {acc.name} ({acc.studentId})
+                      </strong>
+                      {isCurrent ? (
+                        <UserCheck size={16} />
+                      ) : (
+                        <UserRound size={16} />
+                      )}
+                    </div>
+                    <small style={{ opacity: 0.85 }}>
+                      {isEn ? acc.roleLabelEn : acc.roleLabelTh}
+                    </small>
+                    <small style={{ opacity: 0.7 }}>{acc.faculty}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

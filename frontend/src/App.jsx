@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Link,
   NavLink,
@@ -15,6 +15,8 @@ import {
   Menu,
   X,
   ChevronRight,
+  ChevronDown,
+  Check,
   Globe,
   Sun,
   Moon,
@@ -50,14 +52,16 @@ function BrandMark() {
 }
 
 export default function App() {
-  const { user, token, logout, demoAccounts, quickSwitchAccount } = useAuth();
+  const { user, token, logout, demoAccounts, demoEnabled, quickSwitchAccount } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const [items, setItems] = useState([]);
   const [requests, setRequests] = useState([]);
   const [itemsLoading, setItemsLoading] = useState(true);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [switchingAccount, setSwitchingAccount] = useState(false);
+  const profileMenuRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -92,7 +96,27 @@ export default function App() {
     };
   }, [user, token]);
 
-  useEffect(() => setMobileMenu(false), [location.pathname]);
+  useEffect(() => {
+    setMobileMenu(false);
+    setProfileMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target)
+      ) {
+        setProfileMenuOpen(false);
+      }
+    }
+    if (profileMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [profileMenuOpen]);
 
   const pendingCount = user
     ? requests.filter((r) => {
@@ -124,20 +148,25 @@ export default function App() {
     currentLabel = t("nav.login", { defaultValue: "เข้าสู่ระบบ" });
   if (!currentLabel) currentLabel = t("nav.notFound");
 
-  const nextLanguage = i18n.language === "en" ? "th" : "en";
+  const nextLanguage = i18n.language === "en" ? "th" : "Th".toLowerCase() === "en" ? "th" : "en";
+  const isEn = i18n.language?.startsWith("en");
 
-  async function handleAccountSelect(e) {
-    const selectedId = e.target.value;
-    if (!selectedId || selectedId === user?.studentId) return;
+  async function handleQuickSwitch(selectedId) {
+    if (!selectedId || selectedId === user?.studentId) {
+      setProfileMenuOpen(false);
+      return;
+    }
     setSwitchingAccount(true);
     try {
       await quickSwitchAccount(selectedId);
+      setProfileMenuOpen(false);
     } finally {
       setSwitchingAccount(false);
     }
   }
 
   async function handleLogout() {
+    setProfileMenuOpen(false);
     await logout();
     navigate("/login");
   }
@@ -221,55 +250,14 @@ export default function App() {
             {mobileMenu ? <X size={22} /> : <Menu size={22} />}
           </button>
           <nav className="breadcrumbs" aria-label={t("nav.breadcrumbAria")}>
-            <Link to="/">CampusShare</Link>
-            <ChevronRight size={15} aria-hidden="true" />
-            <strong aria-current="page">{currentLabel}</strong>
+            <Link to="/" className="breadcrumb-root">CampusShare</Link>
+            <ChevronRight size={15} aria-hidden="true" className="breadcrumb-sep" />
+            <strong aria-current="page" className="breadcrumb-current">{currentLabel}</strong>
           </nav>
-          <span className="top-user" style={{ gap: "8px", flexWrap: "wrap" }}>
-            <label
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                fontSize: "0.85rem",
-              }}
-              title={t("auth.quickSwitchTooltip", {
-                defaultValue: "สลับบัญชีทดสอบอย่างรวดเร็ว",
-              })}
-            >
-              <Users size={15} />
-              <select
-                aria-label={t("auth.quickSwitchAria", {
-                  defaultValue: "สลับบัญชีทดสอบ",
-                })}
-                value={user?.studentId || ""}
-                onChange={handleAccountSelect}
-                disabled={switchingAccount}
-                style={{
-                  padding: "4px 8px",
-                  borderRadius: "6px",
-                  fontSize: "0.82rem",
-                  background: "var(--surface, transparent)",
-                  color: "inherit",
-                  border: "1px solid var(--border, #d1d5db)",
-                }}
-              >
-                <option value="" disabled>
-                  {t("auth.selectDemoAccount", {
-                    defaultValue: "สลับบัญชีทดสอบ...",
-                  })}
-                </option>
-                {demoAccounts.map((acc) => (
-                  <option key={acc.studentId} value={acc.studentId}>
-                    {acc.name} ({acc.studentId})
-                  </option>
-                ))}
-              </select>
-            </label>
-
+          <div className="top-user">
             <button
               type="button"
-              className="button button-outline button-sm"
+              className="button button-outline button-sm topbar-icon-btn"
               onClick={toggleTheme}
               aria-label={theme === "dark" ? t("nav.switchToLight") : t("nav.switchToDark")}
             >
@@ -277,35 +265,140 @@ export default function App() {
             </button>
             <button
               type="button"
-              className="button button-outline button-sm"
+              className="button button-outline button-sm topbar-lang-btn"
               onClick={() => i18n.changeLanguage(nextLanguage)}
               aria-label={t("nav.switchLanguage")}
             >
               <Globe size={15} />
               <span>{i18n.language === "en" ? "EN" : "TH"}</span>
             </button>
-            {user ? (
-              <>
-                <Avatar name={user.name} size="sm" />
-                <span>
-                  {user.name} <small style={{ opacity: 0.75 }}>({user.studentId})</small>
-                </span>
-                <button
-                  type="button"
-                  className="button button-outline button-sm"
-                  onClick={handleLogout}
-                  title={t("nav.logout", { defaultValue: "ออกจากระบบ" })}
-                >
-                  <LogOut size={15} />
-                </button>
-              </>
-            ) : (
+
+            {!user && !demoEnabled ? (
               <Link to="/login" className="button button-primary button-sm">
                 <LogIn size={15} />
                 <span>{t("nav.login", { defaultValue: "เข้าสู่ระบบ" })}</span>
               </Link>
+            ) : (
+              <div className="profile-menu-wrapper" ref={profileMenuRef}>
+                <button
+                  type="button"
+                  className="profile-trigger-btn"
+                  onClick={() => setProfileMenuOpen((prev) => !prev)}
+                  aria-expanded={profileMenuOpen}
+                  aria-haspopup="menu"
+                  aria-label={t("auth.accountMenuAria", {
+                    defaultValue: "เมนูบัญชีผู้ใช้และสลับบัญชี",
+                  })}
+                >
+                  {user ? (
+                    <>
+                      <Avatar name={user.name} size="sm" />
+                      <span className="profile-trigger-name">{user.name}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Users size={15} />
+                      <span className="profile-trigger-name">
+                        {t("nav.login", { defaultValue: "เข้าสู่ระบบ" })}
+                      </span>
+                    </>
+                  )}
+                  <ChevronDown size={14} className={`profile-chevron ${profileMenuOpen ? "open" : ""}`} />
+                </button>
+
+                {profileMenuOpen && (
+                  <div className="profile-popover" role="menu">
+                    {user ? (
+                      <div className="profile-popover-header">
+                        <Avatar name={user.name} />
+                        <div className="profile-popover-user">
+                          <strong>{user.name}</strong>
+                          <small>{user.studentId} • {t("nav.studentRole")}</small>
+                          {user.faculty && <small>{user.faculty}</small>}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="profile-popover-header">
+                        <div className="profile-popover-user">
+                          <strong>{t("auth.guestTitle", { defaultValue: "ยังไม่ได้เข้าสู่ระบบ" })}</strong>
+                          <small>
+                            {t("auth.guestSubtitle", {
+                              defaultValue: "เลือกบัญชีทดสอบหรือเข้าสู่ระบบด้วยรหัสนักศึกษา",
+                            })}
+                          </small>
+                        </div>
+                      </div>
+                    )}
+
+                    {demoEnabled && demoAccounts.length > 0 && (
+                      <div className="profile-popover-section">
+                        <div className="profile-popover-label">
+                          <Users size={13} />
+                          <span>
+                            {t("auth.selectDemoAccount", {
+                              defaultValue: "สลับบัญชีทดสอบ (Quick Switch)",
+                            })}
+                          </span>
+                        </div>
+                        <div className="profile-demo-list">
+                          {demoAccounts.map((acc) => {
+                            const isCurrent = user?.studentId === acc.studentId;
+                            return (
+                              <button
+                                key={acc.studentId}
+                                type="button"
+                                role="menuitem"
+                                className={`profile-demo-item ${isCurrent ? "active" : ""}`}
+                                onClick={() => handleQuickSwitch(acc.studentId)}
+                                disabled={switchingAccount}
+                              >
+                                <Avatar name={acc.name} size="sm" />
+                                <div className="profile-demo-meta">
+                                  <strong>
+                                    {acc.name} <small>({acc.studentId})</small>
+                                  </strong>
+                                  <span>
+                                    {isEn
+                                      ? acc.roleLabelEn || acc.faculty
+                                      : acc.roleLabelTh || acc.faculty}
+                                  </span>
+                                </div>
+                                {isCurrent && <Check size={15} className="profile-demo-check" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="profile-popover-footer">
+                      {user ? (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="button button-outline button-sm button-full"
+                          onClick={handleLogout}
+                        >
+                          <LogOut size={15} />
+                          <span>{t("nav.logout", { defaultValue: "ออกจากระบบ" })}</span>
+                        </button>
+                      ) : (
+                        <Link
+                          to="/login"
+                          role="menuitem"
+                          className="button button-primary button-sm button-full"
+                          onClick={() => setProfileMenuOpen(false)}
+                        >
+                          <LogIn size={15} />
+                          <span>{t("nav.login", { defaultValue: "เข้าสู่ระบบ" })}</span>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
-          </span>
+          </div>
         </header>
 
         <main className="page-container">

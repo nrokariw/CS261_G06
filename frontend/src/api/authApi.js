@@ -30,6 +30,13 @@ export async function getCurrentUserProfile(token) {
   });
 }
 
+export async function fetchDemoAccounts() {
+  const { auth } = getApiPaths();
+  return apiRequest(`${auth}/demo-accounts`, {
+    method: "GET",
+  });
+}
+
 export async function getUserByStudentId(studentId, token) {
   const { users } = getApiPaths();
   return apiRequest(`${users}/${encodeURIComponent(studentId)}`, {
