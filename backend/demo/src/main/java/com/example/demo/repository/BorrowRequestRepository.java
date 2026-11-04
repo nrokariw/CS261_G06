@@ -3,10 +3,8 @@ package com.example.demo.repository;
 import com.example.demo.model.BorrowRequest;
 import com.example.demo.constant.RequestStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 import java.util.List;
 
-@Repository
 public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, String> {
     
     // ค้นหาประวัติหรือรายการขอยืมทั้งหมดของผู้ใช้งานคนนี้ (ในมุมมองผู้ยืม)

@@ -14,9 +14,10 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // define attribute for Log the history of errors that occur within this class   
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    // ดักจับ IllegalArgumentException ที่ถูกโยนมาจาก Service (เช่น ไฟล์ผิดประเภท, เกิน 3MB, หรือเงื่อนไขอื่นๆ)
+    // 1. ดักจับ IllegalArgumentException ที่ถูกโยนมาจาก Service (เช่น ไฟล์ผิดประเภท, เกิน 3MB, หรือเงื่อนไขอื่นๆ ในรูปแบบ 400 Bad Request)
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgumentException(IllegalArgumentException ex) {
         log.warn("[API Error - 400 Bad Request] IllegalArgumentException: {}", ex.getMessage());
@@ -29,7 +30,7 @@ public class GlobalExceptionHandler {
                 )); // จะได้ข้อความเช่น "Invalid file type. Only JPG ,PNG, and WEBP are allowed." กลับไป
     }
 
-    // ดักจับกรณีขนาดไฟล์เกินที่ Spring Boot กำหนดไว้ใน application.properties (3MB)
+    // 2. ดักจับกรณีขนาดไฟล์เกินที่ Spring Boot กำหนดไว้ใน application.properties (3MB ในรูปแบบ 400 Bad Request)
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, String>> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException ex) {
         log.warn("[API Error - 400 Bad Request] MaxUploadSizeExceededException: {}", ex.getMessage());
@@ -42,7 +43,7 @@ public class GlobalExceptionHandler {
                 ));
     }
 
-    // ดักจับ ResponseStatusException (เช่น 401 Unauthorized ที่เราโยนตอนเช็ก Token)
+    // 3. ดักจับ ResponseStatusException ข้อยกเว้นสำเร็จรูปของ Spring ในการใช้แสดงการดักจับ (เช่น 401 Unauthorized ที่เราโยนตอนเช็ก Token)
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Map<String, String>> handleResponseStatusException(ResponseStatusException ex) {
         log.warn("[API Error - {}] ResponseStatusException: {}", ex.getStatusCode(), ex.getReason());
@@ -55,6 +56,7 @@ public class GlobalExceptionHandler {
                 ));     // ดึงข้อความ Reason ที่แจ้งเตือน
     }
 
+    // 4.ดักจับ SecurityException เกิดขึ้นเมื่อผู้ใช้งานไม่มีสิทธิ์เข้าถึงฟังก์ชัน หรือพยายามทำสิ่งที่อยู่นอกเหนือสิทธิ์การใช้งาน (403 Forbidden)
     @ExceptionHandler(SecurityException.class)
     public ResponseEntity<Map<String, String>> handleSecurityException(SecurityException ex) {
         log.warn("[API Error - 403 Forbidden] SecurityException: {}", ex.getMessage());
@@ -67,6 +69,7 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    // 5. ดักจับ IllegalStateException ที่เกิดจากสถานะของวัตถุหรือขั้นตอนในระบบไม่ถูกต้อง (409 Conflict)
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, String>> handleIllegalStateException(IllegalStateException ex) {
         log.warn("[API Error - 409 Conflict] IllegalStateException: {}", ex.getMessage());
@@ -79,6 +82,7 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    // 6.ดักจับ RuntimeException ข้อยกเว้นระดับทั่วไป, ข้อผิดพลาดที่ไม่ได้ระบุเงื่อนไขไว้ด้านบนทั้งหมด (400/500 RuntimeException)
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntimeException(RuntimeException ex) {
         log.error("[API Error - 400/500 RuntimeException] {}: {}", ex.getClass().getName(), ex.getMessage(), ex);
@@ -94,4 +98,5 @@ public class GlobalExceptionHandler {
                         "detail", rootCauseMsg
                 ));
     }
+
 }

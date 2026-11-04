@@ -11,17 +11,18 @@ import java.util.List;
 @Service
 public class EvidenceProofService {
 
+    //define attributes
     private final EvidenceProofRepository evidenceProofRepository;
-
     private final TransactionRepository transactionRepository;
 
+    //define constructor
     public EvidenceProofService(EvidenceProofRepository evidenceProofRepository,
                                 TransactionRepository transactionRepository) {
         this.evidenceProofRepository = evidenceProofRepository;
         this.transactionRepository = transactionRepository;
     }
 
-    // เพิ่มหลักฐาน (เช่น รูปภาพสภาพของ) ผูกกับ Transaction
+    // 1. เพิ่มหลักฐาน (เช่น รูปภาพสภาพของ) ผูกกับ Transaction
     public EvidenceProof addEvidenceProof(String transactionId, EvidenceProof proofData) {
         // ตรวจสอบว่า Transaction มีอยู่จริงไหม
         var transaction = transactionRepository.findById(transactionId)
@@ -43,8 +44,9 @@ public class EvidenceProofService {
         return evidenceProofRepository.save(proofData);
     }
 
-    // ดึงรายการหลักฐานทั้งหมดที่ผูกกับ Transaction นั้นๆ
+    // 2. ดึงรายการหลักฐานทั้งหมดที่ผูกกับ Transaction นั้นๆ
     public List<EvidenceProof> getEvidencesByTransaction(String transactionId) {
         return evidenceProofRepository.findByTransactionId(transactionId);
     }
+    
 }

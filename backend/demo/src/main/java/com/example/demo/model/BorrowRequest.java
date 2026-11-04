@@ -59,7 +59,7 @@ public class BorrowRequest {
         }
     }
 
-
+    // อัพเดทเวลาเมื่อมีการแก้ไขคำขอยืมเสร็จสิ้นอัตโนมัติ ก่อนบันทึกลง Database
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);

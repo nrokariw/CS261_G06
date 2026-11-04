@@ -4,12 +4,13 @@ import java.time.LocalDateTime;
 
 public class BorrowRequestDto {
 
+    //define attributes
     private String itemId;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private String reason;
 
-
+    //define getters and setters
     public String getItemId() { return itemId; }
     public void setItemId(String itemId) { this.itemId = itemId; }
 
@@ -21,4 +22,5 @@ public class BorrowRequestDto {
 
     public String getReason() { return reason; }
     public void setReason(String reason) { this.reason = reason; }
+    
 }

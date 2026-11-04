@@ -72,6 +72,7 @@ public class EvidenceProof {
     public String getImageUrl() { return imageUrl; }
     public String getNote() { return note; }
     public LocalDateTime getCapturedAt() { return capturedAt; }
+    
     public void setId(String id) { this.id = id; }
     public void setTransactionId(String transactionId) { this.transactionId = transactionId; }
     public void setUploaderId(String uploaderId) { this.uploaderId = uploaderId; }

@@ -17,19 +17,21 @@ import java.util.Map;
 
 public class ItemController {
 
+    //define attributes
     private final ItemService itemService;
 
+    //define constructor
     public ItemController(ItemService itemService) {
         this.itemService = itemService;
     }
 
-    // 1. ดูรายการไอเท็มทั้งหมด
+    // 1.1. ดึงรายการไอเท็มทั้งหมด
     @GetMapping("/all")
     public ResponseEntity<List<Item>> getAllItems() {
         return ResponseEntity.ok(itemService.getAllItems());
     }
 
-    // 2. ดึงรายการสิ่งของที่พร้อมให้ยืม (AVAILABLE Items)
+    // 1.2. ดึงรายการสิ่งของที่พร้อมให้ยืม (AVAILABLE Items)
     @GetMapping 
     public ResponseEntity<List<Item>> getItems(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
@@ -55,7 +57,7 @@ public class ItemController {
         return ResponseEntity.ok(items);
     }
 
-    // 2.1 ดึงข้อมูลสิ่งของตาม ID (US-02.2)
+    // 1.3. ดึงข้อมูลสิ่งของตาม ID 
     @GetMapping("/{id}")
     public ResponseEntity<Item> getItemById(
             @PathVariable("id") String id,
@@ -72,7 +74,7 @@ public class ItemController {
     }
 
 
-    // 3. เพิ่มไอเท็มใหม่ (รองรับ Multipart และตรวจสอบ Token / StudentId)
+    // 2. เพิ่มไอเท็มใหม่ (รองรับ Multipart และตรวจสอบ Token / StudentId)
     @PostMapping(value = "/{studentId}", consumes = {"multipart/form-data"})
     public ResponseEntity<Item> createItem(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
@@ -105,11 +107,8 @@ public class ItemController {
         } 
     }
 
-    // ==========================================
-    // US-04: แก้ไขและลบประกาศสิ่งของ (T-4.1)
-    // ==========================================
 
-    // 4. PUT /api/items/{id} - แก้ไขข้อมูลประกาศ (รองรับทั้ง multipart/form-data และ application/json)
+    // 3. PUT /api/items/{id} - แก้ไขข้อมูลประกาศ (รองรับทั้ง multipart/form-data และ application/json)
     @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
     public ResponseEntity<Item> updateItem(
             @PathVariable("id") String itemId,
@@ -126,6 +125,7 @@ public class ItemController {
         return ResponseEntity.ok(updatedItem);
     }
 
+    // 4. อัปเดตข้อมูลสิ่งของ ผ่านทาง JSON Payload
     @PutMapping(value = "/{id}", consumes = {"application/json"})
     public ResponseEntity<Item> updateItemJson(
             @PathVariable("id") String itemId,
@@ -157,5 +157,6 @@ public class ItemController {
         itemService.deleteItem(itemId, userId);
         return ResponseEntity.ok(Map.of("message", "Item deleted successfully"));
     }
+
 }
 

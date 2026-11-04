@@ -6,8 +6,8 @@ import com.example.demo.service.BorrowRequestService;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.cglib.core.Local;
 import org.springframework.web.bind.annotation.*;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -21,12 +21,22 @@ import java.util.Map;
 
 public class BorrowRequestController {
     
+    //define attributes
     private final BorrowRequestService borrowService;
 
+    //define constructor
     public BorrowRequestController(BorrowRequestService borrowService) {
         this.borrowService = borrowService;
     }
 
+    /**
+     * แปลงข้อความวันที่ (String) รูปแบบต่างๆ ให้กลายเป็น LocalDateTime ในเขตเวลา UTC
+     * รองรับทั้ง ISO Offset, ISO Local และรูปแบบวันที่สั้นสั้น (YYYY-MM-DD)
+     * 
+     * @param dateStr   ข้อความวันที่ที่ต้องการแปลง
+     * @param endOfDay  หากเป็น true และข้อความมีเฉพาะวันที่ (ไม่มีเวลา) จะปรับเวลาให้เป็นสิ้นสุดวัน (23:59:59) ถ้าเป็น false จะเป็นเริ่มวัน (00:00:00)
+     * @return LocalDateTime ในโซนเวลา UTC เท่านั้น
+     */ 
     private LocalDateTime parseToUtcDateTime(String dateStr, boolean endOfDay) {
         if (dateStr == null || dateStr.trim().isEmpty()) {
             return LocalDateTime.now(ZoneOffset.UTC);
@@ -46,6 +56,7 @@ public class BorrowRequestController {
         }
     }
 
+    // 1.1. ดึงรายการคำขอยืมที่เข้ามาทั้งหมด
     @GetMapping
     public List<BorrowRequest> getAllRequests(@RequestParam(required = false) String ownerId) {
         if (ownerId != null && !ownerId.trim().isEmpty()) {
@@ -54,12 +65,13 @@ public class BorrowRequestController {
         return borrowService.getAllRequests();
     }
 
-    // ดึงรายการคำขอยืมที่เข้ามาหาเจ้าของสิ่งของ (US-05.1)
+    // 1.2. ดึงรายการคำขอยืมที่เข้ามาหาเจ้าของสิ่งของ
     @GetMapping("/owner/{ownerId}")
     public List<BorrowRequest> getRequestsByOwner(@PathVariable String ownerId) {
         return borrowService.getRequestsByOwner(ownerId);
     }
 
+    // 2. สร้างประกาศคำขอยืมสิ่งของชิ้นใหม่
     @PostMapping
     public ResponseEntity<BorrowRequest> createRequest(
         @RequestHeader(value = "Authorization", required = false) String authHeader,
@@ -85,7 +97,7 @@ public class BorrowRequestController {
         return ResponseEntity.status(HttpStatus.CREATED).body(savedRequest);
     }
 
-    // 1. ส่งคำขอยืมไอเท็ม (รองรับ Client local time พร้อม UTC tag หรือ Offset)
+    // 3. ส่งคำขอยืมไอเท็ม (รองรับ Client local time พร้อม UTC tag หรือ Offset)
     //    และบันทึกข้อมูลด้วยสถานะ Pending และตอบกลับ 201 Created
     @PostMapping("/request")
     public ResponseEntity<BorrowRequest> createBorrowRequest(
@@ -93,7 +105,7 @@ public class BorrowRequestController {
             @RequestParam(required = false) String borrowerId,
             @RequestBody BorrowRequestDto requestDto) {
         
-        // ตัวอย่างกำหนด Mock ID หากยังไม่ได้ต่อระบบ Token จริงเต็มรูปแบบ
+        // TODO : ตัวอย่างกำหนด Mock ID หากยังไม่ได้ต่อระบบ Token จริงเต็มรูปแบบ
         if (borrowerId == null || borrowerId.isEmpty()) {
             borrowerId = "6400000002"; 
         }
@@ -104,7 +116,7 @@ public class BorrowRequestController {
         return ResponseEntity.status(HttpStatus.CREATED).body(savedRequest);
     }
 
-    // 2. เจ้าของกดอนุมัติคำขอ
+    // 4.1. เจ้าของกดอนุมัติคำขอ
     @PostMapping("/{requestId}/approve")
     public ResponseEntity<BorrowRequest> approveRequest(
             @PathVariable String requestId,
@@ -112,7 +124,7 @@ public class BorrowRequestController {
         return ResponseEntity.ok(borrowService.approveRequest(requestId, ownerId));
     }
 
-    // 3. เจ้าของกดปฏิเสธคำขอ
+    // 4.2. เจ้าของกดปฏิเสธคำขอ
     @PostMapping("/{requestId}/reject")
     public ResponseEntity<BorrowRequest> rejectRequest(
             @PathVariable String requestId,
@@ -120,13 +132,13 @@ public class BorrowRequestController {
         return ResponseEntity.ok(borrowService.rejectRequest(requestId, ownerId));
     }
 
-    // 4. ผู้ยืมกดยกเลิกคำขอ
+    // 5. ผู้ยืมกดยกเลิกคำขอ
     @PostMapping("/{requestId}/cancel")
     public ResponseEntity<BorrowRequest> cancelRequest(@PathVariable String requestId) {
         return ResponseEntity.ok(borrowService.cancelRequest(requestId));
     }
 
-    // 5. ค้นหาคำขอทั้งหมดของผู้ยืม
+    // 6. ค้นหาคำขอทั้งหมดของผู้ยืม
     @GetMapping("/borrower/{borrowerId}")
     public ResponseEntity<List<BorrowRequest>> getRequestsByBorrower(@PathVariable String borrowerId) {
         return ResponseEntity.ok(borrowService.getRequestsByBorrower(borrowerId));

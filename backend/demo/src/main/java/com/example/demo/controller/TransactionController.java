@@ -13,9 +13,11 @@ import java.util.List;
 
 public class TransactionController {
 
+    //define attributes
     private final TransactionService transactionService;
     private final EvidenceProofService evidenceProofService;
 
+    //define constructor
     public TransactionController(TransactionService transactionService,
                                 EvidenceProofService evidenceProofService) {
         this.transactionService = transactionService;

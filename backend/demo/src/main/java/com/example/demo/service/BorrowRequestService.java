@@ -1,7 +1,6 @@
 package com.example.demo.service;
 
 import com.example.demo.constant.ItemStatus;
-import com.example.demo.constant.RequestStatus;
 import com.example.demo.dto.BorrowRequestDto;
 import com.example.demo.model.BorrowRequest;
 import com.example.demo.model.Item;
@@ -10,22 +9,20 @@ import com.example.demo.repository.BorrowRequestRepository;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.UserRepository;
 
-import org.springframework.cglib.core.Local;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
 public class BorrowRequestService {
 
+    //define attributes
     private final BorrowRequestRepository borrowRequestRepository;
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
 
+    //define constructor
     public BorrowRequestService(BorrowRequestRepository borrowRequestRepository,
                                 ItemRepository itemRepository,
                                 UserRepository userRepository) {
@@ -43,17 +40,17 @@ public class BorrowRequestService {
         Item item = itemRepository.findById(dto.getItemId())
                 .orElseThrow(() -> new RuntimeException("Item not found: " + dto.getItemId()));
         
-        // 1)เช็คว่าได้ยืมของตัวเองไหม (โยน IllegalArgumentException -> Handler จะแปลงเป็น 400 Bad Request)
+        // 1) เช็คว่าได้ยืมของตัวเองไหม (โยน IllegalArgumentException -> Handler จะแปลงเป็น 400 Bad Request)
         if (item.getOwnerId().equals(borrowerId)) {
             throw new IllegalArgumentException("Item cannot borrow your own belongings");
         }
 
-        // 2)เช็คว่าไอเท็มนี้พร้อมให้ยืมไหม (โยน IllegalStateException -> Handler จะแปลงเป็น 409 Conflict)
+        // 2) เช็คว่าไอเท็มนี้พร้อมให้ยืมไหม (โยน IllegalStateException -> Handler จะแปลงเป็น 409 Conflict)
         if (item.getStatus() != ItemStatus.AVAILABLE) {
             throw new IllegalStateException("Item is not available for borrow");
         }
 
-        // 3)เช็คว่าวันที่คืนไม่ได้อยู่ก่อนวันที่เริ่มยืมใช่ไหม (โยน IllegalArgumentException -> แปลงเป็น 400 Bad Request)
+        // 3) เช็คว่าวันที่คืนไม่ได้อยู่ก่อนวันที่เริ่มยืมใช่ไหม (โยน IllegalArgumentException -> แปลงเป็น 400 Bad Request)
         if (dto.getEndDate().isBefore(dto.getStartDate())) {
             throw new IllegalArgumentException("The return date must not be before the date the loan began");
         }
@@ -95,7 +92,7 @@ public class BorrowRequestService {
         return borrowRequestRepository.save(request);
     }
 
-    // 3.เจ้าของกดอนุมัติคำขอ
+    // 3.1. เจ้าของกดอนุมัติคำขอ
     @Transactional
     public BorrowRequest approveRequest(String requestId, String ownerId) {
         BorrowRequest request = borrowRequestRepository.findById(requestId)
@@ -122,7 +119,7 @@ public class BorrowRequestService {
         return borrowRequestRepository.save(request);
     }
 
-    // 4.เจ้าของปฏิเสธคำขอ
+    // 3.2. เจ้าของปฏิเสธคำขอ
     @Transactional
     public BorrowRequest rejectRequest(String requestId, String ownerId) {
         BorrowRequest request = borrowRequestRepository.findById(requestId)
@@ -148,6 +145,7 @@ public class BorrowRequestService {
         return borrowRequestRepository.save(request);
     } 
 
+    // 4. รีเซ็ตสถานะของคำขอยืมกลับไปเป็น "รอนุมัติ" และ ปรับสถานะสิ่งของที่เกี่ยวข้องให้กลับมา "พร้อมใช้งาน" 
     @Transactional
     public BorrowRequest resetRequestToPending(String requestId, String ownerId) {
         BorrowRequest request = borrowRequestRepository.findById(requestId)
@@ -167,16 +165,16 @@ public class BorrowRequestService {
         return borrowRequestRepository.save(request);
     }
 
-    // 5.ค้นหาคำขอทั้งหมดของผู้ยืม
+    // 5.1. ค้นหาคำขอทั้งหมดของผู้ยืม
     public List<BorrowRequest> getRequestsByBorrower(String borrowerId) {
         return borrowRequestRepository.findByBorrowerId(borrowerId);
     }
 
-    // 6.ค้นหาคำขอยืมที่เข้ามาสำหรับสิ่งของทั้งหมดของเจ้าของ (Owner)
+    // 5.2. ค้นหาคำขอยืมที่เข้ามาสำหรับสิ่งของทั้งหมดของเจ้าของ (Owner)
     public List<BorrowRequest> getRequestsByOwner(String ownerId) {
         List<String> ownerItemIds = itemRepository.findByOwnerId(ownerId)
                 .stream()
-                .map(Item::getId)
+                .map(item -> item.getId())
                 .toList();
         if (ownerItemIds.isEmpty()) {
             return List.of();
@@ -187,7 +185,7 @@ public class BorrowRequestService {
                 .toList();
     }
 
-    // 7.ค้นหาคำขอทั้งหมดในระบบ
+    // 5.3. ค้นหาคำขอทั้งหมดในระบบ
     public List<BorrowRequest> getAllRequests() {
         return borrowRequestRepository.findAll();
     }

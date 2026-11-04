@@ -4,11 +4,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 public class ItemCreateDto {
 
+    //define attributes
     private String title;
     private String category;
     private String description;
     private MultipartFile imageFile;
 
+    //define getters and setters
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
 

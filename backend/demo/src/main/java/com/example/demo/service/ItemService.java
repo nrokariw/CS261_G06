@@ -6,24 +6,26 @@ import com.example.demo.model.Item;
 import com.example.demo.model.User;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.UserRepository;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+
 import java.util.List;
 import java.util.Optional;
 
 @Service 
 public class ItemService {
     
+    //define attributes
     private final ItemRepository itemRepository;
-
     private final UserRepository userRepository;
-
     private final FileStorageService fileStorageService; // เพิ่ม Service สำหรับจัดการไฟล์รูปภาพ
 
+    //define constructor
     public ItemService(ItemRepository itemRepository, 
                        UserRepository userRepository, 
                        FileStorageService fileStorageService) {
@@ -32,7 +34,7 @@ public class ItemService {
         this.fileStorageService = fileStorageService;
     }
 
-    // 1. สร้างไอเท็มใหม่จาก User Model พร้อมรองรับการอัปโหลดรูปภาพ (US-01.2 & US-01.3)
+    // 1. สร้างไอเท็มใหม่จาก User Model พร้อมรองรับการอัปโหลดรูปภาพ 
     public Item createItemForUser(String studentId, ItemCreateDto itemCreateDto) {
 
         if (studentId != null && !studentId.isEmpty() && !userRepository.existsById(studentId)) {
@@ -57,7 +59,7 @@ public class ItemService {
         return itemRepository.save(item);
     }
 
-    // 2.ดึงรายการไอเท็มทั้งหมด
+    // 2.1. ดึงรายการไอเท็มทั้งหมด
     public List<Item> getAllItems() {
         return itemRepository.findAll()
                 .stream()
@@ -65,51 +67,44 @@ public class ItemService {
                 .toList();
     }
 
-    public Item updateItem(String itemId, ItemCreateDto dto) {
-        return updateItem(itemId, null, dto);
-    }
-
-    public void deleteItem(String itemId) {
-        deleteItem(itemId, null);
-    }
-
-    // 3.ค้นหาไอเท็มตาม ID
+    // 2.2. ค้นหาไอเท็มตาม ID
     public Optional<Item> getItemById(String id) {
         return itemRepository.findById(id);
     }
 
-    // 4.ค้นหาไอเท็มของ User คนนี้
+    // 2.3. ค้นหาไอเท็มของ User คนนี้
     public List<Item> getItemsByOwner(String ownerId) {
         return itemRepository.findByOwnerId(ownerId);
     }
 
-    // 5.ดึงรายการตามสถานะที่ยังไม่ถูกลบ เรียงจากใหม่ไปเก่า
+    // 2.4. ดึงรายการตามสถานะที่ยังไม่ถูกลบ เรียงจากใหม่ไปเก่า
     public List<Item> getAvailableItems(ItemStatus status) {
         return itemRepository.findByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(status);
     }  
 
-    // ==========================================
-    // US-04: แก้ไขและลบประกาศสิ่งของ (T-4.1)
-    // ==========================================
+    // 3.1. อัพเดทไอเท็ม
+    public Item updateItem(String itemId, ItemCreateDto dto) {
+        return updateItem(itemId, null, dto);
+    }
 
-    // 6. แก้ไขข้อมูลประกาศ (PUT /api/items/{id})
+    // 3.2. แก้ไขข้อมูลประกาศ (PUT /api/items/{id})
     public Item updateItem(String itemId, String userId, ItemCreateDto requestDto) {
         // ตรวจสอบว่ามีไอเท็มนี้อยู่จริง และยังไม่ถูกลบ
         Item item = itemRepository.findById(itemId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบรายการสิ่งของที่ต้องการแก้ไข"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No items matching your request were found"));
 
         if (item.getDeletedAt() != null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "รายการสิ่งของนี้ถูกลบไปแล้ว");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "This item has been removed");
         }
 
         // ตรวจสอบสิทธิ์ความเป็นเจ้าของ (403 Forbidden หากไม่ใช่เจ้าของ)
         if (userId != null && !userId.isBlank() && !item.getOwnerId().equals(userId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "คุณไม่มีสิทธิ์แก้ไขประกาศนี้");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to edit this notice");
         }
 
         // ตรวจสอบสถานะต้องเป็น Available เท่านั้น (409 Conflict)
         if (item.getStatus() != ItemStatus.AVAILABLE) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "ไม่สามารถแก้ไขได้ เนื่องจากสิ่งของไม่อยู่ในสถานะพร้อมให้ยืม (Available)");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot be edited because the item is not available for loan");
         }
 
         // อัปเดตข้อมูลเฉพาะที่มีการส่งมา
@@ -133,24 +128,29 @@ public class ItemService {
         return itemRepository.save(item);
     }
 
-    // 7. ลบประกาศแบบ Soft Delete (DELETE /api/items/{id})
+    // 4.1. ลบไอเท็ม
+    public void deleteItem(String itemId) {
+        deleteItem(itemId, null);
+    }
+
+    // 4.2. ลบประกาศแบบ Soft Delete (DELETE /api/items/{id})
     public void deleteItem(String itemId, String userId) {
         // ตรวจสอบว่ามีไอเท็มนี้อยู่จริง
         Item item = itemRepository.findById(itemId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบรายการสิ่งของที่ต้องการลบ"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "The item you wish to delete could not be found"));
 
         if (item.getDeletedAt() != null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "รายการสิ่งของนี้ถูกลบไปแล้ว");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "This item has been deleted");
         }
 
         // ตรวจสอบสิทธิ์ความเป็นเจ้าของ (403 Forbidden)
         if (userId != null && !userId.isBlank() && !item.getOwnerId().equals(userId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "คุณไม่มีสิทธิ์ลบประกาศนี้");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to delete this notice");
         }
 
         // ตรวจสอบสถานะต้องเป็น Available เท่านั้น (409 Conflict)
         if (item.getStatus() != ItemStatus.AVAILABLE) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "ไม่สามารถลบได้ เนื่องจากสิ่งของไม่อยู่ในสถานะพร้อมให้ยืม (Available)");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot be deleted because the item is not available for loan");
         }
 
         // ทำ Soft Delete โดยบันทึกเวลา deletedAt และ updatedAt
@@ -158,4 +158,5 @@ public class ItemService {
         item.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         itemRepository.save(item);
     }
+
 }
