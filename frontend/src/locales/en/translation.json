@@ -212,6 +212,8 @@
     "borrowDateRequired": "Please select a borrow date",
     "returnDateRequired": "Please select a return date",
     "borrowDatePast": "Borrow date cannot be in the past",
+    "availableFromPast": "Available from date cannot be in the past",
+    "availableUntilPast": "Available until date cannot be in the past",
     "returnDateBeforeBorrow": "Return date cannot be earlier than borrow date",
     "reasonRequired": "Please provide a reason for borrowing"
   },

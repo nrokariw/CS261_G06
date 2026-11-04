@@ -57,9 +57,7 @@ public class ItemService {
 
         LocalDateTime availFrom = parseDate(itemCreateDto.getAvailableFrom(), false);
         LocalDateTime availUntil = parseDate(itemCreateDto.getAvailableUntil(), true);
-        if (availFrom != null && availUntil != null && availUntil.isBefore(availFrom)) {
-            throw new IllegalArgumentException("Available until date cannot be before available from date");
-        }
+        validateAvailabilityWindow(availFrom, availUntil);
         item.setAvailableFrom(availFrom);
         item.setAvailableUntil(availUntil);
 
@@ -145,9 +143,25 @@ public class ItemService {
         if (requestDto.getAvailableUntil() != null) {
             item.setAvailableUntil(parseDate(requestDto.getAvailableUntil(), true));
         }
+        if (requestDto.getAvailableFrom() != null || requestDto.getAvailableUntil() != null) {
+            validateAvailabilityWindow(item.getAvailableFrom(), item.getAvailableUntil());
+        }
 
         item.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         return itemRepository.save(item);
+    }
+
+    private void validateAvailabilityWindow(LocalDateTime availFrom, LocalDateTime availUntil) {
+        LocalDate today = LocalDate.now();
+        if (availFrom != null && availFrom.toLocalDate().isBefore(today)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "วันเริ่มต้นเปิดให้ยืมต้องไม่เป็นวันในอดีต (Available from date cannot be in the past)");
+        }
+        if (availUntil != null && availUntil.toLocalDate().isBefore(today)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "วันสิ้นสุดการให้ยืมต้องไม่เป็นวันในอดีต (Available until date cannot be in the past)");
+        }
+        if (availFrom != null && availUntil != null && availUntil.isBefore(availFrom)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Available until date cannot be before available from date");
+        }
     }
 
     private LocalDateTime parseDate(String str, boolean endOfDay) {

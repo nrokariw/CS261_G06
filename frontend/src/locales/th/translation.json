@@ -212,6 +212,8 @@
     "borrowDateRequired": "กรุณาเลือกวันที่ยืม",
     "returnDateRequired": "กรุณาเลือกวันที่คืน",
     "borrowDatePast": "วันที่ยืมต้องไม่เป็นวันในอดีต",
+    "availableFromPast": "วันเริ่มต้นเปิดให้ยืมต้องไม่เป็นวันในอดีต",
+    "availableUntilPast": "วันสิ้นสุดการให้ยืมต้องไม่เป็นวันในอดีต",
     "returnDateBeforeBorrow": "วันที่คืนต้องไม่อยู่ก่อนวันที่ยืม",
     "reasonRequired": "กรุณาระบุเหตุผลการยืม"
   },

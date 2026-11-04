@@ -617,6 +617,19 @@ class SecurityAndAuthorizationIntegrationTest {
                                 "reason", "Within window"
                         ))))
                 .andExpect(status().isCreated());
+
+        // 4. Owner attempts to create an item with a past availableFrom date -> 400 Bad Request
+        mockMvc.perform(post("/api/items")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenA)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "title", "Backdated Item",
+                                "category", "electronics",
+                                "description", "Should fail",
+                                "availableFrom", LocalDateTime.now().minusDays(2).toString(),
+                                "availableUntil", LocalDateTime.now().plusDays(5).toString()
+                        ))))
+                .andExpect(status().isBadRequest());
     }
 
     // =========================================================================

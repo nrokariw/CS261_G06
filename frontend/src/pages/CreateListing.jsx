@@ -42,6 +42,8 @@ export default function CreateListing({ items, setItems }) {
   const [availableUntil, setAvailableUntil] = useState(
     editingItem?.availableUntil ? String(editingItem.availableUntil).slice(0, 10) : "",
   );
+  const today = new Date().toLocaleDateString("en-CA");
+  const minUntilDate = availableFrom && availableFrom > today ? availableFrom : today;
   
   // เปลี่ยนเก็บเป็น File Object แทน Base64 String
   const [imageFile, setImageFile] = useState(null);
@@ -58,7 +60,16 @@ export default function CreateListing({ items, setItems }) {
     if (!name.trim()) next.name = t("validation.itemNameRequired");
     if (!category) next.category = t("validation.categoryRequired");
     if (!detail.trim()) next.detail = t("validation.detailRequired");
-    if (availableFrom && availableUntil && availableUntil < availableFrom) {
+    if (availableFrom && availableFrom < today) {
+      next.availableFrom = t("validation.availableFromPast", {
+        defaultValue: "วันเริ่มต้นเปิดให้ยืมต้องไม่เป็นวันในอดีต",
+      });
+    }
+    if (availableUntil && availableUntil < today) {
+      next.availableUntil = t("validation.availableUntilPast", {
+        defaultValue: "วันสิ้นสุดการให้ยืมต้องไม่เป็นวันในอดีต",
+      });
+    } else if (availableFrom && availableUntil && availableUntil < availableFrom) {
       next.availableUntil = t("validation.returnDateBeforeBorrow", {
         defaultValue: "วันสิ้นสุดต้องไม่มาก่อนวันเริ่มต้น",
       });
@@ -276,9 +287,26 @@ export default function CreateListing({ items, setItems }) {
             <input
               id="availableFrom"
               type="date"
+              min={today}
               value={availableFrom}
-              onChange={(e) => setAvailableFrom(e.target.value)}
+              onChange={(e) => {
+                const nextFrom = e.target.value;
+                setAvailableFrom(nextFrom);
+                if (availableUntil && nextFrom && availableUntil < nextFrom) {
+                  setAvailableUntil(nextFrom);
+                }
+                if (errors.availableFrom) {
+                  setErrors((prev) => ({ ...prev, availableFrom: "" }));
+                }
+              }}
+              aria-invalid={!!errors.availableFrom}
             />
+            {errors.availableFrom && (
+              <small className="field-error">
+                <AlertCircle size={13} />
+                {errors.availableFrom}
+              </small>
+            )}
           </div>
           <div className="field">
             <label htmlFor="availableUntil">
@@ -287,9 +315,14 @@ export default function CreateListing({ items, setItems }) {
             <input
               id="availableUntil"
               type="date"
-              min={availableFrom || undefined}
+              min={minUntilDate}
               value={availableUntil}
-              onChange={(e) => setAvailableUntil(e.target.value)}
+              onChange={(e) => {
+                setAvailableUntil(e.target.value);
+                if (errors.availableUntil) {
+                  setErrors((prev) => ({ ...prev, availableUntil: "" }));
+                }
+              }}
               aria-invalid={!!errors.availableUntil}
             />
             {errors.availableUntil && (
