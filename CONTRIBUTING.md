@@ -3,14 +3,16 @@
 ## TL;DR
 
 ```bash
-git switch main && git pull
+# 1) งานพัฒนาทั่วไป (feat, fix, chore, docs, refactor, test) -> แตกจาก dev และเปิด PR เข้า dev
+git fetch origin
+git switch dev && git pull origin dev
 git switch -c <ประเภทของสิ่งที่จะทำ>/<สิ่งที่จะทำ>
-# เช่น frontend/feat/create-card หรือ feat/create-card
+# เช่น feat/US-01-create-listing หรือ fix/item-validation
 
 # ...ทำงาน และ commit...
-git fetch origin && git rebase origin/main
+git fetch origin && git rebase origin/dev
 git push -u origin HEAD
-gh pr create --fill # กรณีมี gh CLI ถ้าไม่มีให้กดเปิด PR บนเว็บ GitHub
+gh pr create --base dev --fill # กรณีมี gh CLI ถ้าไม่มีให้กดเปิด PR เข้า branch dev บนเว็บ GitHub
 ```
 
 ---
@@ -37,17 +39,74 @@ make fclean           # ล้างทั้งหมดรวมถึง Dock
 
 ---
 
-## Git Workflow
+## Git Workflow (GitFlow)
 
-- `main` = โค้ดที่ทำงานได้เสมอ **ห้าม push ตรง** ทุกการเปลี่ยนแปลงต้องเข้าผ่าน Pull Request (PR) เท่านั้น
-- 1 งาน = 1 branch โดยแตกจาก `main` ล่าสุดเสมอ
-- ชื่อ branch (ยืดหยุ่นตามงาน):
-  - กรณีมีรหัสใน Backlog: `<ประเภท>/<รหัส-task>-<ชื่อสั้นๆ>` เช่น `feat/US-01-create-listing`, `chore/INFRA-03-docker-setup`
-  - กรณีงานทั่วไป: `<ประเภท>/<สิ่งที่ทำ>` เช่น `feat/frontend-setup`, `fix/item-validation`, `docs/readme`
-- ก่อนเปิด PR: ดึงโค้ดล่าสุดจาก `main` (`git fetch origin && git rebase origin/main` หรือ `git pull origin main`) แล้วรันทดสอบ build/test ให้ผ่าน
-- PR ต้องมีคนตรวจ (Review) อย่างน้อย 1 คน (ระบบจะดึง Scrum Master `@nrokariw` อัตโนมัติ)
+โปรเจกต์ใช้รูปแบบ **GitFlow** โดยแบ่งลำดับการไหลของโค้ดเป็น:
+`feat/*, fix/*, ...` → `dev` → `release/*` → `main` (และมี `hotfix/*` สำหรับแก้บั๊กเร่งด่วนบน `main`)
+
+### 1. โครงสร้างและบทบาทของแต่ละ Branch
+
+1. **`main` (Production Branch)**
+   - เก็บโค้ดที่เสถียรและพร้อมใช้งานจริงเสมอ **ห้าม push ตรงเด็ดขาด**
+   - รับการ Merge จาก Pull Request ของ **`release/*`** หรือ **`hotfix/*`** เท่านั้น (ห้ามเปิด PR จาก `feat/*` หรือ `dev` ข้ามมาเข้า `main` โดยตรง)
+2. **`dev` (Integration / Development Branch)**
+   - เป็น Branch กลางสำหรับรวมโค้ดของทุกคนในระหว่าง Sprint **ห้าม push ตรง**
+   - งานพัฒนาทุกชิ้น (`feat/*`, `fix/*`, `refactor/*`, `chore/*`, `docs/*`, `test/*`) ต้องแตกจาก `dev` และเปิด PR กลับเข้า `dev`
+3. **`release/<เวอร์ชันหรือสปรินต์>` (Release Branch)**
+   - เช่น `release/sprint-2`, `release/v1.0.0`
+   - แตกจาก `dev` เมื่อฟีเจอร์ใน Sprint หรือรอบการส่งมอบนั้นครบแล้ว เพื่อทำ Integration Test / UAT และแก้บั๊กโค้งสุดท้ายก่อนปล่อย
+   - เมื่อพร้อมส่งมอบ ให้เปิด PR จาก `release/*` เข้า **`main`** และต้องเปิด PR (หรือ Merge) ย้อนกลับเข้า **`dev`** ด้วยเสมอหากมีการแก้ไขเพิ่มเติมบน `release/*`
+4. **`hotfix/<สิ่งที่แก้>` (Hotfix Branch สำหรับแก้ด่วนบน `main`)**
+   - เช่น `hotfix/login-crash`, `hotfix/cors-production`
+   - แตกจาก **`main`** โดยตรงเมื่อพบบั๊กร้ายแรงบน Production ที่รอรอบ Release ปกติไม่ได้
+   - เมื่อแก้และทดสอบเสร็จ ให้เปิด PR เข้า **`main`** ทันที และ **ต้องเปิด PR / Merge ย้อนกลับเข้า `dev`** ด้วยทุกครั้งเพื่อไม่ให้บั๊กเดิมหลุดกลับมาในรอบถัดไป
+5. **Feature / Task Branches (1 งาน = 1 Branch)**
+   - แตกจาก `dev` ล่าสุดเสมอ โดยตั้งชื่อตามรูปแบบ:
+     - กรณีมีรหัสใน Backlog: `<ประเภท>/<รหัส-task>-<ชื่อสั้นๆ>` เช่น `feat/US-01-create-listing`, `chore/INFRA-03-docker-setup`
+     - กรณีงานทั่วไป: `<ประเภท>/<สิ่งที่ทำ>` เช่น `feat/frontend-setup`, `fix/item-validation`, `docs/readme`
+
+### 2. ขั้นตอนการเปิด Pull Request ตามแต่ละกรณี
+
+- **กรณีงานพัฒนาทั่วไป (`feat/*`, `fix/*`, `chore/*`, ฯลฯ → `dev`)**:
+  ```bash
+  git fetch origin
+  git switch dev && git pull origin dev
+  git switch -c feat/US-XX-short-name
+  # ...พัฒนาและ commit...
+  git fetch origin && git rebase origin/dev   # หรือ git merge origin/dev
+  git push -u origin HEAD
+  gh pr create --base dev --fill
+  ```
+- **กรณีเตรียมปล่อยเวอร์ชัน (`dev` → `release/*` → `main`)**:
+  ```bash
+  git fetch origin
+  git switch dev && git pull origin dev
+  git switch -c release/sprint-2
+  git push -u origin release/sprint-2
+  # เมื่อทดสอบผ่านและพร้อมปล่อยเข้า main:
+  gh pr create --base main --head release/sprint-2 --fill
+  # และหากมี commit แก้บั๊กเพิ่มบน release/* ให้เปิด PR ย้อนกลับเข้า dev ด้วย:
+  gh pr create --base dev --head release/sprint-2 --fill
+  ```
+- **กรณีแก้บั๊กเร่งด่วนบน Production (`main` → `hotfix/*` → `main` & `dev`)**:
+  ```bash
+  git fetch origin
+  git switch main && git pull origin main
+  git switch -c hotfix/critical-bug
+  # ...แก้ไขบั๊ก ทดสอบ และ commit...
+  git push -u origin hotfix/critical-bug
+  # 1) เปิด PR เข้า main เพื่อแก้ด่วน
+  gh pr create --base main --head hotfix/critical-bug --fill
+  # 2) เปิด PR ย้อนกลับเข้า dev เพื่อซิงก์โค้ดให้ตรงกัน
+  gh pr create --base dev --head hotfix/critical-bug --fill
+  ```
+
+### 3. กฎการ Review และ Merge PR
+
+- ก่อนเปิด PR: ดึงโค้ดล่าสุดจาก Branch ปลายทาง (`origin/dev` สำหรับงานทั่วไป หรือ `origin/main` สำหรับ `hotfix/*`) แล้วรันทดสอบ Build/Test ให้ผ่าน
+- PR ต้องมีคนตรวจ (Review) อย่างน้อย 1 คน (ระบบจะดึง Scrum Master `@nrokariw` อัตโนมัติ) และผ่าน GitHub Actions (`GitFlow & CI Check`)
 - แล้วค่อยกด Merge (แนะนำ _Squash and merge_ หรือ _Merge commit_)
-- ลบ branch ทิ้งหลังจาก Merge เข้า `main` เรียบร้อยแล้ว
+- ลบ Feature / Release / Hotfix branch ทิ้งหลังจาก Merge เรียบร้อยแล้ว
 
 ### Commit Message
 
@@ -130,6 +189,8 @@ refactor / test / docs / chore: ...
 
 ## Checklist ก่อนเปิด PR
 
+- [ ] เปิด PR ไปยัง Branch ปลายทางตาม GitFlow (`feat/*, fix/*` → `dev`, `release/*` → `main`, `hotfix/*` → `main` & `dev`)
+- [ ] ดึงโค้ดล่าสุดจาก Branch ปลายทาง (`origin/dev` หรือ `origin/main` สำหรับ `hotfix/*`) และแก้ Conflict เรียบร้อยแล้ว
 - [ ] ทดสอบฝั่ง Backend ผ่าน: `cd backend/demo && ./mvnw test`
 - [ ] ทดสอบ Build ฝั่ง Frontend ผ่านโดยไม่มี Error: `cd frontend && npm run build`
 - [ ] ทดสอบรันระบบรวมผ่าน Docker (`make all`) แล้วทำงานร่วมกันได้ปกติ
