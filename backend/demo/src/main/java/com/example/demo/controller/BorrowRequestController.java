@@ -124,6 +124,15 @@ public class BorrowRequestController {
         return ResponseEntity.ok(borrowService.rejectRequest(requestId, authenticatedOwnerId));
     }
 
+    // 3.1 เจ้าของกดเปลี่ยนกลับเป็นรอพิจารณา (Reset to pending)
+    @PostMapping({"/{requestId}/reset", "/{requestId}/pending"})
+    public ResponseEntity<BorrowRequest> resetRequestToPending(
+            @PathVariable String requestId,
+            Authentication authentication) {
+        String authenticatedOwnerId = requireAuthenticatedStudentId(authentication);
+        return ResponseEntity.ok(borrowService.resetRequestToPending(requestId, authenticatedOwnerId));
+    }
+
     // 4. ผู้ยืมกดยกเลิกคำขอ (ดึง borrowerId จาก JWT SecurityContext เท่านั้น)
     @PostMapping("/{requestId}/cancel")
     public ResponseEntity<BorrowRequest> cancelRequest(

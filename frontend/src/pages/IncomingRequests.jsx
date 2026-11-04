@@ -34,6 +34,15 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
     );
   };
 
+  const isItemReservedByOther = (req) => {
+    return requests.some(
+      (r) =>
+        r.id !== req.id &&
+        String(r.itemId) === String(req.itemId) &&
+        r.status === "accepted"
+    );
+  };
+
   const myIncomingRequests = requests.filter((r) => checkIsItemOwner(r));
   const pending = myIncomingRequests.filter((r) => r.status === "pending").length;
   const accepted = myIncomingRequests.filter((r) => r.status === "accepted").length;
@@ -138,19 +147,28 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
 
                 {checkIsItemOwner(req) && (
                   req.status === "pending" ? (
-                    <div className="request-actions">
-                      <button
-                        className="button button-primary"
-                        onClick={() => updateStatus(req.id, "accepted")}
-                      >
-                        <Check size={16} /> {t("incomingRequests.accept")}
-                      </button>
-                      <button
-                        className="button button-danger-outline"
-                        onClick={() => updateStatus(req.id, "rejected")}
-                      >
-                        <X size={16} /> {t("incomingRequests.reject")}
-                      </button>
+                    <div className="request-actions" style={{ flexDirection: "column", alignItems: "stretch" }}>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                          className="button button-primary"
+                          disabled={isItemReservedByOther(req)}
+                          title={isItemReservedByOther(req) ? t("incomingRequests.itemAlreadyReserved") : ""}
+                          onClick={() => updateStatus(req.id, "accepted")}
+                        >
+                          <Check size={16} /> {t("incomingRequests.accept")}
+                        </button>
+                        <button
+                          className="button button-danger-outline"
+                          onClick={() => updateStatus(req.id, "rejected")}
+                        >
+                          <X size={16} /> {t("incomingRequests.reject")}
+                        </button>
+                      </div>
+                      {isItemReservedByOther(req) && (
+                        <small style={{ color: "#b45309", fontSize: "0.8rem", marginTop: "4px" }}>
+                          {t("incomingRequests.itemAlreadyReserved")}
+                        </small>
+                      )}
                     </div>
                   ) : (
                     <div className="request-status-updated">

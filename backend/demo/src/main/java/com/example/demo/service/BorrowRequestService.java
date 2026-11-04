@@ -118,6 +118,11 @@ public class BorrowRequestService {
             throw new SecurityException("Unauthorized: You are not the owner of this item");
         }
 
+        // ตรวจสอบว่าไอเท็มยังพร้อมให้ยืมหรือไม่ (ถ้าถูก ACCEPTED/RESERVED หรือ BORROWED ไปแล้ว จะอนุมัติซ้ำไม่ได้)
+        if (item.getStatus() != ItemStatus.AVAILABLE) {
+            throw new IllegalStateException("Item is already reserved or borrowed by another request");
+        }
+
         // เปลี่ยนสถานะคำขอเป็น ACCEPTED
         request.approve(); 
 
@@ -160,17 +165,26 @@ public class BorrowRequestService {
     @Transactional
     public BorrowRequest resetRequestToPending(String requestId, String ownerId) {
         BorrowRequest request = borrowRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Request not found"));
+                .orElseThrow(() -> new RuntimeException("Request not found: " + requestId));
 
         Item item = itemRepository.findById(request.getItemId())
-                .orElseThrow(() -> new RuntimeException("Item not found"));
+                .orElseThrow(() -> new RuntimeException("Item not found: " + request.getItemId()));
 
-        if (ownerId != null && !ownerId.isEmpty() && !item.getOwnerId().equals(ownerId)) {
+        if (ownerId == null || ownerId.isBlank() || !item.getOwnerId().equals(ownerId)) {
             throw new SecurityException("Unauthorized: You are not the owner of this item");
         }
 
         request.resetToPending();
-        item.setStatus(ItemStatus.AVAILABLE);
+
+        // ตรวจสอบว่ายังมีคำขออื่นของไอเท็มนี้ที่ยัง ACCEPTED อยู่ไหม
+        boolean hasOtherAccepted = borrowRequestRepository.findAll().stream()
+                .anyMatch(r -> !r.getId().equals(requestId)
+                        && r.getItemId().equals(item.getId())
+                        && r.getStatus() == RequestStatus.ACCEPTED);
+
+        if (!hasOtherAccepted && item.getStatus() == ItemStatus.RESERVED) {
+            item.setStatus(ItemStatus.AVAILABLE);
+        }
 
         itemRepository.save(item);
         return borrowRequestRepository.save(request);

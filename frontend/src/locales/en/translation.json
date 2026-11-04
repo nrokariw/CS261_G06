@@ -162,6 +162,7 @@
     "accept": "Accept",
     "reject": "Reject",
     "resetToPending": "Reset to pending",
+    "itemAlreadyReserved": "Item has already been approved for another request",
     "emptyTitle": "No incoming requests",
     "emptyDesc": "When someone requests to borrow your items, they will appear here"
   },

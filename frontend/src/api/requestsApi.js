@@ -95,17 +95,20 @@ export async function updateBorrowRequestStatus(
 ) {
   const { requests } = getApiPaths();
   const normalizedStatus = String(status || "").toLowerCase();
-  const action = normalizedStatus === "accepted" ? "ACCEPT" : "REJECT";
+  const subAction =
+    normalizedStatus === "accepted"
+      ? "approve"
+      : normalizedStatus === "pending"
+        ? "reset"
+        : "reject";
 
   try {
-    return await apiRequest(`${requests}/${encodeURIComponent(id)}/status`, {
-      method: "PATCH",
-      body: { action, status: normalizedStatus.toUpperCase(), ownerId, reason },
+    return await apiRequest(`${requests}/${encodeURIComponent(id)}/${subAction}`, {
+      method: "POST",
       token,
     });
   } catch (err) {
     if (err.status === 404) {
-      const subAction = normalizedStatus === "accepted" ? "approve" : "reject";
       const query = ownerId
         ? `?ownerId=${encodeURIComponent(ownerId)}`
         : "";

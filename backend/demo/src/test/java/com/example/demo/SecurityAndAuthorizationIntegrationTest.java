@@ -411,6 +411,63 @@ class SecurityAndAuthorizationIntegrationTest {
                 .andExpect(status().isConflict());
     }
 
+    @Test
+    @DisplayName("TC-SEC-12: Cannot approve multiple requests simultaneously for the same item")
+    void tcSec12_cannotApproveMultipleRequestsForSameItem() throws Exception {
+        Item itemOwnedByA = createItemOwnedBy(USER_A, "Graphing Calculator");
+        BorrowRequest req1 = createPendingRequest(itemOwnedByA.getId(), USER_B);
+        BorrowRequest req2 = createPendingRequest(itemOwnedByA.getId(), USER_C);
+
+        // Owner approves req1 -> 200 OK, item becomes RESERVED
+        mockMvc.perform(post("/api/requests/{id}/approve", req1.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenA))
+                .andExpect(status().isOk());
+
+        // Owner attempts to approve req2 for the same item -> 409 Conflict
+        mockMvc.perform(post("/api/requests/{id}/approve", req2.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenA))
+                .andExpect(status().isConflict());
+
+        assertThat(borrowRequestRepository.findById(req1.getId()).orElseThrow().getStatus())
+                .isEqualTo(RequestStatus.ACCEPTED);
+        assertThat(borrowRequestRepository.findById(req2.getId()).orElseThrow().getStatus())
+                .isEqualTo(RequestStatus.PENDING);
+    }
+
+    @Test
+    @DisplayName("TC-SEC-13: Reset accepted request to pending restores item to AVAILABLE and allows other approvals")
+    void tcSec13_resetAcceptedRequestRestoresItemAvailability() throws Exception {
+        Item itemOwnedByA = createItemOwnedBy(USER_A, "Digital Multimeter");
+        BorrowRequest req1 = createPendingRequest(itemOwnedByA.getId(), USER_B);
+        BorrowRequest req2 = createPendingRequest(itemOwnedByA.getId(), USER_C);
+
+        // 1. Approve req1
+        mockMvc.perform(post("/api/requests/{id}/approve", req1.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenA))
+                .andExpect(status().isOk());
+        assertThat(itemRepository.findById(itemOwnedByA.getId()).orElseThrow().getStatus())
+                .isEqualTo(ItemStatus.RESERVED);
+
+        // 2. Owner resets req1 back to pending -> 200 OK
+        mockMvc.perform(post("/api/requests/{id}/reset", req1.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenA))
+                .andExpect(status().isOk());
+
+        assertThat(borrowRequestRepository.findById(req1.getId()).orElseThrow().getStatus())
+                .isEqualTo(RequestStatus.PENDING);
+        assertThat(itemRepository.findById(itemOwnedByA.getId()).orElseThrow().getStatus())
+                .isEqualTo(ItemStatus.AVAILABLE);
+
+        // 3. Now Owner can approve req2 -> 200 OK
+        mockMvc.perform(post("/api/requests/{id}/approve", req2.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenA))
+                .andExpect(status().isOk());
+        assertThat(borrowRequestRepository.findById(req2.getId()).orElseThrow().getStatus())
+                .isEqualTo(RequestStatus.ACCEPTED);
+        assertThat(itemRepository.findById(itemOwnedByA.getId()).orElseThrow().getStatus())
+                .isEqualTo(ItemStatus.RESERVED);
+    }
+
     // =========================================================================
     // Category 4: TU REST API JSON Response Parsing & Upsert Verification
     // =========================================================================
