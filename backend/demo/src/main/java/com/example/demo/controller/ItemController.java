@@ -17,8 +17,10 @@ import java.util.Map;
 @RequestMapping ("${app.api.items-path:/api/items}")
 public class ItemController {
 
+    //define attributes
     private final ItemService itemService;
 
+    //define constructor
     public ItemController(ItemService itemService) {
         this.itemService = itemService;
     }
@@ -32,13 +34,13 @@ public class ItemController {
         return authentication.getName();
     }
 
-    // 1. ดูรายการไอเท็มทั้งหมด (อนุญาต Guest เข้าดูได้)
+    // 1.1. ดึงรายการไอเท็มทั้งหมด (อนุญาต Guest เข้าดูได้)
     @GetMapping("/all")
     public ResponseEntity<List<Item>> getAllItems() {
         return ResponseEntity.ok(itemService.getAllItems());
     }
 
-    // 2. ดึงรายการสิ่งของที่พร้อมให้ยืม (AVAILABLE Items - อนุญาต Guest เข้าดูได้)
+    // 1.2. ดึงรายการสิ่งของที่พร้อมให้ยืม (AVAILABLE Items - อนุญาต Guest เข้าดูได้)
     @GetMapping 
     public ResponseEntity<List<Item>> getItems(
             @RequestParam(value = "status", required = false, defaultValue = "AVAILABLE") String status) {
@@ -54,7 +56,7 @@ public class ItemController {
         return ResponseEntity.ok(items);
     }
 
-    // 2.1 ดึงข้อมูลสิ่งของตาม ID (US-02.2 - อนุญาต Guest เข้าดูได้)
+    // 1.3. ดึงข้อมูลสิ่งของตาม ID (US-02.2 - อนุญาต Guest เข้าดูได้)
     @GetMapping("/{id}")
     public ResponseEntity<Item> getItemById(@PathVariable("id") String id) {
         return itemService.getItemById(id)
@@ -63,7 +65,7 @@ public class ItemController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found"));
     }
 
-    // 3. เพิ่มไอเท็มใหม่ (สกัด studentId จาก JWT SecurityContext เท่านั้น)
+    // 2. เพิ่มไอเท็มใหม่ (สกัด studentId จาก JWT SecurityContext เท่านั้น)
     @PostMapping(value = {"", "/{studentId}"}, consumes = {"multipart/form-data"})
     public ResponseEntity<Item> createItem(
             Authentication authentication,
@@ -98,11 +100,7 @@ public class ItemController {
         }
     }
 
-    // ==========================================
-    // US-04: แก้ไขและลบประกาศสิ่งของ (T-4.1)
-    // ==========================================
-
-    // 4. PUT /api/items/{id} - แก้ไขข้อมูลประกาศ (ดึงตัวตนจาก SecurityContext เท่านั้น)
+    // 3. PUT /api/items/{id} - แก้ไขข้อมูลประกาศ (ดึงตัวตนจาก SecurityContext เท่านั้น)
     @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
     public ResponseEntity<Item> updateItem(
             @PathVariable("id") String itemId,
@@ -114,6 +112,7 @@ public class ItemController {
         return ResponseEntity.ok(updatedItem);
     }
 
+    // 4. อัปเดตข้อมูลสิ่งของ ผ่านทาง JSON Payload
     @PutMapping(value = "/{id}", consumes = {"application/json"})
     public ResponseEntity<Item> updateItemJson(
             @PathVariable("id") String itemId,
@@ -135,4 +134,5 @@ public class ItemController {
         itemService.deleteItem(itemId, authenticatedStudentId);
         return ResponseEntity.ok(Map.of("message", "Item deleted successfully"));
     }
+
 }

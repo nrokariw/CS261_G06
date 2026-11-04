@@ -92,6 +92,7 @@ public class User {
         // ตรวจสอบว่ามีรหัสนักศึกษา/ผู้ใช้หรือไม่
         return this.studentId != null && !this.studentId.isEmpty();
     }
+
     public Item createItem(Item itemData) {
         if (itemData.getStatus() == null) {
                 itemData.setStatus(ItemStatus.AVAILABLE);
@@ -107,6 +108,7 @@ public class User {
             itemData.getImageUrl()
         );
     }
+    
     public BorrowRequest requestBorrow(String itemId, LocalDateTime startDate, LocalDateTime endDate, String reason) {
         //id ของ BorrowRequest ให้ทาง Service หรือ Database จัดการสร้างให้ทีหลัง 
         return new BorrowRequest(

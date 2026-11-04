@@ -51,6 +51,7 @@ public class Item {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    
     // สั่งให้สุ่มสร้าง UUID และกำหนด วันที่ เวลา เป็น UTC+0 อัตโนมัติก่อนบันทึกลง Database
     @PrePersist
     protected void onCreate() {
@@ -69,6 +70,7 @@ public class Item {
         }
     }
 
+    // อัพเดทเวลาเมื่อมีการแก้ไขคำขอยืมเสร็จสิ้นอัตโนมัติ ก่อนบันทึกลง Database
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
@@ -108,28 +110,29 @@ public class Item {
 
     //define getters and setters
     public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
     public String getOwnerId() { return ownerId; }
-    public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
     public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
     public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
     public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
     public ItemStatus getStatus() { return status; }
-    public void setStatus(ItemStatus status) { this.status = status; }
     public String getImageUrl() { return imageUrl; }
-    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
     public LocalDateTime getAvailableFrom() { return availableFrom; }
-    public void setAvailableFrom(LocalDateTime availableFrom) { this.availableFrom = availableFrom; }
     public LocalDateTime getAvailableUntil() { return availableUntil; }
-    public void setAvailableUntil(LocalDateTime availableUntil) { this.availableUntil = availableUntil; }
     public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     public LocalDateTime getDeletedAt() { return deletedAt; }
+
+    public void setId(String id) { this.id = id; }
+    public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
+    public void setTitle(String title) { this.title = title; }
+    public void setDescription(String description) { this.description = description; }
+    public void setCategory(String category) { this.category = category; }
+    public void setStatus(ItemStatus status) { this.status = status; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public void setAvailableFrom(LocalDateTime availableFrom) { this.availableFrom = availableFrom; }
+    public void setAvailableUntil(LocalDateTime availableUntil) { this.availableUntil = availableUntil; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
 
     //define methods
@@ -138,10 +141,12 @@ public class Item {
         this.description = description;
         this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
+    
     public void updateStatus(ItemStatus status) {
         this.status = status; 
         this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
+
     public void delete() {
         this.status = ItemStatus.UNAVAILABLE; 
         this.deletedAt = LocalDateTime.now(ZoneOffset.UTC);

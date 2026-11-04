@@ -8,17 +8,20 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("${app.api.evidence-path:/api/evidence}")
 public class EvidenceProofController {
 
+    //define attributes
     private final EvidenceProofService evidenceProofService;
 
+    //define constructor
     public EvidenceProofController(EvidenceProofService evidenceProofService) {
         this.evidenceProofService = evidenceProofService;
     }
 
-    // อัปโหลด/บันทึกหลักฐานสำหรับ Transaction นั้นๆ
+    // 1. อัปโหลด/บันทึกหลักฐานสำหรับ Transaction นั้นๆ
     @PostMapping("/transaction/{transactionId}")
     public EvidenceProof addEvidenceProof(
             @PathVariable String transactionId,
             @RequestBody EvidenceProof proofData) {
         return evidenceProofService.addEvidenceProof(transactionId, proofData);
     }
+
 }

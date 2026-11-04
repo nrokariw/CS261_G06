@@ -21,8 +21,10 @@ import java.util.Map;
 @RequestMapping ({"${app.api.requests-path:/api/requests}", "/api/borrow-requests"})
 public class BorrowRequestController {
     
+    //define attributes
     private final BorrowRequestService borrowService;
 
+    //define constructor
     public BorrowRequestController(BorrowRequestService borrowService) {
         this.borrowService = borrowService;
     }
@@ -36,6 +38,14 @@ public class BorrowRequestController {
         return authentication.getName();
     }
 
+    /**
+     * แปลงข้อความวันที่ (String) รูปแบบต่างๆ ให้กลายเป็น LocalDateTime ในเขตเวลา UTC
+     * รองรับทั้ง ISO Offset, ISO Local และรูปแบบวันที่สั้นสั้น (YYYY-MM-DD)
+     * 
+     * @param dateStr   ข้อความวันที่ที่ต้องการแปลง
+     * @param endOfDay  หากเป็น true และข้อความมีเฉพาะวันที่ (ไม่มีเวลา) จะปรับเวลาให้เป็นสิ้นสุดวัน (23:59:59) ถ้าเป็น false จะเป็นเริ่มวัน (00:00:00)
+     * @return LocalDateTime ในโซนเวลา UTC เท่านั้น
+     */ 
     private LocalDateTime parseToUtcDateTime(String dateStr, boolean endOfDay) {
         if (dateStr == null || dateStr.trim().isEmpty()) {
             return LocalDateTime.now(ZoneOffset.UTC);
@@ -55,6 +65,7 @@ public class BorrowRequestController {
         }
     }
 
+    // 1.1. ดึงรายการคำขอยืมที่เข้ามาทั้งหมด
     @GetMapping
     public List<BorrowRequest> getAllRequests(@RequestParam(required = false) String ownerId) {
         if (ownerId != null && !ownerId.trim().isEmpty()) {
@@ -63,12 +74,13 @@ public class BorrowRequestController {
         return borrowService.getAllRequests();
     }
 
-    // ดึงรายการคำขอยืมที่เข้ามาหาเจ้าของสิ่งของ (US-05.1)
+    // 1.2. ดึงรายการคำขอยืมที่เข้ามาหาเจ้าของสิ่งของ
     @GetMapping("/owner/{ownerId}")
     public List<BorrowRequest> getRequestsByOwner(@PathVariable String ownerId) {
         return borrowService.getRequestsByOwner(ownerId);
     }
 
+    // 2. สร้างประกาศคำขอยืมสิ่งของชิ้นใหม่
     @PostMapping
     public ResponseEntity<BorrowRequest> createRequest(
             Authentication authentication,
@@ -94,7 +106,7 @@ public class BorrowRequestController {
         return ResponseEntity.status(HttpStatus.CREATED).body(savedRequest);
     }
 
-    // 1. ส่งคำขอยืมไอเท็ม (ดึง borrowerId จาก JWT SecurityContext เท่านั้น)
+    // 3. ส่งคำขอยืมไอเท็ม (ดึง borrowerId จาก JWT SecurityContext เท่านั้น)
     @PostMapping("/request")
     public ResponseEntity<BorrowRequest> createBorrowRequest(
             Authentication authentication,
@@ -106,7 +118,7 @@ public class BorrowRequestController {
         return ResponseEntity.status(HttpStatus.CREATED).body(savedRequest);
     }
 
-    // 2. เจ้าของกดอนุมัติคำขอ (ดึง ownerId จาก JWT SecurityContext เท่านั้น)
+    // 4.1. เจ้าของกดอนุมัติคำขอ (ดึง ownerId จาก JWT SecurityContext เท่านั้น)
     @PostMapping("/{requestId}/approve")
     public ResponseEntity<BorrowRequest> approveRequest(
             @PathVariable String requestId,
@@ -115,7 +127,7 @@ public class BorrowRequestController {
         return ResponseEntity.ok(borrowService.approveRequest(requestId, authenticatedOwnerId));
     }
 
-    // 3. เจ้าของกดปฏิเสธคำขอ (ดึง ownerId จาก JWT SecurityContext เท่านั้น)
+    // 4.2. เจ้าของกดปฏิเสธคำขอ (ดึง ownerId จาก JWT SecurityContext เท่านั้น)
     @PostMapping("/{requestId}/reject")
     public ResponseEntity<BorrowRequest> rejectRequest(
             @PathVariable String requestId,
@@ -126,7 +138,7 @@ public class BorrowRequestController {
         return ResponseEntity.ok(borrowService.rejectRequest(requestId, authenticatedOwnerId, reason));
     }
 
-    // 3.1 เจ้าของตอบกลับคำขอ (Request Change หรือ Permanent Reject)
+    // 4.3. เจ้าของตอบกลับคำขอ (Request Change หรือ Permanent Reject)
     @PostMapping("/{requestId}/response")
     public ResponseEntity<BorrowRequest> respondToRequest(
             @PathVariable String requestId,
@@ -138,7 +150,7 @@ public class BorrowRequestController {
         return ResponseEntity.ok(borrowService.respondToRequest(requestId, authenticatedOwnerId, action, reason));
     }
 
-    // 3.2 ผู้ยืมแก้ไขข้อมูลคำขอและส่งใหม่ (Resubmit)
+    // 4.4. ผู้ยืมแก้ไขข้อมูลคำขอและส่งใหม่ (Resubmit)
     @PutMapping("/{requestId}/resubmit")
     public ResponseEntity<BorrowRequest> resubmitRequest(
             @PathVariable String requestId,
@@ -162,7 +174,7 @@ public class BorrowRequestController {
         return ResponseEntity.ok(borrowService.resubmitChangeRequest(requestId, authenticatedBorrowerId, dto));
     }
 
-    // 3.3 เจ้าของกดเปลี่ยนกลับเป็นรอพิจารณา (Reset to pending)
+    // 4.5. เจ้าของกดเปลี่ยนกลับเป็นรอพิจารณา (Reset to pending)
     @PostMapping({"/{requestId}/reset", "/{requestId}/pending"})
     public ResponseEntity<BorrowRequest> resetRequestToPending(
             @PathVariable String requestId,
@@ -171,7 +183,7 @@ public class BorrowRequestController {
         return ResponseEntity.ok(borrowService.resetRequestToPending(requestId, authenticatedOwnerId));
     }
 
-    // 4. ผู้ยืมกดยกเลิกคำขอ (ดึง borrowerId จาก JWT SecurityContext เท่านั้น)
+    // 5. ผู้ยืมกดยกเลิกคำขอ (ดึง borrowerId จาก JWT SecurityContext เท่านั้น)
     @PostMapping("/{requestId}/cancel")
     public ResponseEntity<BorrowRequest> cancelRequest(
             @PathVariable String requestId,
@@ -180,7 +192,7 @@ public class BorrowRequestController {
         return ResponseEntity.ok(borrowService.cancelRequest(requestId, authenticatedBorrowerId));
     }
 
-    // 5. ค้นหาคำขอทั้งหมดของผู้ยืม
+    // 6. ค้นหาคำขอทั้งหมดของผู้ยืม
     @GetMapping("/borrower/{borrowerId}")
     public ResponseEntity<List<BorrowRequest>> getRequestsByBorrower(@PathVariable String borrowerId) {
         return ResponseEntity.ok(borrowService.getRequestsByBorrower(borrowerId));

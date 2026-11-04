@@ -81,6 +81,7 @@ public class Transaction {
     public TransactionStatus getStatus() { return status; }
     public LocalDateTime getBorrowedAt() { return borrowedAt; }
     public LocalDateTime getReturnedAt() { return returnedAt; }
+    
     public void setId(String id) { this.id = id; }
     public void setRequestId(String requestId) { this.requestId = requestId; }
     public void setBorrowerId(String borrowerId) { this.borrowerId = borrowerId; }
@@ -95,12 +96,13 @@ public class Transaction {
         this.status = TransactionStatus.COMPLETED;
         this.returnedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
+
     public void addProof(EvidenceProof proof) {
         proof.setTransactionId(this.id);
     }
+
     public void disputeTransaction() {
         this.status = TransactionStatus.DISPUTED;
     }
-
 
 }

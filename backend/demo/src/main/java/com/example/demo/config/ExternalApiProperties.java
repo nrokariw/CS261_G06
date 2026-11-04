@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class ExternalApiProperties {
 
+    //define attributes where injected from application.properties
     @Value("${app.env:demo}")
     private String appEnv;
 
@@ -21,6 +22,7 @@ public class ExternalApiProperties {
     @Value("${app.auth.mode:AUTO}")
     private String authMode;
 
+    //define getter
     public String getAppEnv() {
         if (appEnv == null || appEnv.isBlank()) {
             return "demo";
