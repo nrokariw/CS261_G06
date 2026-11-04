@@ -19,7 +19,7 @@ import { getCategoryLabel, normalizeCategoryKey } from "../data";
 import { createBorrowRequest, normalizeBorrowRequest } from "../api/requestsApi";
 import { getItemById } from "../api/itemsApi";
 
-export default function ItemDetails({ items, setRequests }) {
+export default function ItemDetails({ items, requests = [], setRequests }) {
   const { user, token } = useAuth();
   const { t } = useTranslation();
   const { id } = useParams();
@@ -125,6 +125,20 @@ export default function ItemDetails({ items, setRequests }) {
     (user?.id && item.ownerId === user.id) ||
     (user?.name && item.owner === user.name)
   );
+
+  const myRequest = (requests || []).find((r) => {
+    const matchesBorrower = Boolean(
+      (user?.studentId && String(r.borrowerId) === String(user.studentId)) ||
+      (user?.id && String(r.borrowerId) === String(user.id)) ||
+      (user?.name && r.borrower === user.name)
+    );
+    if (!matchesBorrower) return false;
+    const matchesItem = String(r.itemId) === String(id || item?.id);
+    if (!matchesItem) return false;
+    return r.status === "pending" || r.status === "accepted";
+  });
+
+  const effectiveStatus = myRequest ? myRequest.status : item.status;
   const isAvailable = String(item.status || "").toLowerCase() === "available";
 
   return (
@@ -154,7 +168,7 @@ export default function ItemDetails({ items, setRequests }) {
             </div>
           )}
           <div className="detail-info">
-            <StatusBadge status={item.status} />
+            <StatusBadge status={effectiveStatus} />
             <span className="category-label">{categoryLabel}</span>
             <h1>{item.name}</h1>
             <div className="owner-row">
@@ -230,6 +244,32 @@ export default function ItemDetails({ items, setRequests }) {
             <div className="borrow-note" style={{ color: "var(--accent-strong, #3b82f6)", marginTop: "15px" }}>
               <ShieldCheck size={17} />
               <span>{t("itemDetails.cannotBorrowOwnItem", { defaultValue: "คุณเป็นเจ้าของสิ่งของชิ้นนี้ ไม่สามารถยืมของตัวเองได้" })}</span>
+            </div>
+          ) : myRequest ? (
+            <div className="request-success" style={{ marginTop: "15px" }}>
+              <span>
+                <CheckCircle2 size={28} />
+              </span>
+              <h3>
+                {myRequest.status === "accepted"
+                  ? t("itemDetails.requestAcceptedTitle", { defaultValue: "คำขอของคุณได้รับการอนุมัติแล้ว" })
+                  : t("itemDetails.requestPendingTitle", { defaultValue: "คุณได้ส่งคำขอยืมสิ่งของนี้แล้ว" })}
+              </h3>
+              <p>
+                {myRequest.status === "accepted"
+                  ? t("itemDetails.requestAcceptedDesc", { defaultValue: "กรุณานัดหมายเพื่อรับสิ่งของตามกำหนด" })
+                  : t("itemDetails.requestPendingDesc", { defaultValue: "คำขอของคุณอยู่ระหว่างรอเจ้าของสิ่งของตรวจสอบ" })}
+              </p>
+              <div style={{ margin: "10px 0" }}>
+                <StatusBadge status={myRequest.status} />
+              </div>
+              <button
+                type="button"
+                className="button button-primary button-full"
+                onClick={() => navigate("/my-borrows")}
+              >
+                {t("itemDetails.viewMyBorrows", { defaultValue: "ดูรายการยืมของฉัน" })}
+              </button>
             </div>
           ) : !isAvailable ? (
             <div className="borrow-note" style={{ color: "var(--danger, #ef4444)", marginTop: "15px" }}>

@@ -23,8 +23,8 @@ export default function MyBorrows({ requests = [] }) {
   // คัดกรองมาเฉพาะรายการที่ "ฉัน" (ผู้ใช้ปัจจุบัน) เป็นคนกดยืม
   const myBorrows = (requests || []).filter((r) =>
     Boolean(
-      (user?.studentId && r.borrowerId === user.studentId) ||
-      (user?.id && r.borrowerId === user.id) ||
+      (user?.studentId && String(r.borrowerId) === String(user.studentId)) ||
+      (user?.id && String(r.borrowerId) === String(user.id)) ||
       (user?.name && r.borrower === user.name)
     )
   );

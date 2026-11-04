@@ -7,49 +7,71 @@ import { ItemCard, PageHeading, EmptyState } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvailableItems } from "../api/itemsApi";
 
-export default function Browse() {
-  const { token } = useAuth();
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function Browse({ items: propItems, requests = [], loading: propLoading }) {
+  const { user, token } = useAuth();
+  const [localItems, setLocalItems] = useState([]);
+  const [localLoading, setLocalLoading] = useState(propItems === undefined);
   const [error, setError] = useState(null);
 
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("ALL");
 
-  // เพิ่ม useEffect เพื่อดึงข้อมูลจาก API
+  // เพิ่ม useEffect เพื่อดึงข้อมูลจาก API หากไม่ได้ส่ง items ผ่าน props
   useEffect(() => {
+    if (propItems !== undefined) return;
     async function loadData() {
       try {
-        setLoading(true);
+        setLocalLoading(true);
         const data = await getAvailableItems("AVAILABLE", token); 
-        setItems(data);
+        setLocalItems(data);
       } catch (err) {
         setError(err.message);
       } finally {
-        setLoading(false);
+        setLocalLoading(false);
       }
     }
     loadData();
-  }, [token]);
+  }, [propItems, token]);
+
+  const rawItems = propItems !== undefined ? propItems : localItems;
+  const isLoading = propItems !== undefined ? Boolean(propLoading) : localLoading;
 
   const availableItems = useMemo(
     () =>
-      items.filter((item) => {
-        const itemCategoryKey = normalizeCategoryKey(item.category);
-        const categoryText = getCategoryLabel(itemCategoryKey);
-        const text =
-          `${item.name || ""} ${categoryText} ${item.owner || ""}`.toLowerCase();
-        return (
-          String(item.status || "").toLowerCase() === "available" &&
-          text.includes(query.toLowerCase()) &&
-          (category === "ALL" || !category || itemCategoryKey === category)
-        );
-      }),
-    [items, query, category],
+      rawItems
+        .map((item) => {
+          const myRequest = (requests || []).find((r) => {
+            const matchesBorrower = Boolean(
+              (user?.studentId && String(r.borrowerId) === String(user.studentId)) ||
+              (user?.id && String(r.borrowerId) === String(user.id)) ||
+              (user?.name && r.borrower === user.name)
+            );
+            if (!matchesBorrower) return false;
+            const matchesItem = String(r.itemId) === String(item.id);
+            if (!matchesItem) return false;
+            return r.status === "pending" || r.status === "accepted";
+          });
+          return myRequest ? { ...item, status: myRequest.status } : item;
+        })
+        .filter((item) => {
+          const itemCategoryKey = normalizeCategoryKey(item.category);
+          const categoryText = getCategoryLabel(itemCategoryKey);
+          const text =
+            `${item.name || ""} ${categoryText} ${item.owner || ""}`.toLowerCase();
+          const itemStatus = String(item.status || "").toLowerCase();
+          const isVisible =
+            itemStatus === "available" || itemStatus === "pending" || itemStatus === "accepted";
+          return (
+            isVisible &&
+            text.includes(query.toLowerCase()) &&
+            (category === "ALL" || !category || itemCategoryKey === category)
+          );
+        }),
+    [rawItems, requests, user, query, category],
   );
 
-  if (loading) return <div className="page-stack">{t("common.loading", { defaultValue: "กำลังโหลดข้อมูล..." })}</div>;
+  if (isLoading) return <div className="page-stack">{t("common.loading", { defaultValue: "กำลังโหลดข้อมูล..." })}</div>;
   if (error) return <div className="page-stack"><EmptyState title={t("common.error", { defaultValue: "เกิดข้อผิดพลาด" })} description={error} /></div>;
 
   return (

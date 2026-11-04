@@ -9,6 +9,9 @@ const STATUS_CONFIG = {
   pending: "badge-warning",
   accepted: "badge-success",
   rejected: "badge-danger",
+  reserved: "badge-warning",
+  borrowed: "badge-neutral",
+  unavailable: "badge-danger",
 };
 
 export function PageHeading({ eyebrow, title, subtitle, action }) {

@@ -55,6 +55,7 @@ export default function App() {
   const { t, i18n } = useTranslation();
   const [items, setItems] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [itemsLoading, setItemsLoading] = useState(true);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [switchingAccount, setSwitchingAccount] = useState(false);
   const location = useLocation();
@@ -63,6 +64,7 @@ export default function App() {
   useEffect(() => {
     let active = true;
     async function fetchInitialData() {
+      setItemsLoading(true);
       await loadRuntimeConfig();
 
       const loadedItems = await getAllItems(token)
@@ -82,6 +84,7 @@ export default function App() {
       } else {
         setRequests([]);
       }
+      setItemsLoading(false);
     }
     fetchInitialData();
     return () => {
@@ -307,7 +310,16 @@ export default function App() {
 
         <main className="page-container">
           <Routes>
-            <Route path="/" element={<Browse />} />
+            <Route
+              path="/"
+              element={
+                <Browse
+                  items={items}
+                  requests={requests}
+                  loading={itemsLoading}
+                />
+              }
+            />
             <Route path="/login" element={<Login />} />
             <Route
               path="/create"
@@ -319,7 +331,13 @@ export default function App() {
             />
             <Route
               path="/items/:id"
-              element={<ItemDetails items={items} setRequests={setRequests} />}
+              element={
+                <ItemDetails
+                  items={items}
+                  requests={requests}
+                  setRequests={setRequests}
+                />
+              }
             />
             <Route
               path="/my-listings"

@@ -119,6 +119,10 @@
     "submitRequest": "Send Borrow Request",
     "cannotBorrowOwnItem": "You are the owner of this item and cannot borrow it",
     "itemNotAvailable": "This item is not available for borrowing (may be reserved or borrowed)",
+    "requestPendingTitle": "You've already requested this item",
+    "requestPendingDesc": "Your borrow request is waiting for the owner's review",
+    "requestAcceptedTitle": "Your request has been approved",
+    "requestAcceptedDesc": "Please arrange with the owner to pick up the item",
     "viewMyBorrows": "View My Borrows"
   },
   "myBorrows": {
