@@ -45,12 +45,20 @@ export default function Login() {
       await login(username.trim(), password);
       navigate(redirectPath, { replace: true });
     } catch (err) {
-      setError(
-        t("auth.invalidCredentials", {
-          defaultValue:
-            "รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง",
-        }) + (err?.message ? ` (${err.message})` : ""),
-      );
+      if (err?.status === 401) {
+        setError(
+          t("auth.invalidCredentials", {
+            defaultValue:
+              "รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง",
+          }),
+        );
+      } else {
+        setError(
+          err?.data?.message ||
+            err?.message ||
+            t("auth.loginFailed", { defaultValue: "เข้าสู่ระบบไม่สำเร็จ" }),
+        );
+      }
     } finally {
       setSubmitting(false);
     }
@@ -65,7 +73,11 @@ export default function Login() {
       await login(account.studentId, account.password);
       navigate(redirectPath, { replace: true });
     } catch (err) {
-      setError(err.message || t("auth.loginFailed", { defaultValue: "เข้าสู่ระบบไม่สำเร็จ" }));
+      setError(
+        err?.data?.message ||
+          err?.message ||
+          t("auth.loginFailed", { defaultValue: "เข้าสู่ระบบไม่สำเร็จ" }),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -76,17 +88,17 @@ export default function Login() {
   return (
     <div className="page-stack narrow-page">
       <PageHeading
-        eyebrow={t("auth.eyebrow", { defaultValue: "TU & CAMPUSSHARE AUTHENTICATION" })}
+        eyebrow={t("auth.eyebrow", { defaultValue: "เข้าสู่ระบบ CAMPUSSHARE" })}
         title={t("auth.loginTitle", { defaultValue: "เข้าสู่ระบบ CampusShare" })}
         subtitle={
           demoEnabled
             ? t("auth.loginSubtitle", {
                 defaultValue:
-                  "เข้าสู่ระบบด้วยรหัสนักศึกษา มหาวิทยาลัยธรรมศาสตร์ (TU API) หรือเลือกบัญชีทดสอบด้านล่าง",
+                  "เข้าสู่ระบบด้วยบัญชีนักศึกษา มหาวิทยาลัยธรรมศาสตร์ หรือเลือกบัญชีทดสอบด้านล่าง",
               })
             : t("auth.loginSubtitleProd", {
                 defaultValue:
-                  "เข้าสู่ระบบด้วยรหัสนักศึกษาและรหัสผ่าน มหาวิทยาลัยธรรมศาสตร์ (TU REST API)",
+                  "เข้าสู่ระบบด้วยบัญชีและรหัสผ่าน มหาวิทยาลัยธรรมศาสตร์",
               })
         }
       />
@@ -106,7 +118,7 @@ export default function Login() {
               <p>
                 {t("auth.credentialsSubheading", {
                   defaultValue:
-                    "รองรับทั้งบัญชีในฐานข้อมูล (BCrypt) และการตรวจสอบผ่าน TU REST API",
+                    "เข้าสู่ระบบด้วยรหัสนักศึกษาและรหัสผ่านของมหาวิทยาลัยธรรมศาสตร์",
                 })}
               </p>
             </div>
@@ -170,7 +182,7 @@ export default function Login() {
             <span>
               {t("auth.securityNote", {
                 defaultValue:
-                  "เซสชันของคุณได้รับการปกป้องด้วย JWT Access Token (HS256) และ HttpOnly Refresh Token Rotation",
+                  "การเข้าสู่ระบบของคุณปลอดภัยและได้รับการปกป้องตามมาตรฐานความปลอดภัย",
               })}
             </span>
           </div>
