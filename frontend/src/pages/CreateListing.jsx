@@ -36,6 +36,12 @@ export default function CreateListing({ items, setItems }) {
     normalizeCategoryKey(editingItem?.category) || "",
   );
   const [detail, setDetail] = useState(editingItem?.detail || "");
+  const [availableFrom, setAvailableFrom] = useState(
+    editingItem?.availableFrom ? String(editingItem.availableFrom).slice(0, 10) : "",
+  );
+  const [availableUntil, setAvailableUntil] = useState(
+    editingItem?.availableUntil ? String(editingItem.availableUntil).slice(0, 10) : "",
+  );
   
   // เปลี่ยนเก็บเป็น File Object แทน Base64 String
   const [imageFile, setImageFile] = useState(null);
@@ -52,6 +58,11 @@ export default function CreateListing({ items, setItems }) {
     if (!name.trim()) next.name = t("validation.itemNameRequired");
     if (!category) next.category = t("validation.categoryRequired");
     if (!detail.trim()) next.detail = t("validation.detailRequired");
+    if (availableFrom && availableUntil && availableUntil < availableFrom) {
+      next.availableUntil = t("validation.returnDateBeforeBorrow", {
+        defaultValue: "วันสิ้นสุดต้องไม่มาก่อนวันเริ่มต้น",
+      });
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -102,6 +113,12 @@ export default function CreateListing({ items, setItems }) {
     formData.append("title", name.trim());
     formData.append("category", category);
     formData.append("description", detail.trim());
+    if (availableFrom) {
+      formData.append("availableFrom", `${availableFrom}T00:00:00`);
+    }
+    if (availableUntil) {
+      formData.append("availableUntil", `${availableUntil}T23:59:59`);
+    }
 
     // แนบไฟล์จริงไปกับ Key ที่ Backend รอรับ 
     if (imageFile) {
@@ -121,6 +138,8 @@ export default function CreateListing({ items, setItems }) {
                   title: name.trim(),
                   category,
                   description: detail.trim(),
+                  availableFrom: availableFrom ? `${availableFrom}T00:00:00` : null,
+                  availableUntil: availableUntil ? `${availableUntil}T23:59:59` : null,
                 },
             authToken,
           )
@@ -141,6 +160,8 @@ export default function CreateListing({ items, setItems }) {
           studentId ||
           user?.id,
         status: normalized?.status || "available",
+        availableFrom: normalized?.availableFrom || (availableFrom ? `${availableFrom}T00:00:00` : null),
+        availableUntil: normalized?.availableUntil || (availableUntil ? `${availableUntil}T23:59:59` : null),
       };
       if (editingItem)
         setItems((prev) =>
@@ -246,6 +267,38 @@ export default function CreateListing({ items, setItems }) {
               {errors.detail}
             </small>
           )}
+        </div>
+        <div className="field-group" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+          <div className="field">
+            <label htmlFor="availableFrom">
+              {t("createListing.availableFromLabel")}
+            </label>
+            <input
+              id="availableFrom"
+              type="date"
+              value={availableFrom}
+              onChange={(e) => setAvailableFrom(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="availableUntil">
+              {t("createListing.availableUntilLabel")}
+            </label>
+            <input
+              id="availableUntil"
+              type="date"
+              min={availableFrom || undefined}
+              value={availableUntil}
+              onChange={(e) => setAvailableUntil(e.target.value)}
+              aria-invalid={!!errors.availableUntil}
+            />
+            {errors.availableUntil && (
+              <small className="field-error">
+                <AlertCircle size={13} />
+                {errors.availableUntil}
+              </small>
+            )}
+          </div>
         </div>
         <div className="form-section-title section-spaced">
           <span className="section-number">02</span>

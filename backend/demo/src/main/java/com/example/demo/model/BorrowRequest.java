@@ -30,6 +30,9 @@ public class BorrowRequest {
 
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String reason;
+
+    @Column(name = "response_reason", columnDefinition = "NVARCHAR(MAX)")
+    private String responseReason;
     
     @Enumerated(EnumType.STRING)
     @Column(name = "request_status", nullable = false)
@@ -101,6 +104,7 @@ public class BorrowRequest {
     public LocalDateTime getStartDate() { return startDate; }
     public LocalDateTime getEndDate() { return endDate; }
     public String getReason() { return reason; }
+    public String getResponseReason() { return responseReason; }
     public RequestStatus getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
@@ -111,6 +115,7 @@ public class BorrowRequest {
     public void setStartDate(LocalDateTime startDate) { this.startDate = startDate; }
     public void setEndDate(LocalDateTime endDate) { this.endDate = endDate; }
     public void setReason(String reason) { this.reason = reason; }
+    public void setResponseReason(String responseReason) { this.responseReason = responseReason; }
     public void setStatus(RequestStatus status) { this.status = status; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
@@ -124,10 +129,25 @@ public class BorrowRequest {
     }
 
     public void reject() {
-        if (this.status != RequestStatus.PENDING) {
-            throw new IllegalStateException("Cannot reject request that is not pending");
+        reject(null);
+    }
+
+    public void reject(String reason) {
+        if (this.status != RequestStatus.PENDING && this.status != RequestStatus.CHANGE_REQUESTED) {
+            throw new IllegalStateException("Cannot reject request that is not pending or change_requested");
         }
         this.status = RequestStatus.REJECTED;
+        if (reason != null && !reason.trim().isEmpty()) {
+            this.responseReason = reason.trim();
+        }
+    }
+
+    public void requestChange(String reason) {
+        if (this.status != RequestStatus.PENDING && this.status != RequestStatus.CHANGE_REQUESTED) {
+            throw new IllegalStateException("Cannot request change on request that is not pending");
+        }
+        this.status = RequestStatus.CHANGE_REQUESTED;
+        this.responseReason = reason != null ? reason.trim() : null;
     }
 
     public void resetToPending() {

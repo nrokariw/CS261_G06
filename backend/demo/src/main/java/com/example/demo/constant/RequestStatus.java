@@ -4,13 +4,15 @@ public enum RequestStatus {
     PENDING,
     ACCEPTED,
     REJECTED,
-    CANCELLED;
+    CANCELLED,
+    CHANGE_REQUESTED;
 
     public ItemStatus getItemStatus() {
         switch (this) {
             case ACCEPTED:
                 return ItemStatus.RESERVED;
             case REJECTED:
+            case CHANGE_REQUESTED:
                 return ItemStatus.AVAILABLE;
             case CANCELLED:
                 return ItemStatus.UNAVAILABLE;

@@ -119,12 +119,50 @@ public class BorrowRequestController {
     @PostMapping("/{requestId}/reject")
     public ResponseEntity<BorrowRequest> rejectRequest(
             @PathVariable String requestId,
-            Authentication authentication) {
+            Authentication authentication,
+            @RequestBody(required = false) Map<String, String> payload) {
         String authenticatedOwnerId = requireAuthenticatedStudentId(authentication);
-        return ResponseEntity.ok(borrowService.rejectRequest(requestId, authenticatedOwnerId));
+        String reason = payload != null ? payload.get("reason") : null;
+        return ResponseEntity.ok(borrowService.rejectRequest(requestId, authenticatedOwnerId, reason));
     }
 
-    // 3.1 เจ้าของกดเปลี่ยนกลับเป็นรอพิจารณา (Reset to pending)
+    // 3.1 เจ้าของตอบกลับคำขอ (Request Change หรือ Permanent Reject)
+    @PostMapping("/{requestId}/response")
+    public ResponseEntity<BorrowRequest> respondToRequest(
+            @PathVariable String requestId,
+            Authentication authentication,
+            @RequestBody Map<String, String> payload) {
+        String authenticatedOwnerId = requireAuthenticatedStudentId(authentication);
+        String action = payload.get("action");
+        String reason = payload.get("reason");
+        return ResponseEntity.ok(borrowService.respondToRequest(requestId, authenticatedOwnerId, action, reason));
+    }
+
+    // 3.2 ผู้ยืมแก้ไขข้อมูลคำขอและส่งใหม่ (Resubmit)
+    @PutMapping("/{requestId}/resubmit")
+    public ResponseEntity<BorrowRequest> resubmitRequest(
+            @PathVariable String requestId,
+            Authentication authentication,
+            @RequestBody Map<String, String> payload) {
+        String authenticatedBorrowerId = requireAuthenticatedStudentId(authentication);
+
+        String startStr = payload.getOrDefault("borrowDate", payload.get("startDate"));
+        String endStr = payload.getOrDefault("returnDate", payload.get("endDate"));
+        String reason = payload.get("reason");
+
+        BorrowRequestDto dto = new BorrowRequestDto();
+        if (startStr != null && !startStr.trim().isEmpty()) {
+            dto.setStartDate(parseToUtcDateTime(startStr, false));
+        }
+        if (endStr != null && !endStr.trim().isEmpty()) {
+            dto.setEndDate(parseToUtcDateTime(endStr, true));
+        }
+        dto.setReason(reason);
+
+        return ResponseEntity.ok(borrowService.resubmitChangeRequest(requestId, authenticatedBorrowerId, dto));
+    }
+
+    // 3.3 เจ้าของกดเปลี่ยนกลับเป็นรอพิจารณา (Reset to pending)
     @PostMapping({"/{requestId}/reset", "/{requestId}/pending"})
     public ResponseEntity<BorrowRequest> resetRequestToPending(
             @PathVariable String requestId,

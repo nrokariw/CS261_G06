@@ -36,6 +36,12 @@ public class Item {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "available_from", columnDefinition = "DATETIME2")
+    private LocalDateTime availableFrom;
+
+    @Column(name = "available_until", columnDefinition = "DATETIME2")
+    private LocalDateTime availableUntil;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -115,6 +121,10 @@ public class Item {
     public void setStatus(ItemStatus status) { this.status = status; }
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public LocalDateTime getAvailableFrom() { return availableFrom; }
+    public void setAvailableFrom(LocalDateTime availableFrom) { this.availableFrom = availableFrom; }
+    public LocalDateTime getAvailableUntil() { return availableUntil; }
+    public void setAvailableUntil(LocalDateTime availableUntil) { this.availableUntil = availableUntil; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

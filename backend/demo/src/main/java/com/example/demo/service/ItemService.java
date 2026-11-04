@@ -10,7 +10,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
@@ -52,6 +54,14 @@ public class ItemService {
         item.setCategory(itemCreateDto.getCategory());
         item.setDescription(itemCreateDto.getDescription());
         item.setImageUrl(imageUrl);
+
+        LocalDateTime availFrom = parseDate(itemCreateDto.getAvailableFrom(), false);
+        LocalDateTime availUntil = parseDate(itemCreateDto.getAvailableUntil(), true);
+        if (availFrom != null && availUntil != null && availUntil.isBefore(availFrom)) {
+            throw new IllegalArgumentException("Available until date cannot be before available from date");
+        }
+        item.setAvailableFrom(availFrom);
+        item.setAvailableUntil(availUntil);
 
         // บันทึกลง MSSQL Database
         return itemRepository.save(item);
@@ -129,8 +139,34 @@ public class ItemService {
             item.setImageUrl(newImageUrl);
         }
 
+        if (requestDto.getAvailableFrom() != null) {
+            item.setAvailableFrom(parseDate(requestDto.getAvailableFrom(), false));
+        }
+        if (requestDto.getAvailableUntil() != null) {
+            item.setAvailableUntil(parseDate(requestDto.getAvailableUntil(), true));
+        }
+
         item.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         return itemRepository.save(item);
+    }
+
+    private LocalDateTime parseDate(String str, boolean endOfDay) {
+        if (str == null || str.trim().isEmpty()) return null;
+        String trimmed = str.trim();
+        try {
+            return OffsetDateTime.parse(trimmed).withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
+        } catch (Exception ignored) {
+            try {
+                return LocalDateTime.parse(trimmed);
+            } catch (Exception ignored2) {
+                try {
+                    LocalDate d = LocalDate.parse(trimmed.substring(0, 10));
+                    return endOfDay ? d.atTime(23, 59, 59) : d.atStartOfDay();
+                } catch (Exception ignored3) {
+                    return null;
+                }
+            }
+        }
     }
 
     // 7. ลบประกาศแบบ Soft Delete (DELETE /api/items/{id})

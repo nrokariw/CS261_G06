@@ -16,7 +16,7 @@ import { PageHeading, StatusBadge } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { BORROW_REASON_MAX_LENGTH } from "../constants/config";
 import { getCategoryLabel, normalizeCategoryKey } from "../data";
-import { createBorrowRequest, normalizeBorrowRequest } from "../api/requestsApi";
+import { createBorrowRequest, normalizeBorrowRequest, resubmitBorrowRequest } from "../api/requestsApi";
 import { getItemById } from "../api/itemsApi";
 
 export default function ItemDetails({ items, requests = [], setRequests }) {
@@ -53,6 +53,33 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
     loadItem();
   }, [id, token]);
 
+  const availFromStr = item?.availableFrom ? String(item.availableFrom).slice(0, 10) : "";
+  const availUntilStr = item?.availableUntil ? String(item.availableUntil).slice(0, 10) : "";
+
+  const minBorrowDate = availFromStr && availFromStr > today ? availFromStr : today;
+  const maxBorrowDate = availUntilStr || undefined;
+  const minReturnDate = borrowDate || minBorrowDate;
+  const maxReturnDate = availUntilStr || undefined;
+
+  const myRequest = (requests || []).find((r) => {
+    const matchesBorrower = Boolean(
+      (user?.studentId && String(r.borrowerId) === String(user.studentId)) ||
+      (user?.id && String(r.borrowerId) === String(user.id)) ||
+      (user?.name && r.borrower === user.name)
+    );
+    if (!matchesBorrower) return false;
+    const matchesItem = String(r.itemId) === String(id || item?.id);
+    return matchesItem;
+  });
+
+  useEffect(() => {
+    if (myRequest && myRequest.status === "change_requested") {
+      if (myRequest.borrowDate) setBorrowDate(myRequest.borrowDate);
+      if (myRequest.returnDate) setReturnDate(myRequest.returnDate);
+      if (myRequest.reason) setReason(myRequest.reason);
+    }
+  }, [myRequest]);
+
   async function submit(e) {
     e.preventDefault();
     setSubmitError("");
@@ -63,6 +90,16 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
       next.borrowDate = t("validation.borrowDatePast");
     if (borrowDate && returnDate && returnDate < borrowDate)
       next.returnDate = t("validation.returnDateBeforeBorrow");
+    if (availFromStr && borrowDate && borrowDate < availFromStr) {
+      next.borrowDate = t("validation.borrowDateBeforeAvail", {
+        defaultValue: `วันที่ยืมต้องไม่ก่อน ${availFromStr}`,
+      });
+    }
+    if (availUntilStr && returnDate && returnDate > availUntilStr) {
+      next.returnDate = t("validation.returnDateAfterAvail", {
+        defaultValue: `วันที่คืนต้องไม่เกิน ${availUntilStr}`,
+      });
+    }
     if (!reason.trim()) next.reason = t("validation.reasonRequired");
     setErrors(next);
     if (Object.keys(next).length) return;
@@ -76,25 +113,44 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
     };
 
     try {
-      const apiResult = await createBorrowRequest(payload, token);
-      const normalized = normalizeBorrowRequest(apiResult, items || [item]);
-      if (setRequests) {
-        setRequests((prev) => [
-          {
-            id: normalized?.id || apiResult?.id || crypto.randomUUID(),
-            itemId: item.id,
-            itemName: item.name,
-            ownerId: normalized?.ownerId || item.ownerId || "",
-            owner: normalized?.owner || item.owner || "",
-            borrower: user?.name || payload.borrowerId,
-            borrowerId: payload.borrowerId,
-            borrowDate: normalized?.borrowDate || borrowDate,
-            returnDate: normalized?.returnDate || returnDate,
-            reason: normalized?.reason || reason.trim(),
-            status: normalized?.status || "pending",
-          },
-          ...prev,
-        ]);
+      if (myRequest && myRequest.status === "change_requested") {
+        await resubmitBorrowRequest(myRequest.id, payload, token);
+        if (setRequests) {
+          setRequests((prev) =>
+            prev.map((r) =>
+              r.id === myRequest.id
+                ? {
+                    ...r,
+                    borrowDate,
+                    returnDate,
+                    reason: reason.trim(),
+                    status: "pending",
+                  }
+                : r,
+            ),
+          );
+        }
+      } else {
+        const apiResult = await createBorrowRequest(payload, token);
+        const normalized = normalizeBorrowRequest(apiResult, items || [item]);
+        if (setRequests) {
+          setRequests((prev) => [
+            {
+              id: normalized?.id || apiResult?.id || crypto.randomUUID(),
+              itemId: item.id,
+              itemName: item.name,
+              ownerId: normalized?.ownerId || item.ownerId || "",
+              owner: normalized?.owner || item.owner || "",
+              borrower: user?.name || payload.borrowerId,
+              borrowerId: payload.borrowerId,
+              borrowDate: normalized?.borrowDate || borrowDate,
+              returnDate: normalized?.returnDate || returnDate,
+              reason: normalized?.reason || reason.trim(),
+              status: normalized?.status || "pending",
+            },
+            ...prev,
+          ]);
+        }
       }
       setSuccess(true);
       setTimeout(() => navigate("/my-borrows"), 1500);
@@ -103,7 +159,7 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
     }
   }
 
-  if(loading) return <div className="page-stack">กำลังโหลดข้อมูล...</div>
+  if (loading) return <div className="page-stack">กำลังโหลดข้อมูล...</div>;
 
   if (errorMsg || !item)
     return (
@@ -125,18 +181,6 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
     (user?.id && item.ownerId === user.id) ||
     (user?.name && item.owner === user.name)
   );
-
-  const myRequest = (requests || []).find((r) => {
-    const matchesBorrower = Boolean(
-      (user?.studentId && String(r.borrowerId) === String(user.studentId)) ||
-      (user?.id && String(r.borrowerId) === String(user.id)) ||
-      (user?.name && r.borrower === user.name)
-    );
-    if (!matchesBorrower) return false;
-    const matchesItem = String(r.itemId) === String(id || item?.id);
-    if (!matchesItem) return false;
-    return r.status === "pending" || r.status === "accepted";
-  });
 
   const effectiveStatus = myRequest ? myRequest.status : item.status;
   const isAvailable = String(item.status || "").toLowerCase() === "available";
@@ -194,6 +238,31 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
                 <ShieldCheck size={16} /> {t("itemDetails.careNotice")}
               </span>
             </div>
+            {availFromStr && (
+              <div
+                style={{
+                  marginTop: "12px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  color: "#0369A1",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  background: "#E0F2FE",
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  width: "fit-content",
+                }}
+              >
+                <CalendarDays size={16} />
+                <span>
+                  {t("itemDetails.availablePeriod", {
+                    from: availFromStr,
+                    until: availUntilStr || t("common.noEndDate", { defaultValue: "ไม่มีกำหนด" }),
+                  })}
+                </span>
+              </div>
+            )}
           </div>
         </section>
         <aside className="borrow-panel">
@@ -245,7 +314,44 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
               <ShieldCheck size={17} />
               <span>{t("itemDetails.cannotBorrowOwnItem", { defaultValue: "คุณเป็นเจ้าของสิ่งของชิ้นนี้ ไม่สามารถยืมของตัวเองได้" })}</span>
             </div>
-          ) : myRequest ? (
+          ) : myRequest?.status === "rejected" ? (
+            <div
+              className="borrow-note"
+              style={{
+                color: "#B9382B",
+                marginTop: "15px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "stretch",
+                gap: "8px",
+                background: "#FCE8E4",
+                borderLeft: "4px solid #B9382B",
+                padding: "14px",
+                borderRadius: "8px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "bold" }}>
+                <AlertCircle size={18} />
+                <span>{t("itemDetails.borrowBlockedTitle")}</span>
+              </div>
+              <p style={{ margin: 0, fontSize: "0.875rem", color: "#6b7280" }}>
+                {t("itemDetails.borrowBlockedDesc")}
+              </p>
+              {myRequest.responseReason && (
+                <div style={{ marginTop: "4px", fontSize: "0.85rem", color: "#B9382B", fontWeight: 500 }}>
+                  {t("itemDetails.ownerNotePrefix")} {myRequest.responseReason}
+                </div>
+              )}
+              <button
+                type="button"
+                className="button button-outline button-full"
+                style={{ marginTop: "8px" }}
+                onClick={() => navigate("/my-borrows")}
+              >
+                {t("itemDetails.viewMyBorrows")}
+              </button>
+            </div>
+          ) : myRequest && (myRequest.status === "pending" || myRequest.status === "accepted") ? (
             <div className="request-success" style={{ marginTop: "15px" }}>
               <span>
                 <CheckCircle2 size={28} />
@@ -278,6 +384,27 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
             </div>
           ) : (
             <form onSubmit={submit} noValidate>
+              {myRequest?.status === "change_requested" && (
+                <div
+                  style={{
+                    background: "#E0F2FE",
+                    borderLeft: "4px solid #0284c7",
+                    color: "#0369A1",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    marginBottom: "16px",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  <strong>{t("itemDetails.requestChangeTitle")}</strong>
+                  <p style={{ margin: "4px 0" }}>{t("itemDetails.requestChangeDesc")}</p>
+                  {myRequest.responseReason && (
+                    <div style={{ fontWeight: 600, marginTop: "4px" }}>
+                      {t("itemDetails.ownerNotePrefix")} {myRequest.responseReason}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="field">
                 <label htmlFor="borrowDate">
                   {t("itemDetails.borrowDateLabel")} <span className="required">*</span>
@@ -285,7 +412,8 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
                 <input
                   id="borrowDate"
                   type="date"
-                  min={today}
+                  min={minBorrowDate}
+                  max={maxBorrowDate}
                   value={borrowDate}
                   onChange={(e) => setBorrowDate(e.target.value)}
                   aria-invalid={!!errors.borrowDate}
@@ -301,7 +429,8 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
                 <input
                   id="returnDate"
                   type="date"
-                  min={borrowDate || today}
+                  min={minReturnDate}
+                  max={maxReturnDate}
                   value={returnDate}
                   onChange={(e) => setReturnDate(e.target.value)}
                   aria-invalid={!!errors.returnDate}
@@ -344,7 +473,10 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
                 className="button button-primary button-full"
                 type="submit"
               >
-                <Send size={16} /> {t("itemDetails.submitRequest")}
+                <Send size={16} />{" "}
+                {myRequest?.status === "change_requested"
+                  ? t("itemDetails.resubmitRequest")
+                  : t("itemDetails.submitRequest")}
               </button>
             </form>
           )}

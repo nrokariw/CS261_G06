@@ -49,8 +49,7 @@ export default function Browse({ items: propItems, requests = [], loading: propL
             );
             if (!matchesBorrower) return false;
             const matchesItem = String(r.itemId) === String(item.id);
-            if (!matchesItem) return false;
-            return r.status === "pending" || r.status === "accepted";
+            return matchesItem;
           });
           return myRequest ? { ...item, status: myRequest.status } : item;
         })
@@ -61,7 +60,11 @@ export default function Browse({ items: propItems, requests = [], loading: propL
             `${item.name || ""} ${categoryText} ${item.owner || ""}`.toLowerCase();
           const itemStatus = String(item.status || "").toLowerCase();
           const isVisible =
-            itemStatus === "available" || itemStatus === "pending" || itemStatus === "accepted";
+            itemStatus === "available" ||
+            itemStatus === "pending" ||
+            itemStatus === "accepted" ||
+            itemStatus === "change_requested" ||
+            itemStatus === "rejected";
           return (
             isVisible &&
             text.includes(query.toLowerCase()) &&

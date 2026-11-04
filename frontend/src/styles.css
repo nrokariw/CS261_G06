@@ -796,6 +796,11 @@ button {
     color: #B9382B;
 }
 
+.badge-info {
+    background: #E0F2FE;
+    color: #0369A1;
+}
+
 .badge-neutral {
     background: #F5EAE2;
     color: #806B60;

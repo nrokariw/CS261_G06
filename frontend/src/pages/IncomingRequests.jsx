@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { Check, X, AlertCircle } from "lucide-react";
+import { Check, X, AlertCircle, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeading, StatusBadge, EmptyState, Avatar } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import {
   updateBorrowRequestStatus,
   cancelBorrowRequest,
+  respondToBorrowRequest,
 } from "../api/requestsApi";
 
 function formatDate(date, language = "th") {
@@ -22,6 +23,9 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
   const { user, token } = useAuth();
   const { t, i18n } = useTranslation();
   const [actionError, setActionError] = useState("");
+  const [activeResponseReq, setActiveResponseReq] = useState(null);
+  const [responseReason, setResponseReason] = useState("");
+  const [modalError, setModalError] = useState("");
 
   const checkIsItemOwner = (req) => {
     const matchedItem = (items || []).find((i) => String(i.id) === String(req.itemId));
@@ -81,6 +85,45 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
     }
   }
 
+  function openResponseModal(req) {
+    setActiveResponseReq(req);
+    setResponseReason("");
+    setModalError("");
+  }
+
+  async function handleModalResponse(action) {
+    if (action === "request_change" && !responseReason.trim()) {
+      setModalError(t("validation.reasonRequired", { defaultValue: "กรุณาระบุเหตุผลในการขอให้แก้ไขข้อมูล" }));
+      return;
+    }
+    setModalError("");
+    const authToken = token || user?.token;
+    try {
+      await respondToBorrowRequest(activeResponseReq.id, action, responseReason.trim(), authToken);
+      const nextStatus = action === "request_change" ? "change_requested" : "rejected";
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === activeResponseReq.id
+            ? { ...r, status: nextStatus, responseReason: responseReason.trim() }
+            : r,
+        ),
+      );
+      if (setItems && activeResponseReq?.itemId) {
+        setItems((prev) =>
+          prev.map((item) =>
+            item.id === activeResponseReq.itemId
+              ? { ...item, status: "available" }
+              : item,
+          ),
+        );
+      }
+      setActiveResponseReq(null);
+      setResponseReason("");
+    } catch (err) {
+      setModalError(err.message || t("validation.submitFailed"));
+    }
+  }
+
   return (
     <div className="page-stack">
       <PageHeading
@@ -131,6 +174,23 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                   <StatusBadge status={req.status} />
                 </div>
                 <p className="request-reason">{req.reason}</p>
+                {req.responseReason && (
+                  <p
+                    className="request-response-note"
+                    style={{
+                      fontSize: "0.85rem",
+                      color: "var(--muted, #64748b)",
+                      marginTop: "6px",
+                      background: "var(--surface-muted, #f8fafc)",
+                      padding: "6px 10px",
+                      borderRadius: "6px",
+                      borderLeft: "3px solid #0284c7",
+                    }}
+                  >
+                    <strong>{t("incomingRequests.ownerFeedbackLabel")}</strong>
+                    {req.responseReason}
+                  </p>
+                )}
               </div>
 
               <div className="request-side">
@@ -159,9 +219,9 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                         </button>
                         <button
                           className="button button-danger-outline"
-                          onClick={() => updateStatus(req.id, "rejected")}
+                          onClick={() => openResponseModal(req)}
                         >
-                          <X size={16} /> {t("incomingRequests.reject")}
+                          <MessageSquare size={16} /> {t("incomingRequests.respond")}
                         </button>
                       </div>
                       {isItemReservedByOther(req) && (
@@ -190,6 +250,91 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
           title={t("incomingRequests.emptyTitle")}
           description={t("incomingRequests.emptyDesc")}
         />
+      )}
+
+      {activeResponseReq && (
+        <div
+          className="modal-overlay"
+          onClick={() => setActiveResponseReq(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "16px",
+          }}
+        >
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "var(--card-bg, #ffffff)",
+              borderRadius: "12px",
+              padding: "24px",
+              width: "100%",
+              maxWidth: "480px",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <h3 style={{ margin: 0, fontSize: "1.2rem" }}>{t("incomingRequests.responseModalTitle")}</h3>
+              <button
+                type="button"
+                onClick={() => setActiveResponseReq(null)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)" }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p style={{ color: "var(--muted, #64748b)", fontSize: "0.875rem", marginBottom: "16px" }}>
+              {t("incomingRequests.responseModalDesc")}
+            </p>
+            <div style={{ marginBottom: "16px", background: "var(--surface-muted, #f8fafc)", padding: "12px", borderRadius: "8px" }}>
+              <strong>{activeResponseReq.itemName}</strong>
+              <div style={{ fontSize: "0.85rem", color: "var(--muted, #64748b)", marginTop: "2px" }}>
+                {t("incomingRequests.requestedBy")}: {activeResponseReq.borrower}
+              </div>
+            </div>
+            <div className="field" style={{ marginBottom: "16px" }}>
+              <label htmlFor="responseReason" style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
+                {t("incomingRequests.reasonLabel")}
+              </label>
+              <textarea
+                id="responseReason"
+                rows={3}
+                style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid var(--border, #cbd5e1)", resize: "vertical" }}
+                value={responseReason}
+                onChange={(e) => setResponseReason(e.target.value)}
+                placeholder={t("incomingRequests.reasonPlaceholder")}
+              />
+              {modalError && (
+                <small className="field-error" style={{ color: "#ef4444", marginTop: "4px", display: "block" }}>
+                  {modalError}
+                </small>
+              )}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "20px" }}>
+              <button
+                type="button"
+                className="button button-outline"
+                onClick={() => handleModalResponse("request_change")}
+                style={{ borderColor: "#0284c7", color: "#0284c7" }}
+              >
+                {t("incomingRequests.requestChange")}
+              </button>
+              <button
+                type="button"
+                className="button button-danger"
+                onClick={() => handleModalResponse("reject")}
+              >
+                {t("incomingRequests.permanentReject")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

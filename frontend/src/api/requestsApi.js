@@ -23,6 +23,7 @@ export function normalizeBorrowRequest(raw, items = []) {
     borrowDate: toDateOnly(raw.borrowDate || raw.startDate),
     returnDate: toDateOnly(raw.returnDate || raw.endDate),
     reason: raw.reason || "",
+    responseReason: raw.responseReason || raw.response_reason || "",
     status: String(raw.status || "pending").toLowerCase(),
   };
 }
@@ -102,9 +103,12 @@ export async function updateBorrowRequestStatus(
         ? "reset"
         : "reject";
 
+  const body = reason ? { reason } : undefined;
+
   try {
     return await apiRequest(`${requests}/${encodeURIComponent(id)}/${subAction}`, {
       method: "POST",
+      body,
       token,
     });
   } catch (err) {
@@ -116,12 +120,31 @@ export async function updateBorrowRequestStatus(
         `${LEGACY_REQUESTS_PATH}/${encodeURIComponent(id)}/${subAction}${query}`,
         {
           method: "POST",
+          body,
           token,
         },
       );
     }
     throw err;
   }
+}
+
+export async function respondToBorrowRequest(id, action, reason, token) {
+  const { requests } = getApiPaths();
+  return apiRequest(`${requests}/${encodeURIComponent(id)}/response`, {
+    method: "POST",
+    body: { action, reason },
+    token,
+  });
+}
+
+export async function resubmitBorrowRequest(id, payload, token) {
+  const { requests } = getApiPaths();
+  return apiRequest(`${requests}/${encodeURIComponent(id)}/resubmit`, {
+    method: "PUT",
+    body: payload,
+    token,
+  });
 }
 
 export async function cancelBorrowRequest(id, token) {

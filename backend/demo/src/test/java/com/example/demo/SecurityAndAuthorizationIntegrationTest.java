@@ -468,6 +468,153 @@ class SecurityAndAuthorizationIntegrationTest {
                 .isEqualTo(ItemStatus.RESERVED);
     }
 
+    @Test
+    @DisplayName("TC-SEC-14: Permanent rejection blocks subsequent requests from same borrower; Reset unblocks")
+    void tcSec14_permanentRejectionBlocksAndResetUnblocks() throws Exception {
+        Item itemOwnedByA = createItemOwnedBy(USER_A, "Microscope");
+        BorrowRequest reqByB = createPendingRequest(itemOwnedByA.getId(), USER_B);
+
+        // 1. Owner rejects User B's request via Response endpoint with reject action
+        mockMvc.perform(post("/api/requests/{id}/response", reqByB.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenA)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "action", "reject",
+                                "reason", "Cannot lend to this borrower"
+                        ))))
+                .andExpect(status().isOk());
+
+        BorrowRequest rejectedReq = borrowRequestRepository.findById(reqByB.getId()).orElseThrow();
+        assertThat(rejectedReq.getStatus()).isEqualTo(RequestStatus.REJECTED);
+        assertThat(rejectedReq.getResponseReason()).isEqualTo("Cannot lend to this borrower");
+
+        // 2. User B tries to borrow Microscope again -> 403 Forbidden
+        mockMvc.perform(post("/api/requests")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenB)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "itemId", itemOwnedByA.getId(),
+                                "startDate", LocalDateTime.now().plusDays(1).toString(),
+                                "endDate", LocalDateTime.now().plusDays(2).toString(),
+                                "reason", "Trying to request again"
+                        ))))
+                .andExpect(status().isForbidden());
+
+        // 3. User C can still request it without issue
+        mockMvc.perform(post("/api/requests")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenC)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "itemId", itemOwnedByA.getId(),
+                                "startDate", LocalDateTime.now().plusDays(1).toString(),
+                                "endDate", LocalDateTime.now().plusDays(2).toString(),
+                                "reason", "User C request"
+                        ))))
+                .andExpect(status().isCreated());
+
+        // 4. Owner resets User B's rejected request -> 200 OK
+        mockMvc.perform(post("/api/requests/{id}/reset", reqByB.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenA))
+                .andExpect(status().isOk());
+
+        assertThat(borrowRequestRepository.findById(reqByB.getId()).orElseThrow().getStatus())
+                .isEqualTo(RequestStatus.PENDING);
+    }
+
+    @Test
+    @DisplayName("TC-SEC-15: Request Change flow allows borrower to update dates and resubmit back to PENDING")
+    void tcSec15_requestChangeAndResubmitFlow() throws Exception {
+        Item itemOwnedByA = createItemOwnedBy(USER_A, "DSLR Camera");
+        BorrowRequest reqByB = createPendingRequest(itemOwnedByA.getId(), USER_B);
+
+        // 1. Owner requests change with feedback note
+        mockMvc.perform(post("/api/requests/{id}/response", reqByB.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenA)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "action", "request_change",
+                                "reason", "Please change return date to Friday"
+                        ))))
+                .andExpect(status().isOk());
+
+        BorrowRequest changeReq = borrowRequestRepository.findById(reqByB.getId()).orElseThrow();
+        assertThat(changeReq.getStatus()).isEqualTo(RequestStatus.CHANGE_REQUESTED);
+        assertThat(changeReq.getResponseReason()).isEqualTo("Please change return date to Friday");
+
+        // 2. Other user cannot resubmit on behalf of borrower B
+        mockMvc.perform(put("/api/requests/{id}/resubmit", reqByB.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenC)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "borrowDate", LocalDateTime.now().plusDays(2).toString(),
+                                "returnDate", LocalDateTime.now().plusDays(4).toString(),
+                                "reason", "Imposter trying to edit"
+                        ))))
+                .andExpect(status().isForbidden());
+
+        // 3. Borrower B resubmits with new dates
+        mockMvc.perform(put("/api/requests/{id}/resubmit", reqByB.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenB)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "borrowDate", LocalDateTime.now().plusDays(2).toString(),
+                                "returnDate", LocalDateTime.now().plusDays(5).toString(),
+                                "reason", "Updated date to Friday as requested"
+                        ))))
+                .andExpect(status().isOk());
+
+        BorrowRequest updatedReq = borrowRequestRepository.findById(reqByB.getId()).orElseThrow();
+        assertThat(updatedReq.getStatus()).isEqualTo(RequestStatus.PENDING);
+        assertThat(updatedReq.getReason()).isEqualTo("Updated date to Friday as requested");
+    }
+
+    @Test
+    @DisplayName("TC-SEC-16: Borrow request outside item's available date range is rejected with 400 Bad Request")
+    void tcSec16_borrowOutsideAvailabilityWindowRejected() throws Exception {
+        Item item = createItemOwnedBy(USER_A, "Chemistry Set");
+        LocalDateTime windowStart = LocalDateTime.now().plusDays(5);
+        LocalDateTime windowEnd = LocalDateTime.now().plusDays(10);
+        item.setAvailableFrom(windowStart);
+        item.setAvailableUntil(windowEnd);
+        itemRepository.save(item);
+
+        // 1. Borrower requests earlier than windowStart -> 400 Bad Request
+        mockMvc.perform(post("/api/requests")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenB)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "itemId", item.getId(),
+                                "startDate", LocalDateTime.now().plusDays(2).toString(),
+                                "endDate", LocalDateTime.now().plusDays(7).toString(),
+                                "reason", "Too early"
+                        ))))
+                .andExpect(status().isBadRequest());
+
+        // 2. Borrower requests later than windowEnd -> 400 Bad Request
+        mockMvc.perform(post("/api/requests")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenB)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "itemId", item.getId(),
+                                "startDate", LocalDateTime.now().plusDays(6).toString(),
+                                "endDate", LocalDateTime.now().plusDays(15).toString(),
+                                "reason", "Too late"
+                        ))))
+                .andExpect(status().isBadRequest());
+
+        // 3. Borrower requests within [windowStart, windowEnd] -> 201 Created
+        mockMvc.perform(post("/api/requests")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenB)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "itemId", item.getId(),
+                                "startDate", LocalDateTime.now().plusDays(6).toString(),
+                                "endDate", LocalDateTime.now().plusDays(8).toString(),
+                                "reason", "Within window"
+                        ))))
+                .andExpect(status().isCreated());
+    }
+
     // =========================================================================
     // Category 4: TU REST API JSON Response Parsing & Upsert Verification
     // =========================================================================

@@ -12,6 +12,7 @@ const STATUS_CONFIG = {
   reserved: "badge-warning",
   borrowed: "badge-neutral",
   unavailable: "badge-danger",
+  change_requested: "badge-info",
 };
 
 export function PageHeading({ eyebrow, title, subtitle, action }) {
