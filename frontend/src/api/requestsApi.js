@@ -10,7 +10,7 @@ function toDateOnly(value) {
 export function normalizeBorrowRequest(raw, items = []) {
   if (!raw) return null;
   const itemId = raw.itemId || raw.item_id || "";
-  const matchedItem = items.find((i) => i.id === itemId);
+  const matchedItem = items.find((i) => String(i.id) === String(itemId));
   return {
     id: raw.id || raw.requestId,
     itemId,

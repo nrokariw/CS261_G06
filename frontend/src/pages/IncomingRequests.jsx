@@ -24,12 +24,12 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
   const [actionError, setActionError] = useState("");
 
   const checkIsItemOwner = (req) => {
-    const matchedItem = (items || []).find((i) => i.id === req.itemId);
+    const matchedItem = (items || []).find((i) => String(i.id) === String(req.itemId));
     const ownerId = req.ownerId || matchedItem?.ownerId;
     const ownerName = req.owner || matchedItem?.owner;
     return Boolean(
-      (user?.studentId && ownerId === user.studentId) ||
-      (user?.id && ownerId === user.id) ||
+      (user?.studentId && String(ownerId) === String(user.studentId)) ||
+      (user?.id && String(ownerId) === String(user.id)) ||
       (user?.name && ownerName === user.name)
     );
   };

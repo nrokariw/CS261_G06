@@ -92,7 +92,17 @@ export default function App() {
   useEffect(() => setMobileMenu(false), [location.pathname]);
 
   const pendingCount = user
-    ? requests.filter((r) => r.status === "pending").length
+    ? requests.filter((r) => {
+        if (r.status !== "pending") return false;
+        const matchedItem = items.find((i) => String(i.id) === String(r.itemId));
+        const ownerId = r.ownerId || matchedItem?.ownerId;
+        const ownerName = r.owner || matchedItem?.owner;
+        return Boolean(
+          (user?.studentId && String(ownerId) === String(user.studentId)) ||
+          (user?.id && String(ownerId) === String(user.id)) ||
+          (user?.name && ownerName === user.name)
+        );
+      }).length
     : 0;
   const navItems = [
     { to: "/", label: t("nav.home"), icon: LayoutGrid, end: true },
@@ -327,6 +337,7 @@ export default function App() {
                     requests={requests}
                     setRequests={setRequests}
                     setItems={setItems}
+                    items={items}
                   />
                 </ProtectedRoute>
               }

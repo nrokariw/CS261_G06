@@ -84,6 +84,8 @@ export default function ItemDetails({ items, setRequests }) {
             id: normalized?.id || apiResult?.id || crypto.randomUUID(),
             itemId: item.id,
             itemName: item.name,
+            ownerId: normalized?.ownerId || item.ownerId || "",
+            owner: normalized?.owner || item.owner || "",
             borrower: user?.name || payload.borrowerId,
             borrowerId: payload.borrowerId,
             borrowDate: normalized?.borrowDate || borrowDate,
