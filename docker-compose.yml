@@ -56,6 +56,7 @@ services:
     volumes:
       - ./backend/demo/uploads:/app/uploads
       - ./storage/products:/app/uploads/products
+      - ./storage/evidence:/app/uploads/evidence
       - ./storage/temporary:/app/uploads/temporary
       - ./storage:/app/storage
     depends_on:
