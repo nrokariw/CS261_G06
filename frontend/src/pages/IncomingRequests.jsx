@@ -254,64 +254,47 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
 
       {activeResponseReq && (
         <div
-          className="modal-overlay"
+          className="modal-backdrop"
           onClick={() => setActiveResponseReq(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "16px",
-          }}
         >
           <div
-            className="modal-content"
+            className="modal-card"
             onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "var(--card-bg, #ffffff)",
-              borderRadius: "12px",
-              padding: "24px",
-              width: "100%",
-              maxWidth: "480px",
-              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-            }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-              <h3 style={{ margin: 0, fontSize: "1.2rem" }}>{t("incomingRequests.responseModalTitle")}</h3>
+            <div className="modal-header">
+              <h3 className="modal-title">{t("incomingRequests.responseModalTitle")}</h3>
               <button
                 type="button"
+                className="modal-close-btn"
                 onClick={() => setActiveResponseReq(null)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)" }}
+                aria-label={t("common.close", { defaultValue: "ปิด" })}
               >
                 <X size={20} />
               </button>
             </div>
-            <p style={{ color: "var(--muted, #64748b)", fontSize: "0.875rem", marginBottom: "16px" }}>
+            <p className="modal-desc">
               {t("incomingRequests.responseModalDesc")}
             </p>
-            <div style={{ marginBottom: "16px", background: "var(--surface-muted, #f8fafc)", padding: "12px", borderRadius: "8px" }}>
+            <div className="modal-item-summary">
               <strong>{activeResponseReq.itemName}</strong>
-              <div style={{ fontSize: "0.85rem", color: "var(--muted, #64748b)", marginTop: "2px" }}>
+              <div className="modal-borrower-meta">
                 {t("incomingRequests.requestedBy")}: {activeResponseReq.borrower}
               </div>
             </div>
             <div className="field" style={{ marginBottom: "16px" }}>
-              <label htmlFor="responseReason" style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
+              <label htmlFor="responseReason">
                 {t("incomingRequests.reasonLabel")}
               </label>
               <textarea
                 id="responseReason"
                 rows={3}
-                style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid var(--border, #cbd5e1)", resize: "vertical" }}
                 value={responseReason}
                 onChange={(e) => setResponseReason(e.target.value)}
                 placeholder={t("incomingRequests.reasonPlaceholder")}
               />
               {modalError && (
-                <small className="field-error" style={{ color: "#ef4444", marginTop: "4px", display: "block" }}>
+                <small className="field-error" style={{ marginTop: "4px" }}>
+                  <AlertCircle size={13} />
                   {modalError}
                 </small>
               )}
@@ -319,9 +302,8 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
             <div className="modal-actions-grid">
               <button
                 type="button"
-                className="button button-outline"
+                className="button button-outline modal-btn-change"
                 onClick={() => handleModalResponse("request_change")}
-                style={{ borderColor: "#0284c7", color: "#0284c7" }}
               >
                 {t("incomingRequests.requestChange")}
               </button>
