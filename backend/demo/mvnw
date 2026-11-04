@@ -147,6 +147,16 @@ MAVEN_HOME="${MAVEN_USER_HOME}/wrapper/dists/${distributionUrlNameMain-}/$(hash_
 
 exec_maven() {
   unset MVNW_VERBOSE MVNW_USERNAME MVNW_PASSWORD MVNW_REPOURL || :
+  case "${MAVEN_ARGS-}" in
+    *--settings\ *)
+      _settings_path=$(printf '%s' "$MAVEN_ARGS" | sed -n 's/.*--settings \([^ ]*\).*/\1/p')
+      if [ -n "$_settings_path" ] && [ ! -f "$_settings_path" ]; then
+        MAVEN_ARGS=$(printf '%s' "$MAVEN_ARGS" | sed "s|--settings $_settings_path||")
+        export MAVEN_ARGS
+      fi
+      unset _settings_path
+      ;;
+  esac
   exec "$MAVEN_HOME/bin/$MVN_CMD" "$@" || die "cannot exec $MAVEN_HOME/bin/$MVN_CMD"
 }
 
