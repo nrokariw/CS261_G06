@@ -122,6 +122,24 @@ public class DatabaseSchemaRepair implements CommandLineRunner {
                 "ALTER TABLE borrow_request ALTER COLUMN status VARCHAR(50); " +
                 "END"
             );
+            // ลบ CHECK constraint เก่าของสถานะคำขอยืม เพื่อให้บันทึกสถานะ CHANGE_REQUESTED ได้
+            jdbcTemplate.execute(
+                "DECLARE @sql NVARCHAR(MAX) = N''; " +
+                "SELECT @sql += N'ALTER TABLE ' + QUOTENAME(OBJECT_NAME(cc.parent_object_id)) + N' DROP CONSTRAINT ' + QUOTENAME(cc.name) + N'; ' " +
+                "FROM sys.check_constraints cc " +
+                "JOIN sys.columns c ON cc.parent_object_id = c.object_id AND cc.parent_column_id = c.column_id " +
+                "WHERE cc.parent_object_id IN (OBJECT_ID('borrow_requests'), OBJECT_ID('borrow_request')) " +
+                "  AND c.name IN ('request_status', 'status'); " +
+                "IF @sql <> N'' EXEC sp_executesql @sql;"
+            );
+            // อัปเดตคอลัมน์ในตาราง borrow_requests ให้รองรับภาษาไทยและข้อความตอบกลับ
+            jdbcTemplate.execute(
+                "IF OBJECT_ID('borrow_requests', 'U') IS NOT NULL BEGIN " +
+                "IF COL_LENGTH('borrow_requests', 'reason') IS NOT NULL ALTER TABLE borrow_requests ALTER COLUMN reason NVARCHAR(MAX); " +
+                "IF COL_LENGTH('borrow_requests', 'response_reason') IS NULL ALTER TABLE borrow_requests ADD response_reason NVARCHAR(MAX) NULL; " +
+                "IF COL_LENGTH('borrow_requests', 'request_status') IS NOT NULL ALTER TABLE borrow_requests ALTER COLUMN request_status VARCHAR(50); " +
+                "END"
+            );
             jdbcTemplate.execute(
                 "IF OBJECT_ID('users', 'U') IS NOT NULL BEGIN " +
                 "IF COL_LENGTH('users', 'password_hash') IS NULL ALTER TABLE users ADD password_hash VARCHAR(255) NULL; " +
