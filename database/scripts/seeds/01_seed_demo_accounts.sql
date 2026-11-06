@@ -2,6 +2,9 @@
 -- Seed Script: Demo Student Accounts (dev / demo mode)
 -- Default password for all demo accounts: password123
 -- ============================================================================
+USE [$(DB_NAME)];
+GO
+
 MERGE INTO users AS target
 USING (VALUES
     ('6809000001', N'6809000001', N'Ploy S.', N'ploy.s@dome.tu.ac.th', N'คณะวิทยาศาสตร์และเทคโนโลยี', N'สาขาวิชาวิทยาการคอมพิวเตอร์', '$2a$10$8.UnVuG9HHgffUDAlk8qfOuVGkqRzgVymGe07xd00DMxs.AQubh4a', 'STUDENT', 'LOCAL'),

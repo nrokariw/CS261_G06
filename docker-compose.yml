@@ -8,10 +8,13 @@ services:
         DB_IMAGE: ${DB_IMAGE:-mcr.microsoft.com/mssql/server:2022-latest}
     platform: ${DB_PLATFORM:-linux/amd64}
     container_name: cs261-database
+    env_file:
+      - .env.example
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-StrongPassw0rd!}
       MSSQL_PID: ${MSSQL_PID:-Developer}
+      DB_NAME: ${DB_NAME}
     ports:
       - "${DB_PORT:-1433}:1433"
     volumes:
@@ -19,7 +22,7 @@ services:
       - ./database/scripts:/scripts
     healthcheck:
       # MSSQL 2022 relocated sqlcmd to mssql-tools18 and enforces TLS (-C); fallback to /dev/tcp if tools differ
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" || bash -c '</dev/tcp/localhost/1433'"]
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"IF DB_ID('$$DB_NAME') IS NULL CREATE DATABASE [$$DB_NAME];\" || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"IF DB_ID('$$DB_NAME') IS NULL CREATE DATABASE [$$DB_NAME];\" || bash -c '</dev/tcp/localhost/1433'"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -48,7 +51,7 @@ services:
       APP_JWT_SECRET: "${JWT_SECRET:-CampusShareSuperSecretJwtKeyForHS256Signing2026!CS261G06}"
       APP_JWT_ACCESS_EXPIRATION_MS: "${JWT_ACCESS_EXPIRATION_MS:-900000}"
       APP_JWT_REFRESH_EXPIRATION_MS: "${JWT_REFRESH_EXPIRATION_MS:-604800000}"
-      SPRING_DATASOURCE_URL: "jdbc:sqlserver://database:1433;databaseName=${DB_NAME:-master};encrypt=true;trustServerCertificate=true"
+      SPRING_DATASOURCE_URL: "jdbc:sqlserver://database:1433;databaseName=${DB_NAME};encrypt=true;trustServerCertificate=true"
       SPRING_DATASOURCE_USERNAME: "${DB_USER:-sa}"
       SPRING_DATASOURCE_PASSWORD: "${MSSQL_SA_PASSWORD:-StrongPassw0rd!}"
       SPRING_JPA_HIBERNATE_DDL_AUTO: "${HIBERNATE_DDL_AUTO:-update}"
