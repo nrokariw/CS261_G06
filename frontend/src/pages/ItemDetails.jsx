@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
@@ -10,19 +10,21 @@ import {
   ShieldCheck,
   UserRound,
   Send,
+  LogIn,
 } from "lucide-react";
 import { PageHeading, StatusBadge } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { BORROW_REASON_MAX_LENGTH } from "../constants/config";
 import { getCategoryLabel, normalizeCategoryKey } from "../data";
-import { createBorrowRequest, normalizeBorrowRequest } from "../api/requestsApi";
+import { createBorrowRequest, normalizeBorrowRequest, resubmitBorrowRequest } from "../api/requestsApi";
 import { getItemById } from "../api/itemsApi";
 
-export default function ItemDetails({ items, setRequests }) {
+export default function ItemDetails({ items, requests = [], setRequests }) {
   const { user, token } = useAuth();
   const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -51,6 +53,33 @@ export default function ItemDetails({ items, setRequests }) {
     loadItem();
   }, [id, token]);
 
+  const availFromStr = item?.availableFrom ? String(item.availableFrom).slice(0, 10) : "";
+  const availUntilStr = item?.availableUntil ? String(item.availableUntil).slice(0, 10) : "";
+
+  const minBorrowDate = availFromStr && availFromStr > today ? availFromStr : today;
+  const maxBorrowDate = availUntilStr || undefined;
+  const minReturnDate = borrowDate || minBorrowDate;
+  const maxReturnDate = availUntilStr || undefined;
+
+  const myRequest = (requests || []).find((r) => {
+    const matchesBorrower = Boolean(
+      (user?.studentId && String(r.borrowerId) === String(user.studentId)) ||
+      (user?.id && String(r.borrowerId) === String(user.id)) ||
+      (user?.name && r.borrower === user.name)
+    );
+    if (!matchesBorrower) return false;
+    const matchesItem = String(r.itemId) === String(id || item?.id);
+    return matchesItem;
+  });
+
+  useEffect(() => {
+    if (myRequest && myRequest.status === "change_requested") {
+      if (myRequest.borrowDate) setBorrowDate(myRequest.borrowDate);
+      if (myRequest.returnDate) setReturnDate(myRequest.returnDate);
+      if (myRequest.reason) setReason(myRequest.reason);
+    }
+  }, [myRequest]);
+
   async function submit(e) {
     e.preventDefault();
     setSubmitError("");
@@ -61,6 +90,16 @@ export default function ItemDetails({ items, setRequests }) {
       next.borrowDate = t("validation.borrowDatePast");
     if (borrowDate && returnDate && returnDate < borrowDate)
       next.returnDate = t("validation.returnDateBeforeBorrow");
+    if (availFromStr && borrowDate && borrowDate < availFromStr) {
+      next.borrowDate = t("validation.borrowDateBeforeAvail", {
+        defaultValue: `วันที่ยืมต้องไม่ก่อน ${availFromStr}`,
+      });
+    }
+    if (availUntilStr && returnDate && returnDate > availUntilStr) {
+      next.returnDate = t("validation.returnDateAfterAvail", {
+        defaultValue: `วันที่คืนต้องไม่เกิน ${availUntilStr}`,
+      });
+    }
     if (!reason.trim()) next.reason = t("validation.reasonRequired");
     setErrors(next);
     if (Object.keys(next).length) return;
@@ -74,23 +113,44 @@ export default function ItemDetails({ items, setRequests }) {
     };
 
     try {
-      const apiResult = await createBorrowRequest(payload, token);
-      const normalized = normalizeBorrowRequest(apiResult, items || [item]);
-      if (setRequests) {
-        setRequests((prev) => [
-          {
-            id: normalized?.id || apiResult?.id || crypto.randomUUID(),
-            itemId: item.id,
-            itemName: item.name,
-            borrower: user?.name || payload.borrowerId,
-            borrowerId: payload.borrowerId,
-            borrowDate: normalized?.borrowDate || borrowDate,
-            returnDate: normalized?.returnDate || returnDate,
-            reason: normalized?.reason || reason.trim(),
-            status: normalized?.status || "pending",
-          },
-          ...prev,
-        ]);
+      if (myRequest && myRequest.status === "change_requested") {
+        await resubmitBorrowRequest(myRequest.id, payload, token);
+        if (setRequests) {
+          setRequests((prev) =>
+            prev.map((r) =>
+              r.id === myRequest.id
+                ? {
+                    ...r,
+                    borrowDate,
+                    returnDate,
+                    reason: reason.trim(),
+                    status: "pending",
+                  }
+                : r,
+            ),
+          );
+        }
+      } else {
+        const apiResult = await createBorrowRequest(payload, token);
+        const normalized = normalizeBorrowRequest(apiResult, items || [item]);
+        if (setRequests) {
+          setRequests((prev) => [
+            {
+              id: normalized?.id || apiResult?.id || crypto.randomUUID(),
+              itemId: item.id,
+              itemName: item.name,
+              ownerId: normalized?.ownerId || item.ownerId || "",
+              owner: normalized?.owner || item.owner || "",
+              borrower: user?.name || payload.borrowerId,
+              borrowerId: payload.borrowerId,
+              borrowDate: normalized?.borrowDate || borrowDate,
+              returnDate: normalized?.returnDate || returnDate,
+              reason: normalized?.reason || reason.trim(),
+              status: normalized?.status || "pending",
+            },
+            ...prev,
+          ]);
+        }
       }
       setSuccess(true);
       setTimeout(() => navigate("/my-borrows"), 1500);
@@ -99,7 +159,7 @@ export default function ItemDetails({ items, setRequests }) {
     }
   }
 
-  if(loading) return <div className="page-stack">กำลังโหลดข้อมูล...</div>
+  if (loading) return <div className="page-stack">กำลังโหลดข้อมูล...</div>;
 
   if (errorMsg || !item)
     return (
@@ -121,6 +181,8 @@ export default function ItemDetails({ items, setRequests }) {
     (user?.id && item.ownerId === user.id) ||
     (user?.name && item.owner === user.name)
   );
+
+  const effectiveStatus = myRequest ? myRequest.status : item.status;
   const isAvailable = String(item.status || "").toLowerCase() === "available";
 
   return (
@@ -150,7 +212,7 @@ export default function ItemDetails({ items, setRequests }) {
             </div>
           )}
           <div className="detail-info">
-            <StatusBadge status={item.status} />
+            <StatusBadge status={effectiveStatus} />
             <span className="category-label">{categoryLabel}</span>
             <h1>{item.name}</h1>
             <div className="owner-row">
@@ -176,6 +238,31 @@ export default function ItemDetails({ items, setRequests }) {
                 <ShieldCheck size={16} /> {t("itemDetails.careNotice")}
               </span>
             </div>
+            {availFromStr && (
+              <div
+                style={{
+                  marginTop: "12px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  color: "#0369A1",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  background: "#E0F2FE",
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  width: "fit-content",
+                }}
+              >
+                <CalendarDays size={16} />
+                <span>
+                  {t("itemDetails.availablePeriod", {
+                    from: availFromStr,
+                    until: availUntilStr || t("common.noEndDate", { defaultValue: "ไม่มีกำหนด" }),
+                  })}
+                </span>
+              </div>
+            )}
           </div>
         </section>
         <aside className="borrow-panel">
@@ -188,7 +275,27 @@ export default function ItemDetails({ items, setRequests }) {
               <p>{t("itemDetails.borrowSubtitle")}</p>
             </div>
           </div>
-          {success ? (
+          {!user ? (
+            <div style={{ marginTop: "15px", display: "grid", gap: "12px" }}>
+              <div className="borrow-note">
+                <ShieldCheck size={17} />
+                <span>
+                  {t("auth.loginRequiredToBorrow", {
+                    defaultValue:
+                      "กรุณาเข้าสู่ระบบด้วยบัญชีนักศึกษาก่อนส่งคำขอยืมสิ่งของชิ้นนี้",
+                  })}
+                </span>
+              </div>
+              <Link
+                to="/login"
+                state={{ from: location }}
+                className="button button-primary button-full"
+              >
+                <LogIn size={16} />{" "}
+                {t("nav.login", { defaultValue: "เข้าสู่ระบบ" })}
+              </Link>
+            </div>
+          ) : success ? (
             <div className="request-success">
               <span>
                 <CheckCircle2 size={28} />
@@ -207,6 +314,69 @@ export default function ItemDetails({ items, setRequests }) {
               <ShieldCheck size={17} />
               <span>{t("itemDetails.cannotBorrowOwnItem", { defaultValue: "คุณเป็นเจ้าของสิ่งของชิ้นนี้ ไม่สามารถยืมของตัวเองได้" })}</span>
             </div>
+          ) : myRequest?.status === "rejected" ? (
+            <div
+              className="borrow-note"
+              style={{
+                color: "#B9382B",
+                marginTop: "15px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "stretch",
+                gap: "8px",
+                background: "#FCE8E4",
+                borderLeft: "4px solid #B9382B",
+                padding: "14px",
+                borderRadius: "8px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "bold" }}>
+                <AlertCircle size={18} />
+                <span>{t("itemDetails.borrowBlockedTitle")}</span>
+              </div>
+              <p style={{ margin: 0, fontSize: "0.875rem", color: "#6b7280" }}>
+                {t("itemDetails.borrowBlockedDesc")}
+              </p>
+              {myRequest.responseReason && (
+                <div style={{ marginTop: "4px", fontSize: "0.85rem", color: "#B9382B", fontWeight: 500 }}>
+                  {t("itemDetails.ownerNotePrefix")} {myRequest.responseReason}
+                </div>
+              )}
+              <button
+                type="button"
+                className="button button-outline button-full"
+                style={{ marginTop: "8px" }}
+                onClick={() => navigate("/my-borrows")}
+              >
+                {t("itemDetails.viewMyBorrows")}
+              </button>
+            </div>
+          ) : myRequest && (myRequest.status === "pending" || myRequest.status === "accepted") ? (
+            <div className="request-success" style={{ marginTop: "15px" }}>
+              <span>
+                <CheckCircle2 size={28} />
+              </span>
+              <h3>
+                {myRequest.status === "accepted"
+                  ? t("itemDetails.requestAcceptedTitle", { defaultValue: "คำขอของคุณได้รับการอนุมัติแล้ว" })
+                  : t("itemDetails.requestPendingTitle", { defaultValue: "คุณได้ส่งคำขอยืมสิ่งของนี้แล้ว" })}
+              </h3>
+              <p>
+                {myRequest.status === "accepted"
+                  ? t("itemDetails.requestAcceptedDesc", { defaultValue: "กรุณานัดหมายเพื่อรับสิ่งของตามกำหนด" })
+                  : t("itemDetails.requestPendingDesc", { defaultValue: "คำขอของคุณอยู่ระหว่างรอเจ้าของสิ่งของตรวจสอบ" })}
+              </p>
+              <div style={{ margin: "10px 0" }}>
+                <StatusBadge status={myRequest.status} />
+              </div>
+              <button
+                type="button"
+                className="button button-primary button-full"
+                onClick={() => navigate("/my-borrows")}
+              >
+                {t("itemDetails.viewMyBorrows", { defaultValue: "ดูรายการยืมของฉัน" })}
+              </button>
+            </div>
           ) : !isAvailable ? (
             <div className="borrow-note" style={{ color: "var(--danger, #ef4444)", marginTop: "15px" }}>
               <AlertCircle size={17} />
@@ -214,6 +384,27 @@ export default function ItemDetails({ items, setRequests }) {
             </div>
           ) : (
             <form onSubmit={submit} noValidate>
+              {myRequest?.status === "change_requested" && (
+                <div
+                  style={{
+                    background: "#E0F2FE",
+                    borderLeft: "4px solid #0284c7",
+                    color: "#0369A1",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    marginBottom: "16px",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  <strong>{t("itemDetails.requestChangeTitle")}</strong>
+                  <p style={{ margin: "4px 0" }}>{t("itemDetails.requestChangeDesc")}</p>
+                  {myRequest.responseReason && (
+                    <div style={{ fontWeight: 600, marginTop: "4px" }}>
+                      {t("itemDetails.ownerNotePrefix")} {myRequest.responseReason}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="field">
                 <label htmlFor="borrowDate">
                   {t("itemDetails.borrowDateLabel")} <span className="required">*</span>
@@ -221,7 +412,8 @@ export default function ItemDetails({ items, setRequests }) {
                 <input
                   id="borrowDate"
                   type="date"
-                  min={today}
+                  min={minBorrowDate}
+                  max={maxBorrowDate}
                   value={borrowDate}
                   onChange={(e) => setBorrowDate(e.target.value)}
                   aria-invalid={!!errors.borrowDate}
@@ -237,7 +429,8 @@ export default function ItemDetails({ items, setRequests }) {
                 <input
                   id="returnDate"
                   type="date"
-                  min={borrowDate || today}
+                  min={minReturnDate}
+                  max={maxReturnDate}
                   value={returnDate}
                   onChange={(e) => setReturnDate(e.target.value)}
                   aria-invalid={!!errors.returnDate}
@@ -280,7 +473,10 @@ export default function ItemDetails({ items, setRequests }) {
                 className="button button-primary button-full"
                 type="submit"
               >
-                <Send size={16} /> {t("itemDetails.submitRequest")}
+                <Send size={16} />{" "}
+                {myRequest?.status === "change_requested"
+                  ? t("itemDetails.resubmitRequest")
+                  : t("itemDetails.submitRequest")}
               </button>
             </form>
           )}

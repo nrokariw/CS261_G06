@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import com.example.demo.constant.ItemStatus;
+import com.example.demo.constant.RequestStatus;
 import com.example.demo.dto.BorrowRequestDto;
 import com.example.demo.model.BorrowRequest;
 import com.example.demo.model.Item;
@@ -45,6 +46,14 @@ public class BorrowRequestService {
             throw new IllegalArgumentException("Item cannot borrow your own belongings");
         }
 
+        // ตรวจสอบว่าผู้ยืมคนนี้เคยถูก REJECT ในสิ่งของชิ้นนี้หรือไม่ (Permanent Block จนกว่าเจ้าของจะ Reset)
+        List<BorrowRequest> existingRequests = borrowRequestRepository.findByItemIdAndBorrowerId(dto.getItemId(), borrowerId);
+        boolean isBlocked = existingRequests.stream()
+                .anyMatch(r -> r.getStatus() == RequestStatus.REJECTED);
+        if (isBlocked) {
+            throw new SecurityException("You have been blocked from requesting this item by the owner");
+        }
+
         // 2) เช็คว่าไอเท็มนี้พร้อมให้ยืมไหม (โยน IllegalStateException -> Handler จะแปลงเป็น 409 Conflict)
         if (item.getStatus() != ItemStatus.AVAILABLE) {
             throw new IllegalStateException("Item is not available for borrow");
@@ -53,6 +62,14 @@ public class BorrowRequestService {
         // 3) เช็คว่าวันที่คืนไม่ได้อยู่ก่อนวันที่เริ่มยืมใช่ไหม (โยน IllegalArgumentException -> แปลงเป็น 400 Bad Request)
         if (dto.getEndDate().isBefore(dto.getStartDate())) {
             throw new IllegalArgumentException("The return date must not be before the date the loan began");
+        }
+
+        // ตรวจสอบกรอบเวลาที่เปิดให้ยืม (Available Date Range)
+        if (item.getAvailableFrom() != null && dto.getStartDate().isBefore(item.getAvailableFrom())) {
+            throw new IllegalArgumentException("Requested start date is before the item's available window: " + item.getAvailableFrom());
+        }
+        if (item.getAvailableUntil() != null && dto.getEndDate().isAfter(item.getAvailableUntil())) {
+            throw new IllegalArgumentException("Requested end date is after the item's available window: " + item.getAvailableUntil());
         }
 
 
@@ -73,11 +90,20 @@ public class BorrowRequestService {
     // 2. ผู้ยืมยกเลิกคำขอยืม 
     @Transactional
     public BorrowRequest cancelRequest(String requestId) {
+        return cancelRequest(requestId, null);
+    }
+
+    @Transactional
+    public BorrowRequest cancelRequest(String requestId, String borrowerId) {
         BorrowRequest request = borrowRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Borrow Request not found: " + requestId));
 
         Item item = itemRepository.findById(request.getItemId())
                 .orElseThrow(() -> new RuntimeException("Item not found: " + request.getItemId()));
+
+        if (borrowerId == null || borrowerId.isBlank() || !request.getBorrowerId().equals(borrowerId)) {
+            throw new SecurityException("Unauthorized: Only the borrower of this request can cancel it");
+        }
 
         // เปลี่ยนสถานะคำขอเป็น CANCELLED
         request.cancel();
@@ -102,8 +128,13 @@ public class BorrowRequestService {
                 .orElseThrow(() -> new RuntimeException("Item not found: " + request.getItemId()));
 
         // ตรวจสอบว่าคนที่กดอนุมัติ เป็นเจ้าของไอเท็มชิ้นนี้จริงๆ หรือไม่ (Security Check)
-        if (ownerId != null && !ownerId.isEmpty() && !item.getOwnerId().equals(ownerId)) {
+        if (ownerId == null || ownerId.isBlank() || !item.getOwnerId().equals(ownerId)) {
             throw new SecurityException("Unauthorized: You are not the owner of this item");
+        }
+
+        // ตรวจสอบว่าไอเท็มยังพร้อมให้ยืมหรือไม่ (ถ้าถูก ACCEPTED/RESERVED หรือ BORROWED ไปแล้ว จะอนุมัติซ้ำไม่ได้)
+        if (item.getStatus() != ItemStatus.AVAILABLE) {
+            throw new IllegalStateException("Item is already reserved or borrowed by another request");
         }
 
         // เปลี่ยนสถานะคำขอเป็น ACCEPTED
@@ -122,20 +153,50 @@ public class BorrowRequestService {
     // 3.2. เจ้าของปฏิเสธคำขอ
     @Transactional
     public BorrowRequest rejectRequest(String requestId, String ownerId) {
+        return rejectRequest(requestId, ownerId, null);
+    }
+
+    @Transactional
+    public BorrowRequest rejectRequest(String requestId, String ownerId, String reason) {
+        return respondToRequest(requestId, ownerId, "reject", reason);
+    }
+
+    // 4.1 เจ้าของขอให้แก้ไขข้อมูล (Request Change)
+    @Transactional
+    public BorrowRequest requestChange(String requestId, String ownerId, String reason) {
+        return respondToRequest(requestId, ownerId, "request_change", reason);
+    }
+
+    // 4.2 เจ้าของตอบกลับคำขอ (เลือกระหว่าง Request Change หรือ Permanent Reject)
+    @Transactional
+    public BorrowRequest respondToRequest(String requestId, String ownerId, String action, String reason) {
         BorrowRequest request = borrowRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Request not found: " + requestId));
 
         Item item = itemRepository.findById(request.getItemId())
                 .orElseThrow(() -> new RuntimeException("Item not found: " + request.getItemId()));
 
-        if (ownerId != null && !ownerId.isEmpty() && !item.getOwnerId().equals(ownerId)) {
+        if (ownerId == null || ownerId.isBlank() || !item.getOwnerId().equals(ownerId)) {
             throw new SecurityException("Unauthorized: You are not the owner of this item");
         }
 
-        // เปลี่ยนสถานะคำขอเป็น REJECTED
-        request.reject();
+        if (action == null || action.trim().isEmpty()) {
+            throw new IllegalArgumentException("Action must not be empty");
+        }
 
-        // ดึงสถานะ Item อัตโนมัติ (จะได้ ItemStatus.AVAILABLE)
+        String normalized = action.trim().toLowerCase();
+        if ("request_change".equals(normalized) || "requestchange".equals(normalized)) {
+            if (reason == null || reason.trim().isEmpty()) {
+                throw new IllegalArgumentException("Reason is required when requesting changes");
+            }
+            request.requestChange(reason);
+        } else if ("reject".equals(normalized)) {
+            request.reject(reason);
+        } else {
+            throw new IllegalArgumentException("Unsupported action: " + action + ". Supported actions: request_change, reject");
+        }
+
+        // ดึงสถานะ Item อัตโนมัติ
         ItemStatus nextItemStatus = request.getStatus().getItemStatus();
         if (nextItemStatus != null) {
             item.setStatus(nextItemStatus);
@@ -143,23 +204,71 @@ public class BorrowRequestService {
 
         itemRepository.save(item);
         return borrowRequestRepository.save(request);
+    }
+
+    // 4.3 ผู้ยืมแก้ไขข้อมูลคำขอและส่งกลับมาให้เจ้าของพิจารณาใหม่
+    @Transactional
+    public BorrowRequest resubmitChangeRequest(String requestId, String borrowerId, BorrowRequestDto dto) {
+        BorrowRequest request = borrowRequestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Request not found: " + requestId));
+
+        Item item = itemRepository.findById(request.getItemId())
+                .orElseThrow(() -> new RuntimeException("Item not found: " + request.getItemId()));
+
+        if (borrowerId == null || borrowerId.isBlank() || !request.getBorrowerId().equals(borrowerId)) {
+            throw new SecurityException("Unauthorized: Only the requester can resubmit this request");
+        }
+
+        if (request.getStatus() != RequestStatus.CHANGE_REQUESTED && request.getStatus() != RequestStatus.PENDING) {
+            throw new IllegalStateException("Only requests with CHANGE_REQUESTED or PENDING status can be edited and resubmitted");
+        }
+
+        if (dto.getStartDate() != null && dto.getEndDate() != null && dto.getEndDate().isBefore(dto.getStartDate())) {
+            throw new IllegalArgumentException("The return date must not be before the date the loan began");
+        }
+
+        // ตรวจสอบกรอบเวลาที่เปิดให้ยืม (Available Date Range)
+        if (dto.getStartDate() != null && item.getAvailableFrom() != null && dto.getStartDate().isBefore(item.getAvailableFrom())) {
+            throw new IllegalArgumentException("Requested start date is before the item's available window: " + item.getAvailableFrom());
+        }
+        if (dto.getEndDate() != null && item.getAvailableUntil() != null && dto.getEndDate().isAfter(item.getAvailableUntil())) {
+            throw new IllegalArgumentException("Requested end date is after the item's available window: " + item.getAvailableUntil());
+        }
+
+        if (dto.getStartDate() != null) request.setStartDate(dto.getStartDate());
+        if (dto.getEndDate() != null) request.setEndDate(dto.getEndDate());
+        if (dto.getReason() != null && !dto.getReason().trim().isEmpty()) {
+            request.setReason(dto.getReason().trim());
+        }
+
+        request.setStatus(RequestStatus.PENDING);
+        return borrowRequestRepository.save(request);
     } 
 
     // 4. รีเซ็ตสถานะของคำขอยืมกลับไปเป็น "รอนุมัติ" และ ปรับสถานะสิ่งของที่เกี่ยวข้องให้กลับมา "พร้อมใช้งาน" 
     @Transactional
     public BorrowRequest resetRequestToPending(String requestId, String ownerId) {
         BorrowRequest request = borrowRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Request not found"));
+                .orElseThrow(() -> new RuntimeException("Request not found: " + requestId));
 
         Item item = itemRepository.findById(request.getItemId())
-                .orElseThrow(() -> new RuntimeException("Item not found"));
+                .orElseThrow(() -> new RuntimeException("Item not found: " + request.getItemId()));
 
-        if (ownerId != null && !ownerId.isEmpty() && !item.getOwnerId().equals(ownerId)) {
+        if (ownerId == null || ownerId.isBlank() || !item.getOwnerId().equals(ownerId)) {
             throw new SecurityException("Unauthorized: You are not the owner of this item");
         }
 
         request.resetToPending();
-        item.setStatus(ItemStatus.AVAILABLE);
+
+        // ตรวจสอบว่ายังมีคำขออื่นของไอเท็มนี้ที่ยัง ACCEPTED อยู่ไหม
+        boolean hasOtherAccepted = borrowRequestRepository.findAll().stream()
+                .anyMatch(r -> !r.getId().equals(requestId)
+                        && r.getItemId().equals(item.getId())
+                        && r.getStatus() == RequestStatus.ACCEPTED);
+
+        if (!hasOtherAccepted && item.getStatus() == ItemStatus.RESERVED) {
+            item.setStatus(ItemStatus.AVAILABLE);
+        }
 
         itemRepository.save(item);
         return borrowRequestRepository.save(request);

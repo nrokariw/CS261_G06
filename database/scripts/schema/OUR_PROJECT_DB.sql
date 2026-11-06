@@ -6,6 +6,31 @@ GO
 USE our_project_db;
 GO
 
+-- สร้างตาราง users สำหรับเก็บข้อมูลบัญชีผู้ใช้และรหัสผ่าน BCrypt (US-AUTH.1)
+CREATE TABLE users (
+    student_id VARCHAR(50) PRIMARY KEY,
+    username NVARCHAR(255) NOT NULL,
+    full_name NVARCHAR(255),
+    email NVARCHAR(255),
+    faculty NVARCHAR(255),
+    department NVARCHAR(255),
+    password_hash VARCHAR(255),
+    role VARCHAR(50) NOT NULL DEFAULT 'STUDENT',
+    auth_provider VARCHAR(50) NOT NULL DEFAULT 'LOCAL'
+);
+GO
+
+-- สร้างตาราง refresh_tokens สำหรับทำ Refresh Token Rotation (US-AUTH.1)
+CREATE TABLE refresh_tokens (
+    id VARCHAR(36) PRIMARY KEY,
+    token_hash VARCHAR(64) NOT NULL UNIQUE,
+    student_id VARCHAR(50) NOT NULL,
+    expires_at DATETIME2 NOT NULL,
+    revoked BIT NOT NULL DEFAULT 0,
+    created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE()
+);
+GO
+
 -- สร้างตาราง items ตามโครงสร้างที่กำหนด
 CREATE TABLE items (
     item_id VARCHAR(36) PRIMARY KEY, -- ใช้ VARCHAR เก็บ UUID
