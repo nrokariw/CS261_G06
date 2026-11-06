@@ -129,8 +129,6 @@ export default function Login() {
               className="alert alert-error"
               role="alert"
               style={{
-                background: "#FCE8E4",
-                color: "#B9382B",
                 marginBottom: "16px",
               }}
             >

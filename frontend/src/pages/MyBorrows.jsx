@@ -39,9 +39,9 @@ export default function MyBorrows({ requests = [] }) {
       />
 
       {myBorrows.length ? (
-        <div className="requests-list">
+        <div className="requests-list requests-list-updated">
           {myBorrows.map((req) => (
-            <article className="request-card" key={req.id}>
+            <article className="request-card request-card-updated" key={req.id}>
               <div className="request-main">
                 <div className="request-card-top">
                   <Avatar name={req.itemName} />
@@ -61,16 +61,11 @@ export default function MyBorrows({ requests = [] }) {
                 </p>
                 {req.responseReason && (
                   <p
-                    className="request-feedback"
-                    style={{
-                      fontSize: "0.85rem",
-                      color: req.status === "rejected" ? "#B9382B" : "#0369A1",
-                      marginTop: "6px",
-                      background: req.status === "rejected" ? "#FCE8E4" : "#E0F2FE",
-                      borderLeft: req.status === "rejected" ? "3px solid #B9382B" : "3px solid #0284c7",
-                      padding: "6px 10px",
-                      borderRadius: "6px",
-                    }}
+                    className={`request-feedback ${
+                      req.status === "rejected"
+                        ? "request-feedback-rejected"
+                        : "request-feedback-info"
+                    }`}
                   >
                     <strong>{t("myBorrows.ownerFeedback", { defaultValue: "ข้อความจากเจ้าของ: " })}</strong>
                     {req.responseReason}
@@ -93,8 +88,7 @@ export default function MyBorrows({ requests = [] }) {
                   <div style={{ marginTop: "12px" }}>
                     <Link
                       to={`/items/${req.itemId}`}
-                      className="button button-outline button-sm button-full"
-                      style={{ borderColor: "#0284c7", color: "#0284c7" }}
+                      className="button button-outline button-info-outline button-sm button-full"
                     >
                       {t("myBorrows.editRequest", { defaultValue: "แก้ไขคำขอยืม" })}
                     </Link>

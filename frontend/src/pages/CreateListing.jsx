@@ -383,7 +383,7 @@ export default function CreateListing({ items, setItems }) {
         </div>
         {/* Inline Alert สำหรับแสดง Error ตอนกดบันทึก */}
         {submitError && (
-          <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', padding: '12px', background: '#ffebee', color: '#c62828', borderRadius: '6px' }}>
+          <div className="alert alert-error" style={{ marginBottom: '16px' }}>
             <AlertCircle size={18} />
             <span>{submitError}</span>
           </div>

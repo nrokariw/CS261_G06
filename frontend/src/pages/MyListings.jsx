@@ -61,7 +61,7 @@ export default function MyListings({ items, setItems }) {
         </div>
       )}
       {errorNotice && (
-        <div className="alert alert-error" style={{ background: "#FCE8E4", color: "#B9382B" }}>
+        <div className="alert alert-error">
           <AlertCircle size={17} />
           <span>{errorNotice}</span>
           <button onClick={() => setErrorNotice("")} className="alert-close">

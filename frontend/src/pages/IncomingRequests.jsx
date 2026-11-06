@@ -149,7 +149,7 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
       />
 
       {actionError && (
-        <div className="alert alert-error" style={{ background: "#FCE8E4", color: "#B9382B" }}>
+        <div className="alert alert-error">
           <AlertCircle size={17} />
           <span>{actionError}</span>
           <button onClick={() => setActionError("")} className="alert-close">
@@ -175,18 +175,7 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                 </div>
                 <p className="request-reason">{req.reason}</p>
                 {req.responseReason && (
-                  <p
-                    className="request-response-note"
-                    style={{
-                      fontSize: "0.85rem",
-                      color: "var(--muted, #64748b)",
-                      marginTop: "6px",
-                      background: "var(--surface-muted, #f8fafc)",
-                      padding: "6px 10px",
-                      borderRadius: "6px",
-                      borderLeft: "3px solid #0284c7",
-                    }}
-                  >
+                  <p className="request-response-note">
                     <strong>{t("incomingRequests.ownerFeedbackLabel")}</strong>
                     {req.responseReason}
                   </p>
@@ -225,7 +214,7 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                         </button>
                       </div>
                       {isItemReservedByOther(req) && (
-                        <small style={{ color: "#b45309", fontSize: "0.8rem", marginTop: "4px" }}>
+                        <small className="reserved-by-other-notice">
                           {t("incomingRequests.itemAlreadyReserved")}
                         </small>
                       )}

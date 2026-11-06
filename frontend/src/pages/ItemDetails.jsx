@@ -241,21 +241,7 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
               </span>
             </div>
             {availFromStr && (
-              <div
-                style={{
-                  marginTop: "12px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  color: "#0369A1",
-                  fontSize: "0.875rem",
-                  fontWeight: 500,
-                  background: "#E0F2FE",
-                  padding: "6px 12px",
-                  borderRadius: "6px",
-                  width: "fit-content",
-                }}
-              >
+              <div className="detail-availability">
                 <CalendarDays size={16} />
                 <span>
                   {t("itemDetails.availablePeriod", {
@@ -317,37 +303,22 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
               <span>{t("itemDetails.cannotBorrowOwnItem", { defaultValue: "คุณเป็นเจ้าของสิ่งของชิ้นนี้ ไม่สามารถยืมของตัวเองได้" })}</span>
             </div>
           ) : myRequest?.status === "rejected" ? (
-            <div
-              className="borrow-note"
-              style={{
-                color: "#B9382B",
-                marginTop: "15px",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "stretch",
-                gap: "8px",
-                background: "#FCE8E4",
-                borderLeft: "4px solid #B9382B",
-                padding: "14px",
-                borderRadius: "8px",
-              }}
-            >
+            <div className="borrow-note borrow-note-rejected">
               <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "bold" }}>
                 <AlertCircle size={18} />
                 <span>{t("itemDetails.borrowBlockedTitle")}</span>
               </div>
-              <p style={{ margin: 0, fontSize: "0.875rem", color: "#6b7280" }}>
+              <p className="borrow-note-desc">
                 {t("itemDetails.borrowBlockedDesc")}
               </p>
               {myRequest.responseReason && (
-                <div style={{ marginTop: "4px", fontSize: "0.85rem", color: "#B9382B", fontWeight: 500 }}>
+                <div className="borrow-note-reason">
                   {t("itemDetails.ownerNotePrefix")} {myRequest.responseReason}
                 </div>
               )}
               <button
                 type="button"
                 className="button button-outline button-full"
-                style={{ marginTop: "8px" }}
                 onClick={() => navigate("/my-borrows")}
               >
                 {t("itemDetails.viewMyBorrows")}
@@ -387,21 +358,11 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
           ) : (
             <form onSubmit={submit} noValidate>
               {myRequest?.status === "change_requested" && (
-                <div
-                  style={{
-                    background: "#E0F2FE",
-                    borderLeft: "4px solid #0284c7",
-                    color: "#0369A1",
-                    padding: "12px",
-                    borderRadius: "8px",
-                    marginBottom: "16px",
-                    fontSize: "0.875rem",
-                  }}
-                >
+                <div className="borrow-note-change">
                   <strong>{t("itemDetails.requestChangeTitle")}</strong>
-                  <p style={{ margin: "4px 0" }}>{t("itemDetails.requestChangeDesc")}</p>
+                  <p>{t("itemDetails.requestChangeDesc")}</p>
                   {myRequest.responseReason && (
-                    <div style={{ fontWeight: 600, marginTop: "4px" }}>
+                    <div className="borrow-note-reason">
                       {t("itemDetails.ownerNotePrefix")} {myRequest.responseReason}
                     </div>
                   )}
