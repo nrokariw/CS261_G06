@@ -182,7 +182,9 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
     (user?.name && item.owner === user.name)
   );
 
-  const effectiveStatus = myRequest ? myRequest.status : item.status;
+  const rawStatus = myRequest ? myRequest.status : item.status;
+  const effectiveStatus =
+    String(rawStatus || "").toLowerCase() === "accepted" ? "reserved" : rawStatus;
   const isAvailable = String(item.status || "").toLowerCase() === "available";
 
   return (

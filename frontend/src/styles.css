@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Kanit:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
 
 :root {
+    color-scheme: light;
     font-family: 'Kanit', sans-serif;
     color: var(--text);
     background: var(--background);
@@ -34,6 +35,7 @@
 }
 
 [data-theme="dark"] {
+    color-scheme: dark;
     --peach: #2A1F1B;
     --brown: #F7EDE6;
     --background: #171210;
@@ -630,9 +632,16 @@ button {
     border: 1px solid #F0DCCF;
     border-radius: 9px;
     padding: 0 12px;
-    color: #8392a7;
+    background: #FFFAF5;
+    color: #92796F;
     font-size: 12px;
     min-width: 235px;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.select-box:focus-within {
+    border-color: #EC6426;
+    box-shadow: 0 0 0 3px #EC64260c;
 }
 
 .select-box select {
@@ -642,7 +651,18 @@ button {
     color: #632713;
     min-width: 0;
     flex: 1;
-    font-size: 12px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+select {
+    color-scheme: inherit;
+}
+
+select option,
+.select-box select option {
+    background-color: var(--surface, #FFFFFF);
+    color: var(--text, #632713);
 }
 
 .category-chips {
@@ -1798,11 +1818,38 @@ button {
     .filter-panel {
         flex-direction: column;
         padding: 10px;
+        gap: 8px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
     }
 
     .select-box {
-        min-height: 44px;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: center;
+        min-height: 48px;
         min-width: 0;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 6px 12px;
+        gap: 2px;
+    }
+
+    .select-box span {
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.2;
+    }
+
+    .select-box select {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        font-size: 13px;
+        padding: 0;
     }
 
     .category-chips {
@@ -2753,6 +2800,7 @@ textarea:focus-visible {
 }
 
 [data-theme="dark"] .search-box,
+[data-theme="dark"] .select-box,
 [data-theme="dark"] .field input,
 [data-theme="dark"] .field select,
 [data-theme="dark"] .field textarea,
@@ -2796,6 +2844,18 @@ textarea:focus-visible {
 [data-theme="dark"] .breadcrumbs strong,
 [data-theme="dark"] .top-user {
     color: var(--text-primary);
+}
+
+[data-theme="dark"] select,
+[data-theme="dark"] .select-box select {
+    color-scheme: dark;
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] select option,
+[data-theme="dark"] .select-box select option {
+    background-color: var(--surface, #221A17);
+    color: var(--text-primary, #F7EDE6);
 }
 
 [data-theme="dark"] .form-section-title,
@@ -3261,6 +3321,43 @@ textarea:focus-visible {
     .two-col-responsive,
     .modal-actions-grid {
         grid-template-columns: 1fr;
+    }
+
+    .filter-panel {
+        flex-direction: column;
+        padding: 10px;
+        gap: 8px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .select-box {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: center;
+        min-height: 48px;
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 6px 12px;
+        gap: 2px;
+    }
+
+    .select-box span {
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.2;
+    }
+
+    .select-box select {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        font-size: 13px;
+        padding: 0;
     }
 }
 

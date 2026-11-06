@@ -36,6 +36,10 @@ export function ItemCard({ item }) {
   const categoryLabel = t(`categories.${categoryKey}`, {
     defaultValue: getCategoryLabel(item.category),
   });
+  const displayStatus =
+    String(item.status || "").toLowerCase() === "accepted"
+      ? "reserved"
+      : item.status;
   return <article className="item-card">
     <Link to={`/items/${item.id}`} className="item-image-wrap">
       {item.image ? <img src={item.image} alt={item.name} className="item-image" /> : <div className="image-placeholder"><PackageOpen size={42} /></div>}
@@ -45,7 +49,7 @@ export function ItemCard({ item }) {
       <span className="category-label">{categoryLabel}</span>
       <Link to={`/items/${item.id}`} className="item-title">{item.name}</Link>
       <div className="item-owner"><span className="mini-avatar"><UserRound size={13} /></span>{item.owner}</div>
-      <div className="item-card-bottom"><StatusBadge status={item.status} /><Link to={`/items/${item.id}`} className="text-link">{t("common.viewDetails")} <ArrowUpRight size={14} /></Link></div>
+      <div className="item-card-bottom"><StatusBadge status={displayStatus} /><Link to={`/items/${item.id}`} className="text-link">{t("common.viewDetails")} <ArrowUpRight size={14} /></Link></div>
     </div>
   </article>;
 }

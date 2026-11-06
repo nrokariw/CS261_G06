@@ -51,7 +51,16 @@ export default function Browse({ items: propItems, requests = [], loading: propL
             const matchesItem = String(r.itemId) === String(item.id);
             return matchesItem;
           });
-          return myRequest ? { ...item, status: myRequest.status } : item;
+          if (myRequest) {
+            const reqStatus = String(myRequest.status || "").toLowerCase();
+            const displayStatus = reqStatus === "accepted" ? "reserved" : reqStatus;
+            return { ...item, status: displayStatus };
+          }
+          const itemStatus = String(item.status || "").toLowerCase();
+          if (itemStatus === "accepted") {
+            return { ...item, status: "reserved" };
+          }
+          return item;
         })
         .filter((item) => {
           const itemCategoryKey = normalizeCategoryKey(item.category);
@@ -63,6 +72,7 @@ export default function Browse({ items: propItems, requests = [], loading: propL
             itemStatus === "available" ||
             itemStatus === "pending" ||
             itemStatus === "accepted" ||
+            itemStatus === "reserved" ||
             itemStatus === "change_requested" ||
             itemStatus === "rejected";
           return (
