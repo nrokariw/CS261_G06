@@ -6,19 +6,19 @@ import com.example.demo.service.BorrowRequestService;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-
 import java.util.List;
 import java.util.Map;
 
 @RestController 
 @RequestMapping ({"${app.api.requests-path:/api/requests}", "/api/borrow-requests"})
-
 public class BorrowRequestController {
     
     //define attributes
@@ -27,6 +27,15 @@ public class BorrowRequestController {
     //define constructor
     public BorrowRequestController(BorrowRequestService borrowService) {
         this.borrowService = borrowService;
+    }
+
+    private String requireAuthenticatedStudentId(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication.getName() == null || authentication.getName().isBlank()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
+        }
+        return authentication.getName();
     }
 
     /**
@@ -74,10 +83,10 @@ public class BorrowRequestController {
     // 2. สร้างประกาศคำขอยืมสิ่งของชิ้นใหม่
     @PostMapping
     public ResponseEntity<BorrowRequest> createRequest(
-        @RequestHeader(value = "Authorization", required = false) String authHeader,
-        @RequestBody Map<String, String> payload) {
+            Authentication authentication,
+            @RequestBody Map<String, String> payload) {
             
-        String borrowerId = payload.get("borrowerId");
+        String authenticatedBorrowerId = requireAuthenticatedStudentId(authentication);
         String itemId = payload.get("itemId");
         String startStr = payload.getOrDefault("borrowDate", payload.get("startDate"));
         String endStr = payload.getOrDefault("returnDate", payload.get("endDate"));
@@ -92,50 +101,95 @@ public class BorrowRequestController {
         dto.setEndDate(utcEndDate);
         dto.setReason(reason);
 
-        BorrowRequest savedRequest = borrowService.requestBorrow(borrowerId, dto);
+        BorrowRequest savedRequest = borrowService.requestBorrow(authenticatedBorrowerId, dto);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(savedRequest);
     }
 
-    // 3. ส่งคำขอยืมไอเท็ม (รองรับ Client local time พร้อม UTC tag หรือ Offset)
-    //    และบันทึกข้อมูลด้วยสถานะ Pending และตอบกลับ 201 Created
+    // 3. ส่งคำขอยืมไอเท็ม (ดึง borrowerId จาก JWT SecurityContext เท่านั้น)
     @PostMapping("/request")
     public ResponseEntity<BorrowRequest> createBorrowRequest(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam(required = false) String borrowerId,
+            Authentication authentication,
             @RequestBody BorrowRequestDto requestDto) {
         
-        // TODO : ตัวอย่างกำหนด Mock ID หากยังไม่ได้ต่อระบบ Token จริงเต็มรูปแบบ
-        if (borrowerId == null || borrowerId.isEmpty()) {
-            borrowerId = "6400000002"; 
-        }
-
-        // ส่ง DTO เข้า Service ไปใช้ต่อได้ทันที (วันที่ถูก parse เป็น LocalDateTime ให้เรียบร้อยแล้ว)
-        BorrowRequest savedRequest = borrowService.requestBorrow(borrowerId, requestDto);
+        String authenticatedBorrowerId = requireAuthenticatedStudentId(authentication);
+        BorrowRequest savedRequest = borrowService.requestBorrow(authenticatedBorrowerId, requestDto);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(savedRequest);
     }
 
-    // 4.1. เจ้าของกดอนุมัติคำขอ
+    // 4.1. เจ้าของกดอนุมัติคำขอ (ดึง ownerId จาก JWT SecurityContext เท่านั้น)
     @PostMapping("/{requestId}/approve")
     public ResponseEntity<BorrowRequest> approveRequest(
             @PathVariable String requestId,
-            @RequestParam String ownerId) {
-        return ResponseEntity.ok(borrowService.approveRequest(requestId, ownerId));
+            Authentication authentication) {
+        String authenticatedOwnerId = requireAuthenticatedStudentId(authentication);
+        return ResponseEntity.ok(borrowService.approveRequest(requestId, authenticatedOwnerId));
     }
 
-    // 4.2. เจ้าของกดปฏิเสธคำขอ
+    // 4.2. เจ้าของกดปฏิเสธคำขอ (ดึง ownerId จาก JWT SecurityContext เท่านั้น)
     @PostMapping("/{requestId}/reject")
     public ResponseEntity<BorrowRequest> rejectRequest(
             @PathVariable String requestId,
-            @RequestParam String ownerId) {
-        return ResponseEntity.ok(borrowService.rejectRequest(requestId, ownerId));
+            Authentication authentication,
+            @RequestBody(required = false) Map<String, String> payload) {
+        String authenticatedOwnerId = requireAuthenticatedStudentId(authentication);
+        String reason = payload != null ? payload.get("reason") : null;
+        return ResponseEntity.ok(borrowService.rejectRequest(requestId, authenticatedOwnerId, reason));
     }
 
-    // 5. ผู้ยืมกดยกเลิกคำขอ
+    // 4.3. เจ้าของตอบกลับคำขอ (Request Change หรือ Permanent Reject)
+    @PostMapping("/{requestId}/response")
+    public ResponseEntity<BorrowRequest> respondToRequest(
+            @PathVariable String requestId,
+            Authentication authentication,
+            @RequestBody Map<String, String> payload) {
+        String authenticatedOwnerId = requireAuthenticatedStudentId(authentication);
+        String action = payload.get("action");
+        String reason = payload.get("reason");
+        return ResponseEntity.ok(borrowService.respondToRequest(requestId, authenticatedOwnerId, action, reason));
+    }
+
+    // 4.4. ผู้ยืมแก้ไขข้อมูลคำขอและส่งใหม่ (Resubmit)
+    @PutMapping("/{requestId}/resubmit")
+    public ResponseEntity<BorrowRequest> resubmitRequest(
+            @PathVariable String requestId,
+            Authentication authentication,
+            @RequestBody Map<String, String> payload) {
+        String authenticatedBorrowerId = requireAuthenticatedStudentId(authentication);
+
+        String startStr = payload.getOrDefault("borrowDate", payload.get("startDate"));
+        String endStr = payload.getOrDefault("returnDate", payload.get("endDate"));
+        String reason = payload.get("reason");
+
+        BorrowRequestDto dto = new BorrowRequestDto();
+        if (startStr != null && !startStr.trim().isEmpty()) {
+            dto.setStartDate(parseToUtcDateTime(startStr, false));
+        }
+        if (endStr != null && !endStr.trim().isEmpty()) {
+            dto.setEndDate(parseToUtcDateTime(endStr, true));
+        }
+        dto.setReason(reason);
+
+        return ResponseEntity.ok(borrowService.resubmitChangeRequest(requestId, authenticatedBorrowerId, dto));
+    }
+
+    // 4.5. เจ้าของกดเปลี่ยนกลับเป็นรอพิจารณา (Reset to pending)
+    @PostMapping({"/{requestId}/reset", "/{requestId}/pending"})
+    public ResponseEntity<BorrowRequest> resetRequestToPending(
+            @PathVariable String requestId,
+            Authentication authentication) {
+        String authenticatedOwnerId = requireAuthenticatedStudentId(authentication);
+        return ResponseEntity.ok(borrowService.resetRequestToPending(requestId, authenticatedOwnerId));
+    }
+
+    // 5. ผู้ยืมกดยกเลิกคำขอ (ดึง borrowerId จาก JWT SecurityContext เท่านั้น)
     @PostMapping("/{requestId}/cancel")
-    public ResponseEntity<BorrowRequest> cancelRequest(@PathVariable String requestId) {
-        return ResponseEntity.ok(borrowService.cancelRequest(requestId));
+    public ResponseEntity<BorrowRequest> cancelRequest(
+            @PathVariable String requestId,
+            Authentication authentication) {
+        String authenticatedBorrowerId = requireAuthenticatedStudentId(authentication);
+        return ResponseEntity.ok(borrowService.cancelRequest(requestId, authenticatedBorrowerId));
     }
 
     // 6. ค้นหาคำขอทั้งหมดของผู้ยืม

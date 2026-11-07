@@ -11,6 +11,9 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     envDir: "..",
     define: {
+      "import.meta.env.VITE_APP_ENV": JSON.stringify(
+        rootEnv.VITE_APP_ENV || rootEnv.APP_ENV || "demo",
+      ),
       "import.meta.env.VITE_API_BASE_PATH": JSON.stringify(
         rootEnv.VITE_API_BASE_PATH || rootEnv.API_BASE_PATH || "/api",
       ),

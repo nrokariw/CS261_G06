@@ -9,6 +9,8 @@ public class ItemCreateDto {
     private String category;
     private String description;
     private MultipartFile imageFile;
+    private String availableFrom;
+    private String availableUntil;
 
     //define getters and setters
     public String getTitle() { return title; }
@@ -22,5 +24,11 @@ public class ItemCreateDto {
 
     public MultipartFile getImageFile() { return imageFile; }
     public void setImageFile(MultipartFile imageFile) { this.imageFile = imageFile; }
+
+    public String getAvailableFrom() { return availableFrom; }
+    public void setAvailableFrom(String availableFrom) { this.availableFrom = availableFrom; }
+
+    public String getAvailableUntil() { return availableUntil; }
+    public void setAvailableUntil(String availableUntil) { this.availableUntil = availableUntil; }
 
 }

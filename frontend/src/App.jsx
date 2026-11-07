@@ -1,5 +1,12 @@
-import React, { useEffect, useState } from "react";
-import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Link,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import {
   LayoutGrid,
   PlusCircle,
@@ -8,24 +15,30 @@ import {
   Menu,
   X,
   ChevronRight,
+  ChevronDown,
+  Check,
   Globe,
   Sun,
   Moon,
-  History
+  History,
+  LogIn,
+  LogOut,
+  Users,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Avatar } from "./components/UI";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Browse from "./pages/Browse";
 import CreateListing from "./pages/CreateListing";
 import ItemDetails from "./pages/ItemDetails";
 import MyListings from "./pages/MyListings";
 import IncomingRequests from "./pages/IncomingRequests";
+import MyBorrows from "./pages/MyBorrows";
+import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./contexts/AuthContext";
 import { useTheme } from "./contexts/ThemeContext";
-import MyBorrows from "./pages/MyBorrows";
 import { loadRuntimeConfig } from "./api/client";
-import { createUser } from "./api/authApi";
 import { getAllItems, getAvailableItems } from "./api/itemsApi";
 import { getBorrowRequests } from "./api/requestsApi";
 
@@ -39,44 +52,43 @@ function BrandMark() {
 }
 
 export default function App() {
-  const { user, token } = useAuth();
+  const { user, token, logout, demoAccounts, demoEnabled, quickSwitchAccount } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const [items, setItems] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [itemsLoading, setItemsLoading] = useState(true);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [switchingAccount, setSwitchingAccount] = useState(false);
+  const profileMenuRef = useRef(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     let active = true;
     async function fetchInitialData() {
+      setItemsLoading(true);
       await loadRuntimeConfig();
-      const studentId = user?.studentId || user?.id;
-      if (studentId) {
-        await createUser(
-          {
-            studentId,
-            username: studentId,
-            fullName: user?.name || studentId,
-            email: user?.email || "",
-            faculty: user?.faculty || "",
-          },
-          token,
-        ).catch(() => null);
-      }
+
       const loadedItems = await getAllItems(token)
         .catch(() => getAvailableItems("AVAILABLE", token))
         .catch(() => []);
       if (!active) return;
       setItems(loadedItems);
 
-      const loadedRequests = await getBorrowRequests(
-        user,
-        token,
-        loadedItems,
-      ).catch(() => []);
-      if (!active) return;
-      setRequests(loadedRequests);
+      if (user && token) {
+        const loadedRequests = await getBorrowRequests(
+          user,
+          token,
+          loadedItems,
+        ).catch(() => []);
+        if (!active) return;
+        setRequests(loadedRequests);
+      } else {
+        setRequests([]);
+      }
+      setItemsLoading(false);
     }
     fetchInitialData();
     return () => {
@@ -84,19 +96,41 @@ export default function App() {
     };
   }, [user, token]);
 
-  useEffect(() => setMobileMenu(false), [location.pathname]);
+  useEffect(() => {
+    setMobileMenu(false);
+    setProfileMenuOpen(false);
+  }, [location.pathname]);
 
-  const pendingCount = requests.filter((r) => {
-    if (r.status !== "pending") return false;
-    const matchedItem = items.find((i) => i.id === r.itemId);
-    const ownerId = r.ownerId || matchedItem?.ownerId;
-    const ownerName = r.owner || matchedItem?.owner;
-    return Boolean(
-      (user?.studentId && ownerId === user.studentId) ||
-      (user?.id && ownerId === user.id) ||
-      (user?.name && ownerName === user.name)
-    );
-  }).length;
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target)
+      ) {
+        setProfileMenuOpen(false);
+      }
+    }
+    if (profileMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [profileMenuOpen]);
+
+  const pendingCount = user
+    ? requests.filter((r) => {
+        if (r.status !== "pending") return false;
+        const matchedItem = items.find((i) => String(i.id) === String(r.itemId));
+        const ownerId = r.ownerId || matchedItem?.ownerId;
+        const ownerName = r.owner || matchedItem?.owner;
+        return Boolean(
+          (user?.studentId && String(ownerId) === String(user.studentId)) ||
+          (user?.id && String(ownerId) === String(user.id)) ||
+          (user?.name && ownerName === user.name)
+        );
+      }).length
+    : 0;
   const navItems = [
     { to: "/", label: t("nav.home"), icon: LayoutGrid, end: true },
     { to: "/create", label: t("nav.create"), icon: PlusCircle },
@@ -110,9 +144,32 @@ export default function App() {
   if (pathname === "/create" && search.includes("edit="))
     currentLabel = t("nav.editListing");
   if (pathname.startsWith("/items/")) currentLabel = t("nav.itemDetails");
+  if (pathname === "/login")
+    currentLabel = t("nav.login", { defaultValue: "เข้าสู่ระบบ" });
   if (!currentLabel) currentLabel = t("nav.notFound");
 
-  const nextLanguage = i18n.language === "en" ? "th" : "en";
+  const nextLanguage = i18n.language === "en" ? "th" : "Th".toLowerCase() === "en" ? "th" : "en";
+  const isEn = i18n.language?.startsWith("en");
+
+  async function handleQuickSwitch(selectedId) {
+    if (!selectedId || selectedId === user?.studentId) {
+      setProfileMenuOpen(false);
+      return;
+    }
+    setSwitchingAccount(true);
+    try {
+      await quickSwitchAccount(selectedId);
+      setProfileMenuOpen(false);
+    } finally {
+      setSwitchingAccount(false);
+    }
+  }
+
+  async function handleLogout() {
+    setProfileMenuOpen(false);
+    await logout();
+    navigate("/login");
+  }
 
   return (
     <div className="app-shell">
@@ -137,12 +194,40 @@ export default function App() {
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-bottom">
-          <Avatar name={user.name} />
-          <div>
-            <strong>{user.name}</strong>
-            <small>{t("nav.studentRole")}</small>
-          </div>
+        <div className="sidebar-bottom" style={{ flexDirection: "column", alignItems: "stretch", gap: "10px" }}>
+          {user ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <Avatar name={user.name} />
+                <div style={{ overflow: "hidden" }}>
+                  <strong style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {user.name}
+                  </strong>
+                  <small style={{ display: "block", opacity: 0.8 }}>
+                    {user.studentId} • {t("nav.studentRole")}
+                  </small>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="button button-outline button-sm"
+                onClick={handleLogout}
+                style={{ width: "100%", justifyContent: "center" }}
+              >
+                <LogOut size={15} />
+                <span>{t("nav.logout", { defaultValue: "ออกจากระบบ" })}</span>
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/login"
+              className="button button-primary button-sm"
+              style={{ width: "100%", justifyContent: "center" }}
+            >
+              <LogIn size={15} />
+              <span>{t("nav.login", { defaultValue: "เข้าสู่ระบบ" })}</span>
+            </Link>
+          )}
         </div>
       </aside>
 
@@ -165,14 +250,14 @@ export default function App() {
             {mobileMenu ? <X size={22} /> : <Menu size={22} />}
           </button>
           <nav className="breadcrumbs" aria-label={t("nav.breadcrumbAria")}>
-            <Link to="/">CampusShare</Link>
-            <ChevronRight size={15} aria-hidden="true" />
-            <strong aria-current="page">{currentLabel}</strong>
+            <Link to="/" className="breadcrumb-root">CampusShare</Link>
+            <ChevronRight size={15} aria-hidden="true" className="breadcrumb-sep" />
+            <strong aria-current="page" className="breadcrumb-current">{currentLabel}</strong>
           </nav>
-          <span className="top-user">
+          <div className="top-user">
             <button
               type="button"
-              className="button button-outline button-sm"
+              className="button button-outline button-sm topbar-icon-btn"
               onClick={toggleTheme}
               aria-label={theme === "dark" ? t("nav.switchToLight") : t("nav.switchToDark")}
             >
@@ -180,51 +265,201 @@ export default function App() {
             </button>
             <button
               type="button"
-              className="button button-outline button-sm"
+              className="button button-outline button-sm topbar-lang-btn"
               onClick={() => i18n.changeLanguage(nextLanguage)}
               aria-label={t("nav.switchLanguage")}
             >
               <Globe size={15} />
               <span>{i18n.language === "en" ? "EN" : "TH"}</span>
             </button>
-            <Avatar name={user.name} size="sm" />
-            <span>{user.name}</span>
-          </span>
+
+            {!user && !demoEnabled ? (
+              <Link to="/login" className="button button-primary button-sm">
+                <LogIn size={15} />
+                <span>{t("nav.login", { defaultValue: "เข้าสู่ระบบ" })}</span>
+              </Link>
+            ) : (
+              <div className="profile-menu-wrapper" ref={profileMenuRef}>
+                <button
+                  type="button"
+                  className="profile-trigger-btn"
+                  onClick={() => setProfileMenuOpen((prev) => !prev)}
+                  aria-expanded={profileMenuOpen}
+                  aria-haspopup="menu"
+                  aria-label={t("auth.accountMenuAria", {
+                    defaultValue: "เมนูบัญชีผู้ใช้และสลับบัญชี",
+                  })}
+                >
+                  {user ? (
+                    <>
+                      <Avatar name={user.name} size="sm" />
+                      <span className="profile-trigger-name">{user.name}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Users size={15} />
+                      <span className="profile-trigger-name">
+                        {t("nav.login", { defaultValue: "เข้าสู่ระบบ" })}
+                      </span>
+                    </>
+                  )}
+                  <ChevronDown size={14} className={`profile-chevron ${profileMenuOpen ? "open" : ""}`} />
+                </button>
+
+                {profileMenuOpen && (
+                  <div className="profile-popover" role="menu">
+                    {user ? (
+                      <div className="profile-popover-header">
+                        <Avatar name={user.name} />
+                        <div className="profile-popover-user">
+                          <strong>{user.name}</strong>
+                          <small>{user.studentId} • {t("nav.studentRole")}</small>
+                          {user.faculty && <small>{user.faculty}</small>}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="profile-popover-header">
+                        <div className="profile-popover-user">
+                          <strong>{t("auth.guestTitle", { defaultValue: "ยังไม่ได้เข้าสู่ระบบ" })}</strong>
+                          <small>
+                            {t("auth.guestSubtitle", {
+                              defaultValue: "เลือกบัญชีทดสอบหรือเข้าสู่ระบบด้วยรหัสนักศึกษา",
+                            })}
+                          </small>
+                        </div>
+                      </div>
+                    )}
+
+                    {demoEnabled && demoAccounts.length > 0 && (
+                      <div className="profile-popover-section">
+                        <div className="profile-popover-label">
+                          <Users size={13} />
+                          <span>
+                            {t("auth.selectDemoAccount", {
+                              defaultValue: "สลับบัญชีทดสอบ (Quick Switch)",
+                            })}
+                          </span>
+                        </div>
+                        <div className="profile-demo-list">
+                          {demoAccounts.map((acc) => {
+                            const isCurrent = user?.studentId === acc.studentId;
+                            return (
+                              <button
+                                key={acc.studentId}
+                                type="button"
+                                role="menuitem"
+                                className={`profile-demo-item ${isCurrent ? "active" : ""}`}
+                                onClick={() => handleQuickSwitch(acc.studentId)}
+                                disabled={switchingAccount}
+                              >
+                                <Avatar name={acc.name} size="sm" />
+                                <div className="profile-demo-meta">
+                                  <strong>
+                                    {acc.name} <small>({acc.studentId})</small>
+                                  </strong>
+                                  <span>
+                                    {isEn
+                                      ? acc.roleLabelEn || acc.faculty
+                                      : acc.roleLabelTh || acc.faculty}
+                                  </span>
+                                </div>
+                                {isCurrent && <Check size={15} className="profile-demo-check" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="profile-popover-footer">
+                      {user ? (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="button button-outline button-sm button-full"
+                          onClick={handleLogout}
+                        >
+                          <LogOut size={15} />
+                          <span>{t("nav.logout", { defaultValue: "ออกจากระบบ" })}</span>
+                        </button>
+                      ) : (
+                        <Link
+                          to="/login"
+                          role="menuitem"
+                          className="button button-primary button-sm button-full"
+                          onClick={() => setProfileMenuOpen(false)}
+                        >
+                          <LogIn size={15} />
+                          <span>{t("nav.login", { defaultValue: "เข้าสู่ระบบ" })}</span>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </header>
 
         <main className="page-container">
           <Routes>
-            <Route path="/" element={<Browse />} />
+            <Route
+              path="/"
+              element={
+                <Browse
+                  items={items}
+                  requests={requests}
+                  loading={itemsLoading}
+                />
+              }
+            />
+            <Route path="/login" element={<Login />} />
             <Route
               path="/create"
-              element={<CreateListing items={items} setItems={setItems} />}
+              element={
+                <ProtectedRoute>
+                  <CreateListing items={items} setItems={setItems} />
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/items/:id"
-              element={<ItemDetails setRequests={setRequests} />}
+              element={
+                <ItemDetails
+                  items={items}
+                  requests={requests}
+                  setRequests={setRequests}
+                />
+              }
             />
             <Route
               path="/my-listings"
-              element={<MyListings items={items} setItems={setItems} />}
+              element={
+                <ProtectedRoute>
+                  <MyListings items={items} setItems={setItems} />
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/requests"
               element={
-                <IncomingRequests
-                  requests={requests}
-                  setRequests={setRequests}
-                  setItems={setItems}
-                  items={items}
-                />
+                <ProtectedRoute>
+                  <IncomingRequests
+                    requests={requests}
+                    setRequests={setRequests}
+                    setItems={setItems}
+                    items={items}
+                  />
+                </ProtectedRoute>
               }
             />
-            <Route 
-              path="/my-borrows" 
+            <Route
+              path="/my-borrows"
               element={
-                <MyBorrows 
-                  requests={requests} 
-                />
-              } 
+                <ProtectedRoute>
+                  <MyBorrows requests={requests} />
+                </ProtectedRoute>
+              }
             />
             <Route path="*" element={<NotFound />} />
           </Routes>
