@@ -198,7 +198,7 @@ export default function Login() {
         </form>
 
         {demoEnabled && demoAccounts.length > 0 && (
-          <section className="form-card" style={{ marginTop: "20px" }}>
+          <section className="form-card demo-switcher-card">
             <div className="form-section-title">
               <span className="section-number">
                 <Sparkles size={16} />
@@ -218,45 +218,22 @@ export default function Login() {
               </div>
             </div>
 
-            <div
-              style={{
-                display: "grid",
-                gap: "12px",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              }}
-            >
+            <div className="demo-accounts-grid">
               {demoAccounts.map((acc) => {
                 const isCurrent = user?.studentId === acc.studentId;
                 return (
                   <button
                     key={acc.studentId}
                     type="button"
-                    className={
+                    className={`button demo-account-btn ${
                       isCurrent
-                        ? "button button-primary"
-                        : "button button-outline"
-                    }
+                        ? "button-primary is-active"
+                        : "button-outline"
+                    }`}
                     onClick={() => handleQuickDemoLogin(acc)}
                     disabled={submitting}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "flex-start",
-                      gap: "4px",
-                      padding: "14px 16px",
-                      textAlign: "left",
-                      height: "auto",
-                    }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        width: "100%",
-                        justifyContent: "space-between",
-                      }}
-                    >
+                    <div className="demo-account-header">
                       <strong>
                         {acc.name} ({acc.studentId})
                       </strong>
@@ -266,10 +243,10 @@ export default function Login() {
                         <UserRound size={16} />
                       )}
                     </div>
-                    <small style={{ opacity: 0.85 }}>
+                    <small className="demo-account-role">
                       {isEn ? acc.roleLabelEn : acc.roleLabelTh}
                     </small>
-                    <small style={{ opacity: 0.7 }}>{acc.faculty}</small>
+                    <small className="demo-account-faculty">{acc.faculty}</small>
                   </button>
                 );
               })}

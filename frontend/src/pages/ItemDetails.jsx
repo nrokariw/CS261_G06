@@ -298,7 +298,7 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
               </button>
             </div>
           ) : isOwner ? (
-            <div className="borrow-note" style={{ color: "var(--accent-strong, #3b82f6)", marginTop: "15px" }}>
+            <div className="borrow-note borrow-note-info">
               <ShieldCheck size={17} />
               <span>{t("itemDetails.cannotBorrowOwnItem", { defaultValue: "คุณเป็นเจ้าของสิ่งของชิ้นนี้ ไม่สามารถยืมของตัวเองได้" })}</span>
             </div>
@@ -351,7 +351,7 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
               </button>
             </div>
           ) : !isAvailable ? (
-            <div className="borrow-note" style={{ color: "var(--danger, #ef4444)", marginTop: "15px" }}>
+            <div className="borrow-note borrow-note-danger">
               <AlertCircle size={17} />
               <span>{t("itemDetails.itemNotAvailable", { defaultValue: "สิ่งของชิ้นนี้ไม่อยู่ในสถานะพร้อมให้ยืม (อาจถูกจองหรือยืมไปแล้ว)" })}</span>
             </div>
@@ -427,10 +427,10 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
                 <span>{t("itemDetails.borrowNote")}</span>
               </div>
               {submitError && (
-                <small className="field-error" style={{ marginBottom: "12px" }}>
-                  <AlertCircle size={13} />
-                  {submitError}
-                </small>
+                <div className="alert alert-error" style={{ marginBottom: "12px" }}>
+                  <AlertCircle size={16} />
+                  <span>{submitError}</span>
+                </div>
               )}
               <button
                 className="button button-primary button-full"

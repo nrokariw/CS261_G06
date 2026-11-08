@@ -196,8 +196,8 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
 
                 {checkIsItemOwner(req) && (
                   req.status === "pending" ? (
-                    <div className="request-actions" style={{ flexDirection: "column", alignItems: "stretch" }}>
-                      <div style={{ display: "flex", gap: "8px" }}>
+                    <div className="request-actions request-owner-actions">
+                      <div className="request-btn-group">
                         <button
                           className="button button-primary"
                           disabled={isItemReservedByOther(req)}
@@ -270,7 +270,7 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                 {t("incomingRequests.requestedBy")}: {activeResponseReq.borrower}
               </div>
             </div>
-            <div className="field" style={{ marginBottom: "16px" }}>
+            <div className="field modal-field">
               <label htmlFor="responseReason">
                 {t("incomingRequests.reasonLabel")}
               </label>
@@ -282,7 +282,7 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                 placeholder={t("incomingRequests.reasonPlaceholder")}
               />
               {modalError && (
-                <small className="field-error" style={{ marginTop: "4px" }}>
+                <small className="field-error">
                   <AlertCircle size={13} />
                   {modalError}
                 </small>

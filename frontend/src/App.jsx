@@ -194,35 +194,33 @@ export default function App() {
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-bottom" style={{ flexDirection: "column", alignItems: "stretch", gap: "10px" }}>
+        <div className="sidebar-bottom">
           {user ? (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div className="sidebar-user-card">
+              <div className="sidebar-user-info">
                 <Avatar name={user.name} />
-                <div style={{ overflow: "hidden" }}>
-                  <strong style={{ display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <div className="sidebar-user-text">
+                  <strong title={user.name}>
                     {user.name}
                   </strong>
-                  <small style={{ display: "block", opacity: 0.8 }}>
+                  <small title={`${user.studentId} • ${t("nav.studentRole")}`}>
                     {user.studentId} • {t("nav.studentRole")}
                   </small>
                 </div>
               </div>
               <button
                 type="button"
-                className="button button-outline button-sm"
+                className="button button-outline button-sm button-full sidebar-logout-btn"
                 onClick={handleLogout}
-                style={{ width: "100%", justifyContent: "center" }}
               >
                 <LogOut size={15} />
                 <span>{t("nav.logout", { defaultValue: "ออกจากระบบ" })}</span>
               </button>
-            </>
+            </div>
           ) : (
             <Link
               to="/login"
-              className="button button-primary button-sm"
-              style={{ width: "100%", justifyContent: "center" }}
+              className="button button-primary button-sm button-full"
             >
               <LogIn size={15} />
               <span>{t("nav.login", { defaultValue: "เข้าสู่ระบบ" })}</span>

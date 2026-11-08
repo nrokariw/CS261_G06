@@ -109,38 +109,42 @@ export default function MyListings({ items, setItems }) {
                   <StatusBadge status={item.status} />
                 </div>
 
-                <div className="listing-actions">
-                  <Link
-                    className="button button-outline button-sm"
-                    to={`/create?edit=${item.id}`}
-                  >
-                    <Pencil size={15} /> {t("myListings.edit")}
-                  </Link>
-                  <button
-                    className="button button-danger-outline button-sm"
-                    onClick={() => setDeleteId(item.id)}
-                  >
-                    <Trash2 size={15} /> {t("myListings.delete")}
-                  </button>
-                </div>
-                {deleteId === item.id && (
+                {deleteId === item.id ? (
                   <div className="delete-confirm">
                     <strong>{t("myListings.confirmDeleteTitle", { name: item.name })}</strong>
                     <span>{t("myListings.confirmDeleteDesc")}</span>
-                    <div>
+                    <div className="delete-confirm-actions">
                       <button
+                        type="button"
                         className="button button-danger button-sm"
                         onClick={() => removeItem(item.id)}
                       >
                         {t("myListings.confirmDeleteBtn")}
                       </button>
                       <button
+                        type="button"
                         className="button button-outline button-sm"
                         onClick={() => setDeleteId(null)}
                       >
                         {t("common.cancel")}
                       </button>
                     </div>
+                  </div>
+                ) : (
+                  <div className="listing-actions">
+                    <Link
+                      className="button button-outline button-sm"
+                      to={`/create?edit=${item.id}`}
+                    >
+                      <Pencil size={15} /> {t("myListings.edit")}
+                    </Link>
+                    <button
+                      type="button"
+                      className="button button-danger-outline button-sm"
+                      onClick={() => setDeleteId(item.id)}
+                    >
+                      <Trash2 size={15} /> {t("myListings.delete")}
+                    </button>
                   </div>
                 )}
               </article>

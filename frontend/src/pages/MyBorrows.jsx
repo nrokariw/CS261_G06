@@ -85,7 +85,7 @@ export default function MyBorrows({ requests = [] }) {
                   </div>
                 </dl>
                 {req.status === "change_requested" && (
-                  <div style={{ marginTop: "12px" }}>
+                  <div className="request-edit-wrap">
                     <Link
                       to={`/items/${req.itemId}`}
                       className="button button-outline button-info-outline button-sm button-full"
