@@ -1,5 +1,3 @@
-:setvar DB_NAME our_project_db
-
 -- สร้างฐานข้อมูลตามตัวแปรสภาพแวดล้อม DB_NAME (หากยังไม่มี)
 IF DB_ID(N'$(DB_NAME)') IS NULL
 BEGIN

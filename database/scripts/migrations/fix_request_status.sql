@@ -1,7 +1,3 @@
-:setvar DB_NAME our_project_db
-USE [$(DB_NAME)];
-GO
-
 -- ลบ CHECK constraint เก่าของสถานะคำขอยืม เพื่อให้บันทึกสถานะ CHANGE_REQUESTED ได้
 DECLARE @sql NVARCHAR(MAX) = N'';
 SELECT @sql += N'ALTER TABLE ' + QUOTENAME(OBJECT_NAME(cc.parent_object_id)) + N' DROP CONSTRAINT ' + QUOTENAME(cc.name) + N'; '
