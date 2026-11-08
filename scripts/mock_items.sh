@@ -27,8 +27,9 @@ BACKEND_PORT="${BACKEND_PORT:-8080}"
 BACKEND_URL="${BACKEND_URL:-http://localhost:${BACKEND_PORT}}"
 DEMO_PASSWORD="${DEMO_DEFAULT_PASSWORD:-password123}"
 
-# 1. Guard against running in production environment
-if [ "${APP_ENV}" = "prod" ] || [ "${APP_ENV}" = "production" ]; then
+# 1. Guard against running in production environment (case-insensitive)
+APP_ENV_LOWER="$(echo "${APP_ENV}" | tr '[:upper:]' '[:lower:]')"
+if [ "${APP_ENV_LOWER}" = "prod" ] || [ "${APP_ENV_LOWER}" = "production" ]; then
   echo "==========================================================" >&2
   echo "[BLOCKED] Mock data generation is prohibited in production mode!" >&2
   echo "Current APP_ENV='${APP_ENV}'" >&2
@@ -53,7 +54,7 @@ extract_json_field() {
   if command -v jq >/dev/null 2>&1; then
     echo "$json" | jq -r ".${field} // empty"
   elif command -v python3 >/dev/null 2>&1; then
-    echo "$json" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('${field}', ''))" 2>/dev/null || true
+    echo "$json" | python3 -c 'import sys, json; data=json.load(sys.stdin); print(data.get(sys.argv[1], ""))' "$field" 2>/dev/null || true
   else
     echo "$json" | grep -o "\"${field}\":\"[^\"]*" | head -n 1 | cut -d'"' -f4
   fi
@@ -72,20 +73,24 @@ else
 fi
 
 # Fetch existing items list for idempotency
-EXISTING_ITEMS=$(curl -s "${BACKEND_URL}/api/items/all" || echo "[]")
+EXISTING_ITEMS=$(curl -s -f "${BACKEND_URL}/api/items/all" || echo "[]")
 
 item_already_exists() {
   local student_id="$1"
   local title="$2"
   if command -v python3 >/dev/null 2>&1; then
-    python3 -c "import sys, json
-items = json.loads('''$EXISTING_ITEMS''')
-exists = any(item.get('ownerId') == '$student_id' and item.get('title') == '$title' and item.get('deletedAt') is None for item in items)
-sys.exit(0 if exists else 1)
-" 2>/dev/null
+    python3 -c '
+import sys, json
+try:
+    items = json.load(sys.stdin)
+    exists = any(item.get("ownerId") == sys.argv[1] and item.get("title") == sys.argv[2] and item.get("deletedAt") is None for item in items)
+    sys.exit(0 if exists else 1)
+except Exception:
+    sys.exit(1)
+' "$student_id" "$title" <<< "$EXISTING_ITEMS"
   else
-    # Simple grep fallback
-    echo "$EXISTING_ITEMS" | grep -F "\"ownerId\":\"$student_id\"" | grep -F "\"title\":\"$title\"" >/dev/null 2>&1
+    # Fallback splitting objects to separate lines for accurate line matching
+    echo "$EXISTING_ITEMS" | sed 's/},{/}\n{/g' | grep -F "\"ownerId\":\"$student_id\"" | grep -F "\"title\":\"$title\"" >/dev/null 2>&1
   fi
 }
 
@@ -100,12 +105,23 @@ MOCK_DATA=(
   "6809000003|SPORTS|ลูกบาสเกตบอล Molten BG3800 เบอร์ 7|ลูกบาสเกตบอลหนัง PU ผิวสัมผัสกระชับมือ เหมาะสำหรับเล่นสนามในร่มและกลางแจ้ง"
 )
 
-# Cache JWT tokens by studentId
-declare -A TOKENS=()
+# Helper functions to store and retrieve token (portable across Bash 3.x and 4+)
+get_cached_token() {
+  local student_id="$1"
+  eval "echo \"\${TOKEN_${student_id}:-}\""
+}
+
+set_cached_token() {
+  local student_id="$1"
+  local token="$2"
+  eval "TOKEN_${student_id}=\"\$token\""
+}
 
 login_student() {
   local student_id="$1"
-  if [[ -n "${TOKENS[$student_id]:-}" ]]; then
+  local cached
+  cached="$(get_cached_token "$student_id")"
+  if [ -n "$cached" ]; then
     return 0
   fi
 
@@ -118,14 +134,14 @@ login_student() {
   local token
   token=$(extract_json_field "${login_res}" "accessToken")
 
-  if [[ -z "${token}" ]]; then
+  if [ -z "${token}" ]; then
     echo "FAILED" >&2
     echo "Response: ${login_res}" >&2
     return 1
   fi
 
   echo "SUCCESS"
-  TOKENS["$student_id"]="$token"
+  set_cached_token "$student_id" "$token"
 }
 
 create_item() {
@@ -140,18 +156,20 @@ create_item() {
   fi
 
   login_student "${student_id}"
-  local token="${TOKENS[$student_id]}"
+  local token
+  token="$(get_cached_token "$student_id")"
 
   local payload
   if command -v python3 >/dev/null 2>&1; then
-    payload=$(python3 -c "import json
+    payload=$(python3 -c '
+import sys, json
 print(json.dumps({
-    'title': '''$title''',
-    'category': '''$category''',
-    'description': '''$description''',
-    'availableFrom': '$AVAIL_FROM',
-    'availableUntil': '$AVAIL_UNTIL'
-}))")
+    "title": sys.argv[1],
+    "category": sys.argv[2],
+    "description": sys.argv[3],
+    "availableFrom": sys.argv[4],
+    "availableUntil": sys.argv[5]
+}))' "$title" "$category" "$description" "$AVAIL_FROM" "$AVAIL_UNTIL")
   else
     payload=$(printf '{"title":"%s","category":"%s","description":"%s","availableFrom":"%s","availableUntil":"%s"}' \
       "$title" "$category" "$description" "$AVAIL_FROM" "$AVAIL_UNTIL")
@@ -168,7 +186,7 @@ print(json.dumps({
   local body
   body=$(echo "$res" | sed '$d')
 
-  if [[ "$http_code" == "201" ]] || [[ "$http_code" == "200" ]]; then
+  if [ "$http_code" = "201" ] || [ "$http_code" = "200" ]; then
     local item_id
     item_id=$(extract_json_field "$body" "id")
     echo "  + [CREATED] '${title}' (${category}) [id: ${item_id}]"
