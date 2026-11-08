@@ -23,7 +23,33 @@ export function ThemeProvider({ children }) {
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Use native View Transitions API when available for a smooth cross-fade animation
+    if (
+      typeof document !== "undefined" &&
+      typeof document.startViewTransition === "function" &&
+      !prefersReducedMotion
+    ) {
+      document.startViewTransition(() => {
+        setTheme(nextTheme);
+      });
+      return;
+    }
+
+    // Fallback: apply temporary transition class on <html> for smooth interpolation
+    if (typeof document !== "undefined" && !prefersReducedMotion) {
+      document.documentElement.classList.add("theme-transition");
+      setTheme(nextTheme);
+      setTimeout(() => {
+        document.documentElement.classList.remove("theme-transition");
+      }, 350);
+    } else {
+      setTheme(nextTheme);
+    }
   };
 
   return (

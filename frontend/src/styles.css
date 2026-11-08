@@ -53,6 +53,56 @@
     --sidebar-muted: #C6B1A6;
 }
 
+/* Smooth View Transitions API for theme switches */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 0.32s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Fallback smooth transition when View Transitions API is unsupported */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition-delay: 0s !important;
+}
+
+/* Base surface transitions for fluid visual adaptation */
+body,
+.app-shell,
+.sidebar,
+.topbar,
+.footer,
+.site-footer,
+.item-card,
+.form-card,
+.detail-main,
+.borrow-panel,
+.listing-row,
+.request-card,
+.filter-panel,
+.bottom-cta,
+.modal-card,
+.profile-popover,
+.borrow-note,
+.form-note,
+.search-box,
+.select-box,
+.field input,
+.field textarea,
+.field select,
+.chip,
+.button-outline {
+    transition: background-color 0.25s ease,
+                border-color 0.25s ease,
+                color 0.25s ease;
+}
+
 * {
     box-sizing: border-box;
 }
@@ -3359,6 +3409,30 @@ textarea:focus-visible {
     gap: 8px;
     flex-shrink: 0;
     flex-wrap: nowrap;
+}
+
+.topbar-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: transform 0.18s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.topbar-icon-btn:active {
+    transform: scale(0.9);
+}
+
+.topbar-icon-btn svg {
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.topbar-icon-btn:hover svg {
+    transform: rotate(25deg) scale(1.08);
 }
 
 .menu-toggle {
