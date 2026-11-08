@@ -1,5 +1,6 @@
 -- ============================================================================
--- Seed Script: Demo Student Accounts (dev / demo mode)
+-- Seed Script: Demo Student Accounts (dev / demo mode only)
+-- WARNING: Do not execute this script in production environments.
 -- Default password for all demo accounts: password123
 -- ============================================================================
 MERGE INTO users AS target
