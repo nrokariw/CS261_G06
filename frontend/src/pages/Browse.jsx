@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Search, Plus, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
-import { CATEGORIES, normalizeCategoryKey } from "../data";
+import { CATEGORIES, getCategoryLabel, normalizeCategoryKey } from "../data";
 import { ItemCard, PageHeading, EmptyState, getLocalizedCategoryLabel } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvailableItems } from "../api/itemsApi";
@@ -112,10 +112,10 @@ export default function Browse({ items: propItems, requests = [], loading: propL
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
-            <option value="ALL">{t("categories.ALL", { defaultValue: getCategoryLabel("ALL") })}</option>
+            <option value="ALL">{getLocalizedCategoryLabel("ALL", t)}</option>
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
-                {t(`categories.${c}`, { defaultValue: getCategoryLabel(c) })}
+                {getLocalizedCategoryLabel(c, t)}
               </option>
             ))}
           </select>
@@ -129,7 +129,7 @@ export default function Browse({ items: propItems, requests = [], loading: propL
             onClick={() => setCategory(c)}
             className={`chip ${category === c ? "chip-active" : ""}`}
           >
-            {t(`categories.${c}`, { defaultValue: getCategoryLabel(c) })}
+            {getLocalizedCategoryLabel(c, t)}
           </button>
         ))}
       </div>
