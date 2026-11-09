@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowUpRight, UserRound, PackageOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getCategoryLabel, normalizeCategoryKey } from "../data";
+import { formatDate } from "../utils/date";
 
 const STATUS_CONFIG = {
   available: "badge-success",
@@ -61,4 +62,89 @@ export function EmptyState({ title, description }) {
 export function Avatar({ name, size = "md" }) {
   const letter = (name || "?").trim().charAt(0).toUpperCase();
   return <span className={`avatar avatar-${size}`} aria-hidden="true">{letter}</span>;
+}
+
+export function RequestCard({
+  request,
+  role = "owner",
+  subtitle,
+  actions,
+}) {
+  const { t, i18n } = useTranslation();
+  if (!request) return null;
+
+  const isOwner = role === "owner";
+  const avatarName = isOwner ? request.borrower : request.itemName;
+  const borrowDateLabel = isOwner
+    ? t("incomingRequests.borrowDate", { defaultValue: "วันที่ต้องการยืม" })
+    : t("myBorrows.borrowDate", { defaultValue: "วันที่ต้องการยืม" });
+  const returnDateLabel = isOwner
+    ? t("incomingRequests.returnDate", { defaultValue: "วันที่กำหนดคืน" })
+    : t("myBorrows.returnDate", { defaultValue: "วันที่กำหนดคืน" });
+
+  const defaultSubtitle = isOwner ? (
+    <>
+      {t("incomingRequests.requestedBy", { defaultValue: "ขอโดย" })}{" "}
+      <strong>{request.borrower}</strong>
+    </>
+  ) : (
+    t("myBorrows.requestedAt", {
+      date: formatDate(request.borrowDate, i18n.language),
+      defaultValue: `ส่งคำขอถึงเจ้าของเมื่อ ${formatDate(request.borrowDate, i18n.language)}`,
+    })
+  );
+
+  return (
+    <article className="request-card request-card-updated">
+      <div className="request-main">
+        <div className="request-card-top">
+          <Avatar name={avatarName} />
+          <div className="request-title">
+            <h3>{request.itemName}</h3>
+            <p>{subtitle !== undefined ? subtitle : defaultSubtitle}</p>
+          </div>
+          <StatusBadge status={request.status} />
+        </div>
+
+        <p className="request-reason">
+          {!isOwner && t("myBorrows.reasonPrefix", { defaultValue: "เหตุผล: " })}
+          {request.reason}
+        </p>
+
+        {request.responseReason && (
+          isOwner ? (
+            <p className="request-response-note">
+              <strong>{t("incomingRequests.ownerFeedbackLabel", { defaultValue: "ข้อความตอบกลับของคุณ" })}</strong>
+              {request.responseReason}
+            </p>
+          ) : (
+            <p
+              className={`request-feedback ${
+                request.status === "rejected"
+                  ? "request-feedback-rejected"
+                  : "request-feedback-info"
+              }`}
+            >
+              <strong>{t("myBorrows.ownerFeedback", { defaultValue: "ข้อความจากเจ้าของ: " })}</strong>
+              {request.responseReason}
+            </p>
+          )
+        )}
+      </div>
+
+      <div className="request-side">
+        <dl className="request-dates">
+          <div>
+            <dt>{borrowDateLabel}</dt>
+            <dd>{formatDate(request.borrowDate, i18n.language)}</dd>
+          </div>
+          <div>
+            <dt>{returnDateLabel}</dt>
+            <dd>{formatDate(request.returnDate, i18n.language)}</dd>
+          </div>
+        </dl>
+        {actions}
+      </div>
+    </article>
+  );
 }
