@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Check, X, AlertCircle, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { PageHeading, EmptyState, RequestCard } from "../components/UI";
+import { PageHeading, EmptyState, RequestCard, AlertBanner } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import {
   updateBorrowRequestStatus,
@@ -138,15 +138,7 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
         }
       />
 
-      {actionError && (
-        <div className="alert alert-error">
-          <AlertCircle size={17} />
-          <span>{actionError}</span>
-          <button onClick={() => setActionError("")} className="alert-close">
-            {t("myListings.closeAlert")}
-          </button>
-        </div>
-      )}
+      <AlertBanner message={actionError} onClose={() => setActionError("")} />
 
       {myIncomingRequests.length ? (
         <div className="requests-list requests-list-updated">

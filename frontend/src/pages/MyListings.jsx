@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Pencil, Trash2, Plus, PackageOpen, Search, AlertCircle } from "lucide-react";
-import { PageHeading, StatusBadge, EmptyState } from "../components/UI";
+import { Pencil, Trash2, Plus, PackageOpen, Search } from "lucide-react";
+import { PageHeading, StatusBadge, EmptyState, CategoryBadge, AlertBanner } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
-import { getCategoryLabel, normalizeCategoryKey } from "../data";
 import { deleteItem } from "../api/itemsApi";
 
 export default function MyListings({ items, setItems }) {
@@ -52,23 +51,8 @@ export default function MyListings({ items, setItems }) {
           </Link>
         }
       />
-      {notice && (
-        <div className="alert alert-success">
-          {notice}
-          <button onClick={() => setNotice("")} className="alert-close">
-            {t("myListings.closeAlert")}
-          </button>
-        </div>
-      )}
-      {errorNotice && (
-        <div className="alert alert-error">
-          <AlertCircle size={17} />
-          <span>{errorNotice}</span>
-          <button onClick={() => setErrorNotice("")} className="alert-close">
-            {t("myListings.closeAlert")}
-          </button>
-        </div>
-      )}
+      <AlertBanner message={notice} onClose={() => setNotice("")} type="success" />
+      <AlertBanner message={errorNotice} onClose={() => setErrorNotice("")} type="error" />
 
       <div className="list-toolbar">
         <label className="search-box">
@@ -84,30 +68,25 @@ export default function MyListings({ items, setItems }) {
 
       {mine.length ? (
         <div className="my-listings-list">
-          {mine.map((item) => {
-            const categoryKey = normalizeCategoryKey(item.category);
-            const categoryLabel = t(`categories.${categoryKey}`, {
-              defaultValue: getCategoryLabel(item.category),
-            });
-            return (
-              <article className="listing-row" key={item.id}>
-                {item.image ? (
-                  <img
-                    className="listing-thumb"
-                    src={item.image}
-                    alt={item.name}
-                  />
-                ) : (
-                  <div className="listing-thumb image-placeholder">
-                    <PackageOpen size={30} />
-                  </div>
-                )}
-                <div className="listing-details">
-                  <span className="category-label">{categoryLabel}</span>
-                  <h3>{item.name}</h3>
-                  <p>{item.detail}</p>
-                  <StatusBadge status={item.status} />
+          {mine.map((item) => (
+            <article className="listing-row" key={item.id}>
+              {item.image ? (
+                <img
+                  className="listing-thumb"
+                  src={item.image}
+                  alt={item.name}
+                />
+              ) : (
+                <div className="listing-thumb image-placeholder">
+                  <PackageOpen size={30} />
                 </div>
+              )}
+              <div className="listing-details">
+                <CategoryBadge category={item.category} />
+                <h3>{item.name}</h3>
+                <p>{item.detail}</p>
+                <StatusBadge status={item.status} />
+              </div>
 
                 {deleteId === item.id ? (
                   <div className="delete-confirm">
@@ -148,9 +127,8 @@ export default function MyListings({ items, setItems }) {
                   </div>
                 )}
               </article>
-            );
-          })}
-        </div>
+            ))}
+          </div>
       ) : (
         <EmptyState
           title={t("myListings.emptyTitle")}

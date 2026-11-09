@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Search, Plus, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
-import { CATEGORIES, getCategoryLabel, normalizeCategoryKey } from "../data";
-import { ItemCard, PageHeading, EmptyState } from "../components/UI";
+import { CATEGORIES, normalizeCategoryKey } from "../data";
+import { ItemCard, PageHeading, EmptyState, getLocalizedCategoryLabel } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvailableItems } from "../api/itemsApi";
 
@@ -64,7 +64,7 @@ export default function Browse({ items: propItems, requests = [], loading: propL
         })
         .filter((item) => {
           const itemCategoryKey = normalizeCategoryKey(item.category);
-          const categoryText = getCategoryLabel(itemCategoryKey);
+          const categoryText = getLocalizedCategoryLabel(item.category, t);
           const text =
             `${item.name || ""} ${categoryText} ${item.owner || ""}`.toLowerCase();
           const itemStatus = String(item.status || "").toLowerCase();

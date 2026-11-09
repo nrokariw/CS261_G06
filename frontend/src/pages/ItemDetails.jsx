@@ -12,10 +12,9 @@ import {
   Send,
   LogIn,
 } from "lucide-react";
-import { PageHeading, StatusBadge } from "../components/UI";
+import { PageHeading, StatusBadge, CategoryBadge } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { BORROW_REASON_MAX_LENGTH } from "../constants/config";
-import { getCategoryLabel, normalizeCategoryKey } from "../data";
 import { createBorrowRequest, normalizeBorrowRequest, resubmitBorrowRequest } from "../api/requestsApi";
 import { getItemById } from "../api/itemsApi";
 
@@ -171,11 +170,6 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
       </div>
     );
 
-  const categoryKey = normalizeCategoryKey(item.category);
-  const categoryLabel = t(`categories.${categoryKey}`, {
-    defaultValue: getCategoryLabel(item.category),
-  });
-
   const isOwner = Boolean(
     (user?.studentId && item.ownerId === user.studentId) ||
     (user?.id && item.ownerId === user.id) ||
@@ -215,7 +209,7 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
           )}
           <div className="detail-info">
             <StatusBadge status={effectiveStatus} />
-            <span className="category-label">{categoryLabel}</span>
+            <CategoryBadge category={item.category} />
             <h1>{item.name}</h1>
             <div className="owner-row">
               <span className="owner-avatar">

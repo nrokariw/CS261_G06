@@ -1,9 +1,38 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ArrowUpRight, UserRound, PackageOpen } from "lucide-react";
+import { ArrowUpRight, UserRound, PackageOpen, AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getCategoryLabel, normalizeCategoryKey } from "../data";
 import { formatDate } from "../utils/date";
+
+export function getLocalizedCategoryLabel(category, t) {
+  if (!category) return "";
+  const key = normalizeCategoryKey(category);
+  return t ? t(`categories.${key}`, { defaultValue: getCategoryLabel(category) }) : getCategoryLabel(category);
+}
+
+export function CategoryBadge({ category, className = "" }) {
+  const { t } = useTranslation();
+  const label = getLocalizedCategoryLabel(category, t);
+  if (!label) return null;
+  return <span className={`category-label ${className}`.trim()}>{label}</span>;
+}
+
+export function AlertBanner({ message, onClose, type = "error", icon }) {
+  const { t } = useTranslation();
+  if (!message) return null;
+  return (
+    <div className={`alert alert-${type}`}>
+      {icon || <AlertCircle size={17} />}
+      <span>{message}</span>
+      {onClose && (
+        <button onClick={onClose} className="alert-close" type="button" aria-label={t("common.close", { defaultValue: "ปิด" })}>
+          {t("myListings.closeAlert", { defaultValue: "ปิด" })}
+        </button>
+      )}
+    </div>
+  );
+}
 
 const STATUS_CONFIG = {
   available: "badge-success",
@@ -33,10 +62,6 @@ export function StatusBadge({ status }) {
 
 export function ItemCard({ item }) {
   const { t } = useTranslation();
-  const categoryKey = normalizeCategoryKey(item.category);
-  const categoryLabel = t(`categories.${categoryKey}`, {
-    defaultValue: getCategoryLabel(item.category),
-  });
   const displayStatus =
     String(item.status || "").toLowerCase() === "accepted"
       ? "reserved"
@@ -47,7 +72,7 @@ export function ItemCard({ item }) {
       <span className="image-arrow"><ArrowUpRight size={16} /></span>
     </Link>
     <div className="item-card-body">
-      <span className="category-label">{categoryLabel}</span>
+      <CategoryBadge category={item.category} />
       <Link to={`/items/${item.id}`} className="item-title">{item.name}</Link>
       <div className="item-owner"><span className="mini-avatar"><UserRound size={13} /></span>{item.owner}</div>
       <div className="item-card-bottom"><StatusBadge status={displayStatus} /><Link to={`/items/${item.id}`} className="text-link">{t("common.viewDetails")} <ArrowUpRight size={14} /></Link></div>
