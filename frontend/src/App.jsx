@@ -148,8 +148,27 @@ export default function App() {
     currentLabel = t("nav.login", { defaultValue: "เข้าสู่ระบบ" });
   if (!currentLabel) currentLabel = t("nav.notFound");
 
-  const nextLanguage = i18n.language === "en" ? "th" : "Th".toLowerCase() === "en" ? "th" : "en";
   const isEn = i18n.language?.startsWith("en");
+  const nextLanguage = isEn ? "th" : "en";
+
+  const toggleLanguage = () => {
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (
+      typeof document !== "undefined" &&
+      typeof document.startViewTransition === "function" &&
+      !prefersReducedMotion
+    ) {
+      document.startViewTransition(() => {
+        i18n.changeLanguage(nextLanguage);
+      });
+      return;
+    }
+
+    i18n.changeLanguage(nextLanguage);
+  };
 
   async function handleQuickSwitch(selectedId) {
     if (!selectedId || selectedId === user?.studentId) {
@@ -264,11 +283,14 @@ export default function App() {
             <button
               type="button"
               className="button button-outline button-sm topbar-lang-btn"
-              onClick={() => i18n.changeLanguage(nextLanguage)}
+              onClick={toggleLanguage}
               aria-label={t("nav.switchLanguage")}
+              title={t("nav.switchLanguage")}
             >
-              <Globe size={15} />
-              <span>{i18n.language === "en" ? "EN" : "TH"}</span>
+              <Globe size={15} className="lang-icon" />
+              <span className="lang-code" key={i18n.language}>
+                {isEn ? "EN" : "TH"}
+              </span>
             </button>
 
             {!user && !demoEnabled ? (

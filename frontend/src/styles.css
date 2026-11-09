@@ -3435,6 +3435,53 @@ textarea:focus-visible {
     transform: rotate(25deg) scale(1.08);
 }
 
+.topbar-lang-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 11px 0 9px;
+    border-radius: 999px;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    user-select: none;
+    transition: transform 0.18s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.topbar-lang-btn:active {
+    transform: scale(0.92);
+}
+
+.topbar-lang-btn .lang-icon,
+.topbar-lang-btn svg {
+    flex-shrink: 0;
+    transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.topbar-lang-btn:hover .lang-icon,
+.topbar-lang-btn:hover svg {
+    transform: rotate(360deg) scale(1.15);
+}
+
+.topbar-lang-btn .lang-code {
+    display: inline-block;
+    animation: langBadgePop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes langBadgePop {
+    0% {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.8);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
 .menu-toggle {
     flex-shrink: 0;
 }
