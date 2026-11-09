@@ -2456,13 +2456,16 @@ textarea:focus-visible {
 .request-card-updated .request-title p {
     font-size: 13px;
 }
-.request-card-updated .request-reason {
+.request-card-updated .request-reason,
+.request-reason {
     margin: 0;
     padding: 3px 0 3px 13px;
     border-left: 3px solid #F8A91F;
     color: #632713;
     font-size: 14px;
     line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 .request-card-updated .request-side {
     position: relative;
@@ -3235,6 +3238,8 @@ textarea:focus-visible {
 .borrow-note-change .borrow-note-reason {
     font-weight: 600;
     margin-top: 4px;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 [data-theme="dark"] .borrow-note-change {
     background: #172E48;
@@ -3263,8 +3268,15 @@ textarea:focus-visible {
 .request-feedback {
     font-size: 0.85rem;
     margin-top: 6px;
-    padding: 6px 10px;
+    padding: 8px 12px;
     border-radius: 6px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.55;
+}
+.request-feedback strong {
+    display: block;
+    margin-bottom: 2px;
 }
 .request-feedback-rejected {
     color: #B9382B;
@@ -3285,6 +3297,32 @@ textarea:focus-visible {
     background: #172E48;
     color: #7DD3FC;
     border-left-color: #38BDF8;
+}
+
+.request-response-note {
+    font-size: 0.85rem;
+    margin-top: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: #E0F2FE;
+    border-left: 3px solid #0284c7;
+    color: #0369A1;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.55;
+}
+.request-response-note strong {
+    display: block;
+    margin-bottom: 2px;
+    color: #0369A1;
+}
+[data-theme="dark"] .request-response-note {
+    background: #172E48;
+    color: #7DD3FC;
+    border-left-color: #38BDF8;
+}
+[data-theme="dark"] .request-response-note strong {
+    color: #BAE6FD;
 }
 
 .reserved-by-other-notice {
