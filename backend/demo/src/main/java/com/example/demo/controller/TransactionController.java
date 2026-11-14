@@ -76,10 +76,10 @@ public class TransactionController {
         }
 
         // ดึง User ID (Username หรือ Subject จาก JWT ที่ถูกเซ็ตไว้ใน SecurityContext)
-        String currentUserId = authentication.getName();
+        String authenticatedStudentId = authentication.getName();
 
         // 2. เรียกใช้ Service ดำเนินการ Business Logic และ Transaction
-        Transaction savedTransaction = transactionService.createHandoverEvidence(requestId, currentUserId, requestDto);
+        Transaction savedTransaction = transactionService.createHandoverEvidence(requestId, authenticatedStudentId, requestDto);
 
         // 3. ตอบกลับ 201 Created เมื่อทำรายการสำเร็จ
         return ResponseEntity.status(HttpStatus.CREATED).body(savedTransaction);
