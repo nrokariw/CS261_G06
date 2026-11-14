@@ -1,5 +1,9 @@
 package com.example.demo.repository;
 
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import java.util.Optional;
+
 import com.example.demo.model.BorrowRequest;
 import com.example.demo.constant.RequestStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,4 +25,8 @@ public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, St
     
     // ค้นหาคำขอตามสถานะ (เช่น ดึงเฉพาะ PENDING ที่รอเจ้าของอนุมัติ)
     List<BorrowRequest> findByStatus(RequestStatus status);
+
+    @Query("SELECT r, i FROM BorrowRequest r JOIN Item i ON r.itemId = i.id WHERE r.id = :requestId")
+    Optional<Object[]> findRequestAndItemById(@Param("requestId") String requestId);
+
 }

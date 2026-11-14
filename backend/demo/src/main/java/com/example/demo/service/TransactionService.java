@@ -5,9 +5,11 @@ import com.example.demo.constant.TransactionStatus;
 import com.example.demo.model.BorrowRequest;
 import com.example.demo.model.Item;
 import com.example.demo.model.Transaction;
+import com.example.demo.model.EvidenceProof;
 import com.example.demo.repository.BorrowRequestRepository;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.TransactionRepository;
+import com.example.demo.repository.EvidenceProofRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,14 +25,17 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final BorrowRequestRepository borrowRequestRepository;
     private final ItemRepository itemRepository;
+    private final EvidenceProofRepository evidenceProofRepository;
 
     //define constructor
     public TransactionService(TransactionRepository transactionRepository,
                               BorrowRequestRepository borrowRequestRepository,
-                              ItemRepository itemRepository) {
+                              ItemRepository itemRepository,
+                              EvidenceProofRepository evidenceProofRepository)  {
         this.transactionRepository = transactionRepository;
         this.borrowRequestRepository = borrowRequestRepository;
         this.itemRepository = itemRepository;
+        this.evidenceProofRepository = evidenceProofRepository;
     }
 
     // 1. อนุมัติคำขอและสร้าง Transaction เริ่มต้นการยืม

@@ -7,6 +7,9 @@ import com.example.demo.service.TransactionService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import com.example.demo.dto.LoanEvidenceResponseDto;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 @RestController 
 @RequestMapping ("${app.api.transactions-path:/api/transactions}")
@@ -56,4 +59,14 @@ public class TransactionController {
         return transactionService.getTransactionsByItem(itemId);
     }
 
-}
+    @GetMapping("/{requestId}/evidence")
+    public ResponseEntity<?> getLoanEvidence(
+            @PathVariable("requestId") String requestId,
+            org.springframework.security.core.Authentication authentication) {
+
+        String userId = authentication.getName();
+
+        LoanEvidenceResponseDto responseDto =
+                transactionService.getLoanEvidenceDetail(requestId, userId);
+        return ResponseEntity.ok(responseDto);
+    }
