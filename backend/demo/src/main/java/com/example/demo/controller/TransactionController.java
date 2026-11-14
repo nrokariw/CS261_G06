@@ -4,7 +4,12 @@ import com.example.demo.model.EvidenceProof;
 import com.example.demo.model.Transaction;
 import com.example.demo.service.EvidenceProofService;
 import com.example.demo.service.TransactionService;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -22,6 +27,15 @@ public class TransactionController {
                                 EvidenceProofService evidenceProofService) {
         this.transactionService = transactionService;
         this.evidenceProofService = evidenceProofService;
+    }
+
+    private String requireAuthenticatedStudentId(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication.getName() == null || authentication.getName().isBlank()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
+        }
+        return authentication.getName();
     }
 
     // 1. เริ่มต้น Transaction การยืม
@@ -61,6 +75,7 @@ public class TransactionController {
     public ResponseEntity<Transaction> submitReturnEvidence(
             @PathVariable String requestId,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
+            Authentication authentication,
             @ModelAttribute com.example.demo.dto.ReturnRequestDto requestDto) {
 
         // ตรวจสอบ Token เบื้องต้น (401 Unauthorized หากไม่มี Authorization Header)
@@ -70,12 +85,9 @@ public class TransactionController {
             );
         }
 
-        // TODO: แยกดึง userId จริงจาก JWT Token หรือ SecurityContext 
-        // (ในตัวอย่างจำลองดึงผ่านระบบ Authentication หรือ Mock ID ตามโครงสร้างโปรเจกต์ของคุณ)
-        String currentUserId = "6400000001"; 
-
         // เรียกใช้งาน Service บันทึกหลักฐานและอัปเดตสถานะ
-        Transaction updatedTransaction = transactionService.submitReturnEvidence(requestId, currentUserId, requestDto);
+        String authenticatedStudentId = requireAuthenticatedStudentId(authentication);
+        Transaction updatedTransaction = transactionService.submitReturnEvidence(requestId, authenticatedStudentId, requestDto);
 
         return ResponseEntity.status(org.springframework.http.HttpStatus.OK).body(updatedTransaction);
     }

@@ -6,6 +6,7 @@ import com.example.demo.model.BorrowRequest;
 import com.example.demo.model.Item;
 import com.example.demo.model.Transaction;
 import com.example.demo.repository.BorrowRequestRepository;
+import com.example.demo.repository.EvidenceProofRepository;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.TransactionRepository;
 
@@ -23,14 +24,20 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final BorrowRequestRepository borrowRequestRepository;
     private final ItemRepository itemRepository;
+    private final EvidenceProofRepository evidenceProofRepository;
+    private final FileStorageService fileStorageService;
 
     //define constructor
     public TransactionService(TransactionRepository transactionRepository,
                               BorrowRequestRepository borrowRequestRepository,
-                              ItemRepository itemRepository) {
+                              ItemRepository itemRepository,
+                              EvidenceProofRepository evidenceProofRepository,
+                              FileStorageService fileStorageService) {
         this.transactionRepository = transactionRepository;
         this.borrowRequestRepository = borrowRequestRepository;
         this.itemRepository = itemRepository;
+        this.evidenceProofRepository = evidenceProofRepository;
+        this.fileStorageService = fileStorageService;
     }
 
     // 1. อนุมัติคำขอและสร้าง Transaction เริ่มต้นการยืม
