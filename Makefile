@@ -25,7 +25,7 @@ endif
         build build-frontend build-backend build-database \
         stop stop-frontend stop-backend stop-database \
         down restart logs logs-frontend logs-backend logs-database \
-        status ps clean fclean db-init db-shell clean-cache clean-storage
+        status ps clean fclean db-init db-shell mock clean-cache clean-storage
 
 help:
 	@echo "Usage: make [target] [DB_MODE=mssql|edge]"
@@ -37,9 +37,10 @@ help:
 	@echo "  database / db      Build and start only database"
 	@echo "  start-only-%       Start a single service without starting its dependencies (e.g. make start-only-frontend)"
 	@echo ""
-	@echo "Database targets:"
-	@echo "  db-init            Execute initialization schema scripts (DB_ITEM_TABLE.sql)"
+	@echo "Database & Testing targets:"
+	@echo "  db-init            Execute initialization schema scripts (OUR_PROJECT_DB.sql)"
 	@echo "  db-shell           Open interactive SQL Server command line (sqlcmd)"
+	@echo "  mock               Seed mock listings via Backend API (disabled in production)"
 	@echo ""
 	@echo "Build targets:"
 	@echo "  build              Build all service images"
@@ -137,11 +138,15 @@ ps: status
 
 # Execute initial schema script inside running database container
 db-init:
-	$(COMPOSE) exec -T database /opt/mssql-tools18/bin/sqlcmd -S localhost -U $(DB_USER) -P "$$MSSQL_SA_PASSWORD" -C -i /scripts/schema/DB_ITEM_TABLE.sql
+	MSYS_NO_PATHCONV=1 $(COMPOSE) exec -T database /opt/mssql-tools18/bin/sqlcmd -S localhost -U $(or $(DB_USER),sa) -P "$(or $(MSSQL_SA_PASSWORD),StrongPassw0rd!)" -v DB_NAME="$(or $(DB_NAME),our_project_db)" -C -i /scripts/schema/OUR_PROJECT_DB.sql
 
 # Open interactive sqlcmd terminal in running database container
 db-shell:
-	$(COMPOSE) exec database /opt/mssql-tools18/bin/sqlcmd -S localhost -U $(DB_USER) -P "$$MSSQL_SA_PASSWORD" -C
+	MSYS_NO_PATHCONV=1 $(COMPOSE) exec database /opt/mssql-tools18/bin/sqlcmd -S localhost -U $(or $(DB_USER),sa) -P "$(or $(MSSQL_SA_PASSWORD),StrongPassw0rd!)" -d "$(or $(DB_NAME),our_project_db)" -C
+
+# Seed mock listings via Backend API for testing (guarded against production)
+mock: env
+	@APP_ENV="$(or $(APP_ENV),demo)" bash scripts/mock_items.sh
 
 clean-cache:
 	@find storage/temporary -mindepth 1 ! -name '.gitkeep' -delete 2>/dev/null || true
