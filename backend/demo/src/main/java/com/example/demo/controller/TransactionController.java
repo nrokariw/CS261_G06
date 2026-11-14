@@ -56,4 +56,28 @@ public class TransactionController {
         return transactionService.getTransactionsByItem(itemId);
     }
 
+    // T-7.1: POST API สำหรับบันทึกหลักฐานการส่งคืนสิ่งของ
+    @PostMapping(value = "/request/{requestId}/return-evidence", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Transaction> submitReturnEvidence(
+            @PathVariable String requestId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @ModelAttribute com.example.demo.dto.ReturnRequestDto requestDto) {
+
+        // ตรวจสอบ Token เบื้องต้น (401 Unauthorized หากไม่มี Authorization Header)
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token"
+            );
+        }
+
+        // TODO: แยกดึง userId จริงจาก JWT Token หรือ SecurityContext 
+        // (ในตัวอย่างจำลองดึงผ่านระบบ Authentication หรือ Mock ID ตามโครงสร้างโปรเจกต์ของคุณ)
+        String currentUserId = "6400000001"; 
+
+        // เรียกใช้งาน Service บันทึกหลักฐานและอัปเดตสถานะ
+        Transaction updatedTransaction = transactionService.submitReturnEvidence(requestId, currentUserId, requestDto);
+
+        return ResponseEntity.status(org.springframework.http.HttpStatus.OK).body(updatedTransaction);
+    }
+
 }
