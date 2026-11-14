@@ -16,18 +16,32 @@ import jakarta.persistence.Table;
 @Entity 
 @Table(name = "borrowing_transaction")
 public class Transaction {
-    @Id 
+
     //define attributes
+    @Id 
+    @Column (name = "id", length = 36, updatable = false, nullable = false)
     private String id;
+
+    @Column(name = "request_id", length = 36, nullable = false)
     private String requestId;
+
+    @Column(name = "borrower_id", length = 50, nullable = false)
     private String borrowerId;
+
+    @Column(name = "lender_id", length = 50, nullable = false)
     private String lenderId;
+
+    @Column(name = "item_id", length = 36, nullable = false)
     private String itemId;
+
     @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
     private TransactionStatus status = TransactionStatus.ACTIVE;
-    @Column(columnDefinition = "DATETIME2")
+    
+    @Column(name = "borrowed_at", columnDefinition = "DATETIME2")
     private LocalDateTime borrowedAt;
-    @Column(columnDefinition = "DATETIME2")
+    
+    @Column(name = "returned_at", columnDefinition = "DATETIME2")
     private LocalDateTime returnedAt;
 
     // สั่งให้สุ่มสร้าง UUID และกำหนดเวลาเป็น UTC+0 อัตโนมัติก่อนบันทึกลง Database
