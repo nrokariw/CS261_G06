@@ -5,12 +5,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+# Force UTF-8 encoding for Python on Windows (prevents Thai character corruption under cp1252/cp874)
+export PYTHONUTF8=1
+export PYTHONIOENCODING=utf-8
+
 # Remember caller-provided APP_ENV if specified
 CALLER_APP_ENV="${APP_ENV:-}"
 
 # Load .env file if available
 if [ -f "${ROOT_DIR}/.env" ]; then
-  # Load env variables ignoring comments
   set -a
   # shellcheck disable=SC1091
   source "${ROOT_DIR}/.env"
@@ -47,23 +50,52 @@ if ! curl -s -f -m 3 "${BACKEND_URL}/api/items" >/dev/null 2>&1; then
   exit 1
 fi
 
+# 3. Detect a working JSON runtime (verify execution to skip Windows Store python3 stub)
+JSON_TOOL="awk"
+if command -v node >/dev/null 2>&1 && node -e "process.exit(0)" >/dev/null 2>&1; then
+  JSON_TOOL="node"
+elif command -v python3 >/dev/null 2>&1 && python3 -c "import sys; sys.exit(0)" >/dev/null 2>&1; then
+  JSON_TOOL="python3"
+elif command -v python >/dev/null 2>&1 && python -c "import sys; sys.exit(0)" >/dev/null 2>&1; then
+  JSON_TOOL="python"
+elif command -v jq >/dev/null 2>&1 && echo '{}' | jq -e . >/dev/null 2>&1; then
+  JSON_TOOL="jq"
+fi
+
 # Helper to extract json field
 extract_json_field() {
   local json="$1"
   local field="$2"
-  if command -v jq >/dev/null 2>&1; then
-    echo "$json" | jq -r ".${field} // empty"
-  elif command -v python3 >/dev/null 2>&1; then
-    echo "$json" | python3 -c 'import sys, json; data=json.load(sys.stdin); print(data.get(sys.argv[1], ""))' "$field" 2>/dev/null || true
-  else
-    echo "$json" | grep -o "\"${field}\":\"[^\"]*" | head -n 1 | cut -d'"' -f4
-  fi
+  case "${JSON_TOOL}" in
+    node)
+      printf '%s' "$json" | node -e '
+const fs = require("fs");
+try {
+  const data = JSON.parse(fs.readFileSync(0, "utf8"));
+  const val = data[process.argv[1]];
+  process.stdout.write(val != null ? String(val) : "");
+} catch (e) {}
+' "$field"
+      ;;
+    python3|python)
+      printf '%s' "$json" | "${JSON_TOOL}" -c 'import sys, json; data=json.load(sys.stdin); print(data.get(sys.argv[1], "") or "")' "$field" 2>/dev/null || true
+      ;;
+    jq)
+      printf '%s' "$json" | jq -r ".${field} // empty"
+      ;;
+    *)
+      printf '%s' "$json" | grep -o "\"${field}\":\"[^\"]*" | head -n 1 | cut -d'"' -f4
+      ;;
+  esac
 }
 
 # Calculate availability window (from today until +30 days)
-if command -v python3 >/dev/null 2>&1; then
-  AVAIL_FROM=$(python3 -c "import datetime; print(datetime.date.today().isoformat() + 'T00:00:00')")
-  AVAIL_UNTIL=$(python3 -c "import datetime; print((datetime.date.today() + datetime.timedelta(days=30)).isoformat() + 'T23:59:59')")
+if [ "${JSON_TOOL}" = "node" ]; then
+  AVAIL_FROM=$(node -e 'console.log(new Date().toISOString().slice(0, 10) + "T00:00:00")')
+  AVAIL_UNTIL=$(node -e 'const d = new Date(); d.setDate(d.getDate() + 30); console.log(d.toISOString().slice(0, 10) + "T23:59:59")')
+elif [ "${JSON_TOOL}" = "python3" ] || [ "${JSON_TOOL}" = "python" ]; then
+  AVAIL_FROM=$("${JSON_TOOL}" -c "import datetime; print(datetime.date.today().isoformat() + 'T00:00:00')")
+  AVAIL_UNTIL=$("${JSON_TOOL}" -c "import datetime; print((datetime.date.today() + datetime.timedelta(days=30)).isoformat() + 'T23:59:59')")
 elif date -v+30d >/dev/null 2>&1; then
   AVAIL_FROM="$(date +"%Y-%m-%d")T00:00:00"
   AVAIL_UNTIL="$(date -v+30d +"%Y-%m-%d")T23:59:59"
@@ -72,14 +104,32 @@ else
   AVAIL_UNTIL="$(date -d "+30 days" +"%Y-%m-%d" 2>/dev/null || date +"%Y-%m-%d")T23:59:59"
 fi
 
-# Fetch existing items list for idempotency
-EXISTING_ITEMS=$(curl -s -f "${BACKEND_URL}/api/items/all" || echo "[]")
+# Fetch existing items list for idempotency (fail loudly instead of creating duplicates)
+if ! EXISTING_ITEMS=$(curl -s -f "${BACKEND_URL}/api/items/all"); then
+  echo "Error: Failed to fetch existing items from ${BACKEND_URL}/api/items/all." >&2
+  exit 1
+fi
 
 item_already_exists() {
   local student_id="$1"
   local title="$2"
-  if command -v python3 >/dev/null 2>&1; then
-    python3 -c '
+  case "${JSON_TOOL}" in
+    node)
+      printf '%s' "$EXISTING_ITEMS" | node -e '
+const fs = require("fs");
+try {
+  const items = JSON.parse(fs.readFileSync(0, "utf8"));
+  const exists = Array.isArray(items) && items.some(
+    (item) => item.ownerId === process.argv[1] && item.title === process.argv[2] && item.deletedAt == null
+  );
+  process.exit(exists ? 0 : 1);
+} catch (e) {
+  process.exit(1);
+}
+' "$student_id" "$title"
+      ;;
+    python3|python)
+      printf '%s' "$EXISTING_ITEMS" | "${JSON_TOOL}" -c '
 import sys, json
 try:
     items = json.load(sys.stdin)
@@ -87,14 +137,33 @@ try:
     sys.exit(0 if exists else 1)
 except Exception:
     sys.exit(1)
-' "$student_id" "$title" <<< "$EXISTING_ITEMS"
-  else
-    # Fallback splitting objects to separate lines for accurate line matching
-    echo "$EXISTING_ITEMS" | sed 's/},{/}\n{/g' | grep -F "\"ownerId\":\"$student_id\"" | grep -F "\"title\":\"$title\"" >/dev/null 2>&1
-  fi
+' "$student_id" "$title"
+      ;;
+    jq)
+      printf '%s' "$EXISTING_ITEMS" | jq -e --arg owner "$student_id" --arg title "$title" \
+        'any(.[]; .ownerId == $owner and .title == $title and .deletedAt == null)' >/dev/null 2>&1
+      ;;
+    *)
+      # Portable AWK fallback (works on macOS BSD, Linux, and Windows Git Bash)
+      printf '%s' "$EXISTING_ITEMS" | tr -d '\r\n' | awk -v owner="\"ownerId\":\"${student_id}\"" -v title="\"title\":\"${title}\"" '
+BEGIN { found = 0 }
+{
+  gsub(/\},\{/, "}\n{")
+  n = split($0, lines, "\n")
+  for (i = 1; i <= n; i++) {
+    if (index(lines[i], owner) > 0 && index(lines[i], title) > 0 && index(lines[i], "\"deletedAt\":null") > 0) {
+      found = 1
+      break
+    }
+  }
+}
+END { exit (found ? 0 : 1) }
+'
+      ;;
+  esac
 }
 
-# 3. Define mock items per demo account
+# 4. Define mock items per demo account
 # Format: studentId|category|title|description
 MOCK_DATA=(
   "6809000001|ELECTRONICS|iPad Air 5 พร้อม Apple Pencil|iPad Air 5 ชิป M1 พร้อม Apple Pencil 2 มี GoodNotes เหมาะสำหรับจดเลคเชอร์และอ่านสไลด์เรียน"
@@ -144,6 +213,50 @@ login_student() {
   set_cached_token "$student_id" "$token"
 }
 
+build_payload() {
+  local title="$1"
+  local category="$2"
+  local description="$3"
+
+  case "${JSON_TOOL}" in
+    node)
+      node -e '
+console.log(JSON.stringify({
+  title: process.argv[1],
+  category: process.argv[2],
+  description: process.argv[3],
+  availableFrom: process.argv[4],
+  availableUntil: process.argv[5]
+}));
+' "$title" "$category" "$description" "$AVAIL_FROM" "$AVAIL_UNTIL"
+      ;;
+    python3|python)
+      "${JSON_TOOL}" -c '
+import sys, json
+print(json.dumps({
+    "title": sys.argv[1],
+    "category": sys.argv[2],
+    "description": sys.argv[3],
+    "availableFrom": sys.argv[4],
+    "availableUntil": sys.argv[5]
+}, ensure_ascii=False))' "$title" "$category" "$description" "$AVAIL_FROM" "$AVAIL_UNTIL"
+      ;;
+    jq)
+      jq -n -c \
+        --arg title "$title" \
+        --arg category "$category" \
+        --arg description "$description" \
+        --arg availableFrom "$AVAIL_FROM" \
+        --arg availableUntil "$AVAIL_UNTIL" \
+        '{title: $title, category: $category, description: $description, availableFrom: $availableFrom, availableUntil: $availableUntil}'
+      ;;
+    *)
+      printf '{"title":"%s","category":"%s","description":"%s","availableFrom":"%s","availableUntil":"%s"}' \
+        "$title" "$category" "$description" "$AVAIL_FROM" "$AVAIL_UNTIL"
+      ;;
+  esac
+}
+
 create_item() {
   local student_id="$1"
   local category="$2"
@@ -160,25 +273,12 @@ create_item() {
   token="$(get_cached_token "$student_id")"
 
   local payload
-  if command -v python3 >/dev/null 2>&1; then
-    payload=$(python3 -c '
-import sys, json
-print(json.dumps({
-    "title": sys.argv[1],
-    "category": sys.argv[2],
-    "description": sys.argv[3],
-    "availableFrom": sys.argv[4],
-    "availableUntil": sys.argv[5]
-}))' "$title" "$category" "$description" "$AVAIL_FROM" "$AVAIL_UNTIL")
-  else
-    payload=$(printf '{"title":"%s","category":"%s","description":"%s","availableFrom":"%s","availableUntil":"%s"}' \
-      "$title" "$category" "$description" "$AVAIL_FROM" "$AVAIL_UNTIL")
-  fi
+  payload=$(build_payload "$title" "$category" "$description")
 
   local res
   res=$(curl -s -w "\n%{http_code}" -X POST "${BACKEND_URL}/api/items" \
     -H "Authorization: Bearer ${token}" \
-    -H "Content-Type: application/json" \
+    -H "Content-Type: application/json; charset=utf-8" \
     -d "${payload}")
 
   local http_code
@@ -196,9 +296,13 @@ print(json.dumps({
   fi
 }
 
-echo "==> Seeding mock items via API..."
+echo "==> Seeding mock items via API (JSON tool: ${JSON_TOOL})..."
 for entry in "${MOCK_DATA[@]}"; do
   IFS="|" read -r student_id category title description <<< "$entry"
+  student_id="${student_id%$'\r'}"
+  category="${category%$'\r'}"
+  title="${title%$'\r'}"
+  description="${description%$'\r'}"
   create_item "$student_id" "$category" "$title" "$description"
 done
 
