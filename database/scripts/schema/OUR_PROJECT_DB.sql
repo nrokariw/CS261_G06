@@ -69,7 +69,7 @@ CREATE TABLE borrowing_transaction (
     lender_id VARCHAR(50) NOT NULL,
     item_id VARCHAR(36) NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE', -- ACTIVE, COMPLETED, DISPUTED
-    borrowed_at DATETIME2 DEFAULT GETDATE(),
+    borrowed_at DATETIME2 DEFAULT SYSUTCDATETIME(),
     returned_at DATETIME2 NULL,
     CONSTRAINT FK_borrowing_transaction_requests FOREIGN KEY (request_id) REFERENCES borrow_requests(request_id),
     CONSTRAINT FK_borrowing_transaction_items FOREIGN KEY (item_id) REFERENCES items(item_id)
@@ -84,7 +84,7 @@ CREATE TABLE evidence_proof (
     proof_type VARCHAR(50) NOT NULL, -- HANDOVER, RETURN
     image_url VARCHAR(500) NOT NULL,
     note NVARCHAR(MAX) NULL,
-    captured_at DATETIME2 DEFAULT GETDATE(),
+    captured_at DATETIME2 DEFAULT SYSUTCDATETIME(),
     CONSTRAINT FK_evidence_proof_transaction FOREIGN KEY (transaction_id) REFERENCES borrowing_transaction(id)
 );
 GO

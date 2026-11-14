@@ -11,20 +11,34 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 
 @Entity 
+@Table(name = "evidence_proof")
 public class EvidenceProof {
-    @Id 
+    
     //define attributes
+    @Id 
+    @Column(name = "id", length = 36, updatable = false, nullable = false)
     private String id;
+
+    @Column(name = "transaction_id", length = 36, nullable = false)
     private String transactionId;
+
+    @Column(name = "uploader_id", length = 50, nullable = false)
     private String uploaderId;
+
     @Enumerated(EnumType.STRING)
+    @Column(name = "proof_type", nullable = false)
     private ProofType proofType;
+
+    @Column(name = "image_url", length = 500, nullable = false)
     private String imageUrl;
-    @Column(columnDefinition = "NVARCHAR(MAX)")
+
+    @Column(name = "note", columnDefinition = "NVARCHAR(MAX)")
     private String note;
-    @Column(columnDefinition = "DATETIME2")
+
+    @Column(name = "captured_at", columnDefinition = "DATETIME2")
     private LocalDateTime capturedAt;
 
     // สั่งให้สุ่มสร้าง UUID และกำหนดเวลาเป็น UTC+0 อัตโนมัติหากไม่ได้ระบุมา
