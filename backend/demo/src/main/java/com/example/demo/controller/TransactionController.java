@@ -71,7 +71,9 @@ public class TransactionController {
             @ModelAttribute HandoverRequestDto requestDto) {
 
         // 1. ตรวจสอบการยืนยันตัวตนจาก Spring Security Context (401 Unauthorized ถ้ายังไม่ได้ Login)
-        if (authentication == null || !authentication.isAuthenticated()) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication.getName() == null || authentication.getName().isBlank()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: กรุณาเข้าสู่ระบบก่อนทำรายการ");
         }
 

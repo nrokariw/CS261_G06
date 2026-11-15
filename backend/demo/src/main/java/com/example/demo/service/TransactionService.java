@@ -139,13 +139,16 @@ public class TransactionService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ผู้ใช้งานไม่มีสิทธิ์บันทึกหลักฐานในรายการยืมนี้");
         }
 
-        // 4. ตรวจสอบสถานะคำขอต้องเป็น ACCEPTED เท่านั้น (409 Conflict)
+        // 4. ตรวจสอบสถานะคำขอต้องเป็น ACCEPTED และยังไม่เคยส่งมอบมาก่อน (409 Conflict)
         if (request.getStatus() != RequestStatus.ACCEPTED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "สถานะรายการไม่ถูกต้อง (ต้องเป็น Accepted เท่านั้น)");
         }
+        if (transactionRepository.existsByRequestId(requestId) || item.getStatus() != ItemStatus.AVAILABLE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "รายการนี้ถูกส่งมอบหรือสิ่งของถูกยืมไปแล้ว");
+        }
 
-        // 5. อัปโหลดไฟล์รูปภาพผ่าน FileStorageService (ตรวจสอบ Mime-type และ Size ภายในตัว หากไม่ผ่านจะโยน 400 Bad Request)
-        String imageUrl = fileStorageService.storeFile(dto.getImageFile());
+        // 5. อัปโหลดไฟล์รูปภาพหลักฐานผ่าน FileStorageService (บันทึกลง uploads/evidence และตรวจ Mime-type/Size)
+        String imageUrl = fileStorageService.storeEvidenceFile(dto.getImageFile());
 
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
@@ -168,7 +171,7 @@ public class TransactionService {
         proof.setUploaderId(currentUserId);
         proof.setProofType(ProofType.HANDOVER);
         proof.setImageUrl(imageUrl);
-        proof.setNote(dto.getConditionNote());
+        proof.setNote(dto.getEffectiveNote());
         proof.setCapturedAt(now);
         evidenceProofRepository.save(proof);
 
