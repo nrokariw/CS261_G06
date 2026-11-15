@@ -28,14 +28,12 @@ public class TransactionController {
         this.transactionService = transactionService;
         this.evidenceProofService = evidenceProofService;
     }
-
-    private String requireAuthenticatedStudentId(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()
-                || authentication.getName() == null || authentication.getName().isBlank()
-                || "anonymousUser".equals(authentication.getPrincipal())) {
+    
+    // Helper method ลดโค้ดตรวจสอบซ้ำซ้อน
+    private void validateAuthHeader(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
         }
-        return authentication.getName();
     }
 
     // 1. เริ่มต้น Transaction การยืม
@@ -78,12 +76,12 @@ public class TransactionController {
             Authentication authentication,
             @ModelAttribute com.example.demo.dto.ReturnRequestDto requestDto) {
 
-        // ตรวจสอบ Token เบื้องต้น (401 Unauthorized หากไม่มี Authorization Header)
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new org.springframework.web.server.ResponseStatusException(
-                org.springframework.http.HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token"
-            );
-        }
+         //edit เรียกใช้เมธอดกลางที่สร้างขึ้นแทนการเขียนเช็กซ้ำ
+        validateAuthHeader(authHeader);
+
+        // TODO: แยกดึง userId จริงจาก JWT Token หรือ SecurityContext 
+        // (ในตัวอย่างจำลองดึงผ่านระบบ Authentication หรือ Mock ID ตามโครงสร้างโปรเจกต์ของคุณ)
+        String currentUserId = "6400000001"; 
 
         // เรียกใช้งาน Service บันทึกหลักฐานและอัปเดตสถานะ
         String authenticatedStudentId = requireAuthenticatedStudentId(authentication);
