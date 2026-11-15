@@ -63,14 +63,18 @@ public class AuthService {
 
         User authenticatedUser = null;
 
-        // 1. Check Local Database (BCrypt) unless mode is strictly TU_ONLY
+        // 1. Check Local Database (BCrypt) only for LOCAL demo accounts unless mode is strictly TU_ONLY
         if (!"TU_ONLY".equals(mode)) {
             Optional<User> localCandidate = userRepository.findById(identifier)
                     .or(() -> userRepository.findByUsername(identifier));
 
             if (localCandidate.isPresent()) {
                 User localUser = localCandidate.get();
-                if (localUser.getPasswordHash() != null
+                boolean isLocalAccount = localUser.getAuthProvider() == null
+                        || localUser.getAuthProvider().isBlank()
+                        || "LOCAL".equalsIgnoreCase(localUser.getAuthProvider());
+                if (isLocalAccount
+                        && localUser.getPasswordHash() != null
                         && !localUser.getPasswordHash().isBlank()
                         && passwordEncoder.matches(password, localUser.getPasswordHash())) {
                     authenticatedUser = localUser;
@@ -121,14 +125,10 @@ public class AuthService {
         }
 
         String resolvedRole = "employee".equalsIgnoreCase(profile.type()) ? "STAFF" : "STUDENT";
-        if (user.getRole() == null || user.getRole().isBlank()) {
-            user.setRole(resolvedRole);
-        }
+        user.setRole(resolvedRole);
         user.setAuthProvider("TU_API");
-
-        if (rawPassword != null && !rawPassword.isBlank()) {
-            user.setPasswordHash(passwordEncoder.encode(rawPassword));
-        }
+        // Do not cache password hashes for TU_API users so TU password changes always take effect immediately
+        user.setPasswordHash(null);
 
         return userRepository.save(user);
     }
