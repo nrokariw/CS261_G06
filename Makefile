@@ -138,11 +138,11 @@ ps: status
 
 # Execute initial schema script inside running database container
 db-init:
-	$(COMPOSE) exec -T database /opt/mssql-tools18/bin/sqlcmd -S localhost -U $(or $(DB_USER),sa) -P "$(or $(MSSQL_SA_PASSWORD),StrongPassw0rd!)" -v DB_NAME="$(or $(DB_NAME),our_project_db)" -C -i /scripts/schema/OUR_PROJECT_DB.sql
+	MSYS_NO_PATHCONV=1 $(COMPOSE) exec -T database /opt/mssql-tools18/bin/sqlcmd -S localhost -U $(or $(DB_USER),sa) -P "$(or $(MSSQL_SA_PASSWORD),StrongPassw0rd!)" -v DB_NAME="$(or $(DB_NAME),our_project_db)" -C -i /scripts/schema/OUR_PROJECT_DB.sql
 
 # Open interactive sqlcmd terminal in running database container
 db-shell:
-	$(COMPOSE) exec database /opt/mssql-tools18/bin/sqlcmd -S localhost -U $(or $(DB_USER),sa) -P "$(or $(MSSQL_SA_PASSWORD),StrongPassw0rd!)" -d "$(or $(DB_NAME),our_project_db)" -C
+	MSYS_NO_PATHCONV=1 $(COMPOSE) exec database /opt/mssql-tools18/bin/sqlcmd -S localhost -U $(or $(DB_USER),sa) -P "$(or $(MSSQL_SA_PASSWORD),StrongPassw0rd!)" -d "$(or $(DB_NAME),our_project_db)" -C
 
 # Seed mock listings via Backend API for testing (guarded against production)
 mock: env
