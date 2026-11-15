@@ -77,7 +77,7 @@ public class TuAuthClient {
             return Optional.empty();
         }
 
-        String endpoint = buildVerifyUrl(baseUrl.trim(), verifyPath != null ? verifyPath.trim() : "/auth/Ad/verify");
+        String endpoint = buildVerifyUrl(baseUrl.trim(), verifyPath != null ? verifyPath.trim() : "");
         try {
             String requestBody = objectMapper.writeValueAsString(Map.of(
                     "UserName", username,
@@ -226,14 +226,17 @@ public class TuAuthClient {
     }
 
     private String buildVerifyUrl(String baseUrl, String verifyPath) {
+        if (verifyPath.isBlank()) {
+            return baseUrl;
+        }
         if (verifyPath.startsWith("http://") || verifyPath.startsWith("https://")) {
             return verifyPath;
         }
-        if (baseUrl.endsWith("/auth/Ad/verify")) {
-            return baseUrl;
-        }
         String normalizedBase = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         String normalizedPath = verifyPath.startsWith("/") ? verifyPath : "/" + verifyPath;
+        if (normalizedBase.endsWith(normalizedPath)) {
+            return normalizedBase;
+        }
         return normalizedBase + normalizedPath;
     }
 

@@ -14,17 +14,18 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class LoginRateLimiter {
 
-    private static final int MAX_TRACKED_IPS = 10_000;
-
     private final ConcurrentHashMap<String, Deque<Instant>> attemptsByIp = new ConcurrentHashMap<>();
+    private final int maxTrackedIps;
     private volatile int maxAttempts;
     private volatile Duration window;
 
     public LoginRateLimiter(
             @Value("${app.auth.rate-limit.max-attempts:5}") int maxAttempts,
-            @Value("${app.auth.rate-limit.window-minutes:10}") int windowMinutes) {
+            @Value("${app.auth.rate-limit.window-minutes:10}") int windowMinutes,
+            @Value("${app.auth.rate-limit.max-tracked-ips:10000}") int maxTrackedIps) {
         this.maxAttempts = maxAttempts;
         this.window = Duration.ofMinutes(Math.max(1, windowMinutes));
+        this.maxTrackedIps = Math.max(100, maxTrackedIps);
     }
 
     public void checkAllowed(String clientIp) {
@@ -47,9 +48,9 @@ public class LoginRateLimiter {
 
     public void recordAttempt(String clientIp) {
         String key = normalizeIp(clientIp);
-        if (attemptsByIp.size() >= MAX_TRACKED_IPS && !attemptsByIp.containsKey(key)) {
+        if (attemptsByIp.size() >= maxTrackedIps && !attemptsByIp.containsKey(key)) {
             evictExpiredEntries();
-            if (attemptsByIp.size() >= MAX_TRACKED_IPS) {
+            if (attemptsByIp.size() >= maxTrackedIps) {
                 attemptsByIp.clear();
             }
         }

@@ -24,7 +24,7 @@ public class TuAuthCacheService {
     private final int maxEntries;
 
     public TuAuthCacheService(
-            @Value("${app.jwt.secret:CampusShareDefaultCacheSecret2026}") String secret,
+            @Value("${app.jwt.secret}") String secret,
             @Value("${app.auth.tu-cache.ttl-seconds:300}") long ttlSeconds,
             @Value("${app.auth.tu-cache.max-entries:5000}") int maxEntries) {
         this.hmacSecret = secret.getBytes(StandardCharsets.UTF_8);
