@@ -1,3 +1,7 @@
+const DEFAULT_APP_ENV = (import.meta.env.VITE_APP_ENV || "demo")
+  .trim()
+  .toLowerCase();
+
 const DEFAULT_API_PATHS = {
   base: import.meta.env.VITE_API_BASE_PATH || "/api",
   auth: import.meta.env.VITE_API_AUTH_PATH || "/api/auth",
@@ -9,8 +13,21 @@ const DEFAULT_API_PATHS = {
   evidence: import.meta.env.VITE_API_EVIDENCE_PATH || "/api/evidence",
 };
 
+let runtimeAppEnv = DEFAULT_APP_ENV;
 let runtimeApiPaths = { ...DEFAULT_API_PATHS };
 let configLoaded = false;
+let refreshPromise = null;
+let authCallbacks = {
+  onTokenRefreshed: null,
+  onSessionExpired: null,
+};
+
+export function registerAuthCallbacks(callbacks = {}) {
+  authCallbacks = {
+    ...authCallbacks,
+    ...callbacks,
+  };
+}
 
 export async function loadRuntimeConfig() {
   if (configLoaded) return runtimeApiPaths;
@@ -18,6 +35,12 @@ export async function loadRuntimeConfig() {
     const res = await fetch("/config.json", { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
+      if (data?.appEnv && typeof data.appEnv === "string") {
+        const cleanedEnv = data.appEnv.trim().toLowerCase();
+        if (cleanedEnv && !cleanedEnv.startsWith("$")) {
+          runtimeAppEnv = cleanedEnv;
+        }
+      }
       if (data?.api) {
         runtimeApiPaths = {
           base: data.api.base || DEFAULT_API_PATHS.base,
@@ -39,20 +62,105 @@ export async function loadRuntimeConfig() {
   return runtimeApiPaths;
 }
 
+export function getAppEnv() {
+  return runtimeAppEnv || "demo";
+}
+
+export function isProdEnv(envOverride) {
+  const env = (envOverride || getAppEnv() || "demo").trim().toLowerCase();
+  return env === "prod" || env === "production";
+}
+
 export function getApiPaths() {
   return runtimeApiPaths;
 }
 
 function getAuthToken(customToken) {
-  return customToken || localStorage.getItem("token") || "Mock-jwt-token-123";
+  if (customToken) return customToken;
+  try {
+    return localStorage.getItem("token") || null;
+  } catch {
+    return null;
+  }
+}
+
+function buildUrl(endpoint) {
+  const basePath = runtimeApiPaths.base || "/api";
+  return endpoint.startsWith("http") || endpoint.startsWith(basePath)
+    ? endpoint
+    : `${basePath}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+}
+
+function isAuthLifecycleEndpoint(url) {
+  return (
+    url.endsWith("/auth/login") ||
+    url.endsWith("/auth/refresh") ||
+    url.endsWith("/auth/logout")
+  );
+}
+
+async function performSilentRefresh() {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  const { auth } = getApiPaths();
+  const refreshUrl = buildUrl(`${auth}/refresh`);
+
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(refreshUrl, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      if (!res.ok) {
+        throw new Error(`Refresh failed (${res.status})`);
+      }
+      const data = await res.json();
+      const nextToken = data?.accessToken || data?.token || null;
+      if (!nextToken) {
+        throw new Error("Missing accessToken in refresh response");
+      }
+      try {
+        localStorage.setItem("token", nextToken);
+      } catch {
+        // Ignore storage errors
+      }
+      if (authCallbacks.onTokenRefreshed) {
+        authCallbacks.onTokenRefreshed(
+          nextToken,
+          data?.user || data?.userProfile || null,
+        );
+      }
+      return nextToken;
+    } catch (err) {
+      try {
+        localStorage.removeItem("token");
+      } catch {
+        // Ignore storage errors
+      }
+      if (authCallbacks.onSessionExpired) {
+        authCallbacks.onSessionExpired();
+      }
+      throw err;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 export async function apiRequest(endpoint, options = {}) {
-  const { token, headers = {}, body, ...rest } = options;
+  const { token, headers = {}, body, _retried = false, ...rest } = options;
   const isFormData = body instanceof FormData;
 
+  const activeToken = getAuthToken(token);
   const requestHeaders = {
-    Authorization: `Bearer ${getAuthToken(token)}`,
+    ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
     ...headers,
   };
 
@@ -60,13 +168,10 @@ export async function apiRequest(endpoint, options = {}) {
     requestHeaders["Content-Type"] = "application/json";
   }
 
-  const basePath = runtimeApiPaths.base || "/api";
-  const url =
-    endpoint.startsWith("http") || endpoint.startsWith(basePath)
-      ? endpoint
-      : `${basePath}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  const url = buildUrl(endpoint);
 
   const response = await fetch(url, {
+    credentials: "include",
     ...rest,
     headers: requestHeaders,
     body:
@@ -74,6 +179,21 @@ export async function apiRequest(endpoint, options = {}) {
         ? JSON.stringify(body)
         : body,
   });
+
+  if (response.status === 401 && !_retried && !isAuthLifecycleEndpoint(url)) {
+    try {
+      const refreshedToken = await performSilentRefresh();
+      if (refreshedToken) {
+        return apiRequest(endpoint, {
+          ...options,
+          token: refreshedToken,
+          _retried: true,
+        });
+      }
+    } catch {
+      // Fall through to standard 401 error handling below
+    }
+  }
 
   if (!response.ok) {
     const rawText = await response.text().catch(() => "");

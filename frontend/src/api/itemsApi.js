@@ -12,6 +12,8 @@ export function normalizeItem(raw, fallbackOwner = "") {
     owner: raw.owner ?? fallbackOwner ?? raw.ownerId ?? "",
     ownerId: raw.ownerId ?? "",
     status: String(raw.status || "available").toLowerCase(),
+    availableFrom: raw.availableFrom ?? raw.available_from ?? null,
+    availableUntil: raw.availableUntil ?? raw.available_until ?? null,
   };
 }
 

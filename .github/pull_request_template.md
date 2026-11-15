@@ -11,10 +11,18 @@
 - Task / Story ID:
 - Related Issue: Closes #
 
+## ทิศทางของ Pull Request (GitFlow Target)
+
+- [ ] งานพัฒนาทั่วไป (`feat/*`, `fix/*`, `refactor/*`, `chore/*`, `docs/*`, `test/*` → `dev`)
+- [ ] เตรียมปล่อยเวอร์ชัน (`release/*` → `main` หรือซิงก์กลับเข้า `dev`)
+- [ ] แก้ไขบั๊กเร่งด่วนบน Production (`hotfix/*` → `main` และซิงก์กลับเข้า `dev`)
+
 ## ประเภทของการเปลี่ยนแปลง (Type of Change)
 
 - [ ] `feat`: เพิ่มฟีเจอร์ใหม่
 - [ ] `fix`: แก้ไขบั๊กหรือข้อผิดพลาด
+- [ ] `hotfix`: แก้ไขบั๊กร้ายแรงเร่งด่วนบน `main`
+- [ ] `release`: เตรียมโค้ดสำหรับส่งมอบเวอร์ชัน/สปรินต์
 - [ ] `refactor`: ปรับปรุงโครงสร้างโค้ดโดยไม่เปลี่ยนพฤติกรรมการทำงานเดิม
 - [ ] `chore`: งานตั้งค่าระบบ, Docker, Makefile หรือ Dependency
 - [ ] `docs`: แก้ไขหรือเพิ่มเติมเอกสาร
@@ -37,7 +45,8 @@
 
 ## Checklist ก่อนเปิด PR
 
-- [ ] ดึงโค้ดล่าสุดจาก `main` (`git fetch origin && git rebase origin/main`) และแก้ Conflict เรียบร้อยแล้ว
+- [ ] เปิด PR ไปยัง Branch ปลายทางที่ถูกต้องตาม GitFlow (`feat/*, fix/*` → `dev`, `release/*` → `main`, `hotfix/*` → `main` & `dev`)
+- [ ] ดึงโค้ดล่าสุดจาก Branch ปลายทาง (`git fetch origin && git rebase origin/dev` หรือ `origin/main` สำหรับ `hotfix/*`) และแก้ Conflict เรียบร้อยแล้ว
 - [ ] ทดสอบฝั่ง Backend ผ่าน (`cd backend/demo && ./mvnw test`)
 - [ ] ทดสอบ Build ฝั่ง Frontend ผ่านโดยไม่มี Error (`cd frontend && npm run build`)
 - [ ] ทดสอบรันระบบรวมผ่าน Docker (`make all`) แล้วทำงานร่วมกันได้ปกติ

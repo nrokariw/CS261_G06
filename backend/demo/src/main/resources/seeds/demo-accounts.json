@@ -1,0 +1,35 @@
+[
+  {
+    "studentId": "6809000001",
+    "username": "6809000001",
+    "fullName": "Ploy S.",
+    "email": "ploy.s@dome.tu.ac.th",
+    "faculty": "คณะวิทยาศาสตร์และเทคโนโลยี",
+    "department": "สาขาวิชาวิทยาการคอมพิวเตอร์",
+    "role": "STUDENT",
+    "roleLabelTh": "ผู้ให้ยืม / เจ้าของสิ่งของ (Account A)",
+    "roleLabelEn": "Lender / Item Owner (Account A)"
+  },
+  {
+    "studentId": "6809000002",
+    "username": "6809000002",
+    "fullName": "Boom N.",
+    "email": "boom.n@dome.tu.ac.th",
+    "faculty": "คณะวิทยาศาสตร์และเทคโนโลยี",
+    "department": "สาขาวิชาวิทยาการคอมพิวเตอร์",
+    "role": "STUDENT",
+    "roleLabelTh": "ผู้ขอยืม (Account B)",
+    "roleLabelEn": "Borrower (Account B)"
+  },
+  {
+    "studentId": "6809000003",
+    "username": "6809000003",
+    "fullName": "Somchai K.",
+    "email": "somchai.k@dome.tu.ac.th",
+    "faculty": "คณะวิศวกรรมศาสตร์",
+    "department": "สาขาวิชาวิศวกรรมคอมพิวเตอร์",
+    "role": "STUDENT",
+    "roleLabelTh": "นักศึกษาคนที่ 3 (Account C)",
+    "roleLabelEn": "Third Student (Account C)"
+  }
+]

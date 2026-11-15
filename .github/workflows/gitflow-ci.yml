@@ -1,0 +1,99 @@
+name: GitFlow & CI Check
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+      - "release/**"
+
+jobs:
+  validate-gitflow:
+    name: Validate GitFlow Branch Direction
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR source and target branches
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          echo "Checking GitFlow direction: ${HEAD_REF} -> ${BASE_REF}"
+
+          if [ "${BASE_REF}" = "main" ]; then
+            if [[ "${HEAD_REF}" =~ ^(release|hotfix)/.+ ]]; then
+              echo "[PASS] Valid PR into main from '${HEAD_REF}'."
+              exit 0
+            else
+              echo "::error::[FAIL] ไม่อนุญาตให้เปิด PR จาก '${HEAD_REF}' เข้า 'main' โดยตรง งานพัฒนาทั่วไปต้องเปิด PR เข้า 'dev' ก่อน แล้วจึงเข้า 'main' ผ่าน 'release/*' หรือใช้ 'hotfix/*' สำหรับการแก้ด่วนบน Production (ดูรายละเอียดใน CONTRIBUTING.md)"
+              exit 1
+            fi
+          fi
+
+          if [ "${BASE_REF}" = "dev" ]; then
+            if [ "${HEAD_REF}" = "main" ]; then
+              echo "::warning::ซิงก์โค้ดจาก 'main' กลับเข้า 'dev'"
+              exit 0
+            fi
+            echo "[PASS] Valid PR into dev from '${HEAD_REF}'."
+            exit 0
+          fi
+
+          if [[ "${BASE_REF}" =~ ^release/.+ ]]; then
+            if [[ "${HEAD_REF}" = "dev" || "${HEAD_REF}" =~ ^(fix|hotfix|chore|docs)/.+ ]]; then
+              echo "[PASS] Valid PR into '${BASE_REF}' from '${HEAD_REF}'."
+              exit 0
+            else
+              echo "::error::[FAIL] ไม่อนุญาตให้เปิด PR จาก '${HEAD_REF}' เข้า '${BASE_REF}' โดยตรง (อนุญาตเฉพาะ 'dev' หรือการแก้บั๊ก 'fix/*', 'chore/*', 'docs/*' สำหรับการเตรียม Release)"
+              exit 1
+            fi
+          fi
+
+  backend-check:
+    name: Backend Build & Test
+    needs: validate-gitflow
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/demo
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "maven"
+
+      - name: Verify Backend Compilation & Tests
+        run: |
+          chmod +x mvnw
+          if [ -f src/test/resources/application.properties ]; then
+            ./mvnw test -B
+          else
+            ./mvnw test-compile -B
+          fi
+
+  frontend-check:
+    name: Frontend Build Check
+    needs: validate-gitflow
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies and build
+        run: |
+          npm ci
+          npm run build

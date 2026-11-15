@@ -15,19 +15,33 @@ public class FileStorageService {
 
     //define attributes
     private final Path fileStorageLocation;
+    private final Path evidenceStorageLocation;
 
     //define constructor where injected from application.properties
-    public FileStorageService(@Value("${file.upload-dir:uploads/products}") String uploadDir) {
+    public FileStorageService(
+            @Value("${file.upload-dir:uploads/products}") String uploadDir,
+            @Value("${file.evidence-upload-dir:uploads/evidence}") String evidenceUploadDir) {
         this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
+        this.evidenceStorageLocation = Paths.get(evidenceUploadDir).toAbsolutePath().normalize();
         try {
             Files.createDirectories(this.fileStorageLocation);
+            Files.createDirectories(this.evidenceStorageLocation);
         } catch (Exception ex) {
             throw new RuntimeException("Could not create storage directory.", ex);
         }
     }
 
-    // 1. จัดเก็บไฟล์
+    // 1. จัดเก็บไฟล์รูปภาพสิ่งของ (Products)
     public String storeFile(MultipartFile file) {
+        return storeFileInDirectory(file, this.fileStorageLocation, "/uploads/products/");
+    }
+
+    // 2. จัดเก็บไฟล์รูปภาพหลักฐานการส่งมอบ/ส่งคืน (Evidence - US-06 & US-07)
+    public String storeEvidenceFile(MultipartFile file) {
+        return storeFileInDirectory(file, this.evidenceStorageLocation, "/uploads/evidence/");
+    }
+
+    private String storeFileInDirectory(MultipartFile file, Path targetDir, String urlPrefix) {
         if (file == null || file.isEmpty()) {
             return null;
         }
@@ -56,10 +70,10 @@ public class FileStorageService {
             }
 
             String newFileName = UUID.randomUUID().toString() + extension;
-            Path targetLocation = this.fileStorageLocation.resolve(newFileName);
+            Path targetLocation = targetDir.resolve(newFileName);
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
-            return "/uploads/products/" + newFileName;
+            return urlPrefix + newFileName;
         } catch (IOException ex) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to store file.");
         }

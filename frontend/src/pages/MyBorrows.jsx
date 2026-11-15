@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { PackageCheck } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PageHeading, StatusBadge, EmptyState, Avatar } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
@@ -27,8 +28,8 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
   
   const myBorrows = (requests || []).filter((r) =>
     Boolean(
-      (user?.studentId && r.borrowerId === user.studentId) ||
-      (user?.id && r.borrowerId === user.id) ||
+      (user?.studentId && String(r.borrowerId) === String(user.studentId)) ||
+      (user?.id && String(r.borrowerId) === String(user.id)) ||
       (user?.name && r.borrower === user.name)
     )
   );
@@ -94,6 +95,23 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
                 <p className="request-reason">
                   {t("myBorrows.reasonPrefix", { defaultValue: "เหตุผล: " })}{req.reason}
                 </p>
+                {req.responseReason && (
+                  <p
+                    className="request-feedback"
+                    style={{
+                      fontSize: "0.85rem",
+                      color: req.status === "rejected" ? "#B9382B" : "#0369A1",
+                      marginTop: "6px",
+                      background: req.status === "rejected" ? "#FCE8E4" : "#E0F2FE",
+                      borderLeft: req.status === "rejected" ? "3px solid #B9382B" : "3px solid #0284c7",
+                      padding: "6px 10px",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    <strong>{t("myBorrows.ownerFeedback", { defaultValue: "ข้อความจากเจ้าของ: " })}</strong>
+                    {req.responseReason}
+                  </p>
+                )}
               </div>
 
               <div className="request-side">
@@ -107,7 +125,6 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
                     <dd>{formatDate(req.returnDate, dateLocale)}</dd>
                   </div>
                 </dl>
-
                 {/* T-6.3: ปุ่มบันทึกหลักฐานการส่งมอบ เฉพาะคำขอ accepted ที่ยังไม่ส่งมอบ */}
                 {handedOver ? (
                   <div className="request-status-updated">
@@ -128,6 +145,17 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
                       </button>
                     </div>
                   )
+                )}
+                {req.status === "change_requested" && (
+                  <div style={{ marginTop: "12px" }}>
+                    <Link
+                      to={`/items/${req.itemId}`}
+                      className="button button-outline button-sm button-full"
+                      style={{ borderColor: "#0284c7", color: "#0284c7" }}
+                    >
+                      {t("myBorrows.editRequest", { defaultValue: "แก้ไขคำขอยืม" })}
+                    </Link>
+                  </div>
                 )}
               </div>
             </article>
