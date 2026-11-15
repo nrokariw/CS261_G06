@@ -1,0 +1,15 @@
+@startuml
+title US-08 Activity: View Borrow History & Evidence
+
+start
+:Request transaction history & proofs;
+if (Record exists?) then (No)
+  :Return 404 Not Found;
+elseif (User is lender or borrower?) then (No)
+  :Deny access (403 Forbidden);
+else (Yes)
+  :Load handover & return proofs;
+  :Display timeline, photos & timestamps;
+endif
+stop
+@enduml

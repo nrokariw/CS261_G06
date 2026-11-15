@@ -1,0 +1,18 @@
+@startuml
+title US-04 DFD: Update or Delete Item
+left to right direction
+skinparam roundcorner 12
+
+rectangle "Lender" as User
+usecase "4.1\nAuthorize Owner\n& Item Status" as P1
+usecase "4.2\nUpdate or\nSoft-Delete Item" as P2
+database "D2: Items" as D2
+database "D5: File Storage" as D5
+
+User --> P1 : Edit / Delete payload
+D2 --> P1 : ownerId, status
+P1 --> P2 : Owner & AVAILABLE
+P2 --> D2 : Update fields / UNAVAILABLE
+P2 --> D5 : Remove unused image
+P2 --> User : 200 OK / 403 / 409
+@enduml

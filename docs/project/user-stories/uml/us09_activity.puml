@@ -1,0 +1,26 @@
+@startuml
+title US-09 Activity: Login with TU Account
+
+start
+:Enter username & password;
+if (Valid input format?) then (No)
+  :Return 400 Bad Request;
+elseif (5m RAM cache hit?) then (Yes)
+  :Upsert user (no passwordHash) & issue JWT;
+else (Cache miss)
+  if (IP attempts <= 5 / 10m?) then (No)
+    :Return 429 Too Many Requests;
+  else (Yes)
+    :Call TU REST API /auth/Ad/verify;
+    if (Credentials valid?) then (No)
+      :Return 401 Unauthorized;
+    elseif (Account status active?) then (No)
+      :Return 403 Account Inactive;
+    else (Yes)
+      :Cache profile (5m TTL);
+      :Upsert user (STUDENT / STAFF) & issue JWT;
+    endif
+  endif
+endif
+stop
+@enduml

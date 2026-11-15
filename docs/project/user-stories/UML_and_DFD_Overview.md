@@ -1,6 +1,8 @@
 # CampusShare UML & Data Flow Diagrams (US-01 to US-09)
 
-## 1. DFD Level 0 — Context Diagram
+## System Overview
+
+### DFD Level 0 — Context Diagram
 
 ```mermaid
 flowchart LR
@@ -19,9 +21,7 @@ flowchart LR
     TUAPI -->|"Auth Status, Profile, Role"| System
 ```
 
----
-
-## 2. DFD Level 1 — System Processes (US-01 to US-09)
+### DFD Level 1 — System Processes
 
 ```mermaid
 flowchart LR
@@ -60,7 +60,7 @@ flowchart LR
     User -->|"Handover / Return Photo & Note"| P4
     D3 -->|"Accepted Request"| P4
     P4 <-->|"Start / Complete Tx"| D4
-    P4 -->|"Save Proof File & Metadata"| D5
+    P4 -->|"Save Proof & Metadata"| D5
     P4 -->|"Update Item Status"| D2
     P4 -->|"Borrowed / Returned"| User
 
@@ -71,9 +71,7 @@ flowchart LR
     P5 -->|"History & Photos"| User
 ```
 
----
-
-## 3. Domain Model (UML Class Diagram)
+### Domain Model (UML Class Diagram)
 
 ```mermaid
 classDiagram
@@ -124,9 +122,7 @@ classDiagram
     User "1" --> "0..*" EvidenceProof : uploads
 ```
 
----
-
-## 4. Entity Lifecycle (State Diagram)
+### Item Lifecycle (UML State Diagram)
 
 ```mermaid
 stateDiagram-v2
@@ -139,9 +135,42 @@ stateDiagram-v2
 
 ---
 
-## 5. Compact Sequence Diagrams (US-01 to US-09)
+## US-01: Create Item Listing
 
-### US-01: Create Item Listing
+### US-01 Data Flow (DFD)
+
+```mermaid
+flowchart LR
+    U["Lender"]
+    P1(("1.1 Validate Form & File"))
+    P2(("1.2 Store Image"))
+    P3(("1.3 Create Item"))
+    D5[("D5: File Storage")]
+    D2[("D2: Items")]
+
+    U -->|"Item form + image"| P1
+    P1 -->|"Valid image"| P2
+    P2 -->|"Image file"| D5
+    D5 -->|"imageUrl"| P2
+    P1 -->|"Valid fields"| P3
+    P2 -->|"imageUrl"| P3
+    P3 -->|"Insert AVAILABLE"| D2
+    P3 -->|"201 Created / Error"| U
+```
+
+### US-01 UML Activity
+
+```mermaid
+flowchart TD
+    S(["Start"]) --> A["Fill item form & attach image"]
+    A --> C{"Valid fields & image?"}
+    C -->|"Yes"| B["Store image & save Item (AVAILABLE)"]
+    C -->|"No"| E["Show 400 validation error"]
+    B --> Z(["End"])
+    E --> Z
+```
+
+### US-01 UML Sequence
 
 ```mermaid
 sequenceDiagram
@@ -166,7 +195,39 @@ sequenceDiagram
     end
 ```
 
-### US-02: Browse Available Items
+---
+
+## US-02: Browse Available Items
+
+### US-02 Data Flow (DFD)
+
+```mermaid
+flowchart LR
+    U["User"]
+    P1(("2.1 Auth Check"))
+    P2(("2.2 Query Available Items"))
+    D2[("D2: Items")]
+
+    U -->|"JWT + filter"| P1
+    P1 -->|"Authorized"| P2
+    D2 -->|"Items (AVAILABLE)"| P2
+    P2 -->|"Item list / Empty"| U
+```
+
+### US-02 UML Activity
+
+```mermaid
+flowchart TD
+    S(["Start"]) --> A["Open Browse page"]
+    A --> B["GET /api/items?status=AVAILABLE"]
+    B --> C{"Items found?"}
+    C -->|"Yes"| D["Render item cards"]
+    C -->|"No"| E["Show empty state"]
+    D --> Z(["End"])
+    E --> Z
+```
+
+### US-02 UML Sequence
 
 ```mermaid
 sequenceDiagram
@@ -184,7 +245,43 @@ sequenceDiagram
     FE-->>User: Render items or empty state
 ```
 
-### US-03: Submit Borrow Request
+---
+
+## US-03: Submit Borrow Request
+
+### US-03 Data Flow (DFD)
+
+```mermaid
+flowchart LR
+    U["Borrower"]
+    P1(("3.1 Verify Item & Owner"))
+    P2(("3.2 Create Request"))
+    D2[("D2: Items")]
+    D3[("D3: BorrowRequests")]
+
+    U -->|"itemId, dates, reason"| P1
+    D2 -->|"ownerId, status"| P1
+    P1 -->|"Eligible"| P2
+    P2 -->|"Insert PENDING"| D3
+    P2 -->|"201 Created / Error"| U
+```
+
+### US-03 UML Activity
+
+```mermaid
+flowchart TD
+    S(["Start"]) --> A["Fill dates & borrow reason"]
+    A --> C1{"Requester is owner?"}
+    C1 -->|"Yes"| E1["Reject 400 Own item"]
+    C1 -->|"No"| C2{"Item AVAILABLE?"}
+    C2 -->|"No"| E2["Reject 409 Unavailable"]
+    C2 -->|"Yes"| B["Create BorrowRequest (PENDING)"]
+    E1 --> Z(["End"])
+    E2 --> Z
+    B --> Z
+```
+
+### US-03 UML Sequence
 
 ```mermaid
 sequenceDiagram
@@ -207,7 +304,47 @@ sequenceDiagram
     end
 ```
 
-### US-04: Update or Delete Item Listing
+---
+
+## US-04: Update or Delete Item Listing
+
+### US-04 Data Flow (DFD)
+
+```mermaid
+flowchart LR
+    U["Lender"]
+    P1(("4.1 Authorize Owner & Status"))
+    P2(("4.2 Update or Soft-Delete"))
+    D2[("D2: Items")]
+    D5[("D5: File Storage")]
+
+    U -->|"Edit / Delete request"| P1
+    D2 -->|"ownerId, status"| P1
+    P1 -->|"Owner & AVAILABLE"| P2
+    P2 -->|"Update / UNAVAILABLE"| D2
+    P2 -->|"Delete old image"| D5
+    P2 -->|"200 OK / 403 / 409"| U
+```
+
+### US-04 UML Activity
+
+```mermaid
+flowchart TD
+    S(["Start"]) --> A["Request edit or delete"]
+    A --> C1{"Is item owner?"}
+    C1 -->|"No"| E1["403 Forbidden"]
+    C1 -->|"Yes"| C2{"Item AVAILABLE?"}
+    C2 -->|"No"| E2["409 Conflict"]
+    C2 -->|"Yes"| C3{"Action?"}
+    C3 -->|"Update"| U["Update item fields"]
+    C3 -->|"Delete"| D["Mark item UNAVAILABLE"]
+    E1 --> Z(["End"])
+    E2 --> Z
+    U --> Z
+    D --> Z
+```
+
+### US-04 UML Sequence
 
 ```mermaid
 sequenceDiagram
@@ -218,12 +355,12 @@ sequenceDiagram
     participant DB
 
     Lender->>FE: Edit or delete item
-    FE->>BE: PUT / DELETE /api/items/{id}
+    FE->>BE: PUT or DELETE /api/items/{id}
     BE->>DB: Check owner & AVAILABLE status
     alt Not owner
         BE-->>FE: 403 Forbidden
         FE-->>Lender: Access denied
-    else Item borrowed
+    else Item not AVAILABLE
         BE-->>FE: 409 Conflict
         FE-->>Lender: Cannot modify active loan
     else Allowed
@@ -233,7 +370,45 @@ sequenceDiagram
     end
 ```
 
-### US-05: Approve or Reject Borrow Request
+---
+
+## US-05: Approve or Reject Borrow Request
+
+### US-05 Data Flow (DFD)
+
+```mermaid
+flowchart LR
+    U["Lender"]
+    P1(("5.1 Verify Owner & PENDING"))
+    P2(("5.2 Update Request & Item"))
+    D3[("D3: BorrowRequests")]
+    D2[("D2: Items")]
+
+    U -->|"Approve / Reject"| P1
+    D3 -->|"Request status"| P1
+    D2 -->|"ownerId"| P1
+    P1 -->|"Valid transition"| P2
+    P2 -->|"ACCEPTED / REJECTED"| D3
+    P2 -->|"RESERVED / AVAILABLE"| D2
+    P2 -->|"200 OK / Error"| U
+```
+
+### US-05 UML Activity
+
+```mermaid
+flowchart TD
+    S(["Start"]) --> A["Review BorrowRequest"]
+    A --> C1{"Is owner & PENDING?"}
+    C1 -->|"No"| E["403 / 409 Error"]
+    C1 -->|"Yes"| C2{"Approve?"}
+    C2 -->|"Yes"| AP["Request -> ACCEPTED, Item -> RESERVED"]
+    C2 -->|"No"| RJ["Request -> REJECTED, Item stays AVAILABLE"]
+    E --> Z(["End"])
+    AP --> Z
+    RJ --> Z
+```
+
+### US-05 UML Sequence
 
 ```mermaid
 sequenceDiagram
@@ -260,7 +435,51 @@ sequenceDiagram
     end
 ```
 
-### US-06: Record Handover Evidence
+---
+
+## US-06: Record Handover Evidence
+
+### US-06 Data Flow (DFD)
+
+```mermaid
+flowchart LR
+    U["Lender / Borrower"]
+    P1(("6.1 Verify Participant & ACCEPTED"))
+    P2(("6.2 Store Handover Photo"))
+    P3(("6.3 Start Tx & Update Item"))
+    D3[("D3: BorrowRequests")]
+    D5[("D5: Evidence & Storage")]
+    D4[("D4: Transactions")]
+    D2[("D2: Items")]
+
+    U -->|"requestId, photo, note"| P1
+    D3 -->|"Participant & ACCEPTED"| P1
+    P1 -->|"Valid image"| P2
+    P2 -->|"Save HANDOVER proof"| D5
+    D5 -->|"imageUrl"| P2
+    P1 -->|"Authorized"| P3
+    P2 -->|"imageUrl"| P3
+    P3 -->|"Insert ACTIVE Tx"| D4
+    P3 -->|"Item -> BORROWED"| D2
+    P3 -->|"200 OK / 400 / 403"| U
+```
+
+### US-06 UML Activity
+
+```mermaid
+flowchart TD
+    S(["Start"]) --> A["Open Accepted request"]
+    A --> C1{"Participant?"}
+    C1 -->|"No"| E1["403 Forbidden"]
+    C1 -->|"Yes"| C2{"Image & note provided?"}
+    C2 -->|"No"| E2["400 Validation error"]
+    C2 -->|"Yes"| B["Save Proof (HANDOVER), Tx (ACTIVE), Item -> BORROWED"]
+    E1 --> Z(["End"])
+    E2 --> Z
+    B --> Z
+```
+
+### US-06 UML Sequence
 
 ```mermaid
 sequenceDiagram
@@ -285,7 +504,50 @@ sequenceDiagram
     end
 ```
 
-### US-07: Record Return Evidence
+---
+
+## US-07: Record Return Evidence
+
+### US-07 Data Flow (DFD)
+
+```mermaid
+flowchart LR
+    U["Lender / Borrower"]
+    P1(("7.1 Verify Participant & ACTIVE Tx"))
+    P2(("7.2 Store Return Photo"))
+    P3(("7.3 Complete Tx & Release Item"))
+    D4[("D4: Transactions")]
+    D5[("D5: Evidence & Storage")]
+    D2[("D2: Items")]
+
+    U -->|"transactionId, photo, note"| P1
+    D4 -->|"Participant & ACTIVE"| P1
+    P1 -->|"Valid image"| P2
+    P2 -->|"Save RETURN proof"| D5
+    D5 -->|"imageUrl"| P2
+    P1 -->|"Authorized"| P3
+    P2 -->|"imageUrl"| P3
+    P3 -->|"Update Tx COMPLETED"| D4
+    P3 -->|"Item -> AVAILABLE"| D2
+    P3 -->|"200 OK / 400 / 403"| U
+```
+
+### US-07 UML Activity
+
+```mermaid
+flowchart TD
+    S(["Start"]) --> A["Open Borrowed transaction"]
+    A --> C1{"Participant?"}
+    C1 -->|"No"| E1["403 Forbidden"]
+    C1 -->|"Yes"| C2{"Image & note provided?"}
+    C2 -->|"No"| E2["400 Validation error"]
+    C2 -->|"Yes"| B["Save Proof (RETURN), Tx -> COMPLETED, Item -> AVAILABLE"]
+    E1 --> Z(["End"])
+    E2 --> Z
+    B --> Z
+```
+
+### US-07 UML Sequence
 
 ```mermaid
 sequenceDiagram
@@ -310,7 +572,46 @@ sequenceDiagram
     end
 ```
 
-### US-08: View Borrow History & Evidence
+---
+
+## US-08: View Borrow History & Evidence
+
+### US-08 Data Flow (DFD)
+
+```mermaid
+flowchart LR
+    U["User (Participant / Outsider)"]
+    P1(("8.1 Authorize Participant"))
+    P2(("8.2 Load Timeline & Proofs"))
+    D3[("D3: BorrowRequests")]
+    D4[("D4: Transactions")]
+    D5[("D5: Evidence & Storage")]
+
+    U -->|"Query history"| P1
+    D3 -->|"Request parties"| P1
+    D4 -->|"Lender & Borrower"| P1
+    P1 -->|"Authorized"| P2
+    D4 -->|"Timestamps & status"| P2
+    D5 -->|"Handover & return proofs"| P2
+    P2 -->|"Timeline & photos / 403"| U
+```
+
+### US-08 UML Activity
+
+```mermaid
+flowchart TD
+    S(["Start"]) --> A["Request borrow history & proofs"]
+    A --> C1{"Record exists?"}
+    C1 -->|"No"| E1["404 Not Found"]
+    C1 -->|"Yes"| C2{"Lender or Borrower?"}
+    C2 -->|"No"| E2["403 Forbidden"]
+    C2 -->|"Yes"| B["Display timeline, photos & timestamps"]
+    E1 --> Z(["End"])
+    E2 --> Z
+    B --> Z
+```
+
+### US-08 UML Sequence
 
 ```mermaid
 sequenceDiagram
@@ -332,7 +633,59 @@ sequenceDiagram
     end
 ```
 
-### US-09: Login with TU Account
+---
+
+## US-09: Login with TU Account
+
+### US-09 Data Flow (DFD)
+
+```mermaid
+flowchart LR
+    U["User"]
+    TU["TU REST API"]
+    P1(("9.1 Validate Format"))
+    P2(("9.2 Check Cache & IP Limit"))
+    P3(("9.3 Verify TU API"))
+    P4(("9.4 Upsert User & JWT"))
+    D6[("D6: RAM Cache & Limit")]
+    D1[("D1: Users")]
+
+    U -->|"username, password"| P1
+    P1 -->|"Valid format"| P2
+    P2 <-->|"HMAC cache & IP counter"| D6
+    P2 -->|"Cache miss"| P3
+    P2 -->|"Cache hit"| P4
+    P3 -->|"POST /auth/Ad/verify"| TU
+    TU -->|"Status, profile, role"| P3
+    P3 -->|"Store 5m cache"| D6
+    P3 -->|"Active profile"| P4
+    P4 <-->|"Upsert (no passwordHash)"| D1
+    P4 -->|"JWT & user / 401 / 403 / 429"| U
+```
+
+### US-09 UML Activity
+
+```mermaid
+flowchart TD
+    S(["Start"]) --> A["Submit credentials"]
+    A --> C1{"Valid format?"}
+    C1 -->|"No"| E1["400 Bad Request"]
+    C1 -->|"Yes"| C2{"5m Cache hit?"}
+    C2 -->|"Yes"| OK["Upsert user & issue JWT"]
+    C2 -->|"No"| C3{"IP <= 5 / 10m?"}
+    C3 -->|"No"| E2["429 Too Many Requests"]
+    C3 -->|"Yes"| C4{"TU API valid & active?"}
+    C4 -->|"Invalid"| E3["401 Unauthorized"]
+    C4 -->|"Inactive"| E4["403 Account Inactive"]
+    C4 -->|"Active"| CA["Cache 5m TTL"] --> OK
+    OK --> Z(["End"])
+    E1 --> Z
+    E2 --> Z
+    E3 --> Z
+    E4 --> Z
+```
+
+### US-09 UML Sequence
 
 ```mermaid
 sequenceDiagram
