@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { Check, X, AlertCircle, MessageSquare } from "lucide-react";
+import { Check, X, AlertCircle, PackageCheck, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeading, StatusBadge, EmptyState, Avatar } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
+import HandoverModal, { isHandedOver } from "../components/HandoverModal";
 import {
   updateBorrowRequestStatus,
   cancelBorrowRequest,
@@ -23,6 +24,9 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
   const { user, token } = useAuth();
   const { t, i18n } = useTranslation();
   const [actionError, setActionError] = useState("");
+  // T-6.3: คำขอที่กำลังเปิดโมดอลบันทึกหลักฐานการส่งมอบ + ข้อความแจ้งผลสำเร็จ
+  const [handoverReq, setHandoverReq] = useState(null);
+  const [successMsg, setSuccessMsg] = useState("");
   const [activeResponseReq, setActiveResponseReq] = useState(null);
   const [responseReason, setResponseReason] = useState("");
   const [modalError, setModalError] = useState("");
@@ -83,6 +87,22 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
     } catch (err) {
       setActionError(err.message || t("validation.submitFailed"));
     }
+  }
+
+  // T-6.3: บันทึกหลักฐานสำเร็จ 
+  function handleHandoverSuccess(handover) {
+    const target = handoverReq;
+    setRequests((prev) =>
+      prev.map((r) => (r.id === target.id ? { ...r, handover } : r)),
+    );
+    if (setItems) {
+      setItems((prev) =>
+        prev.map((i) => (i.id === target.itemId ? { ...i, status: "borrowed" } : i)),
+      );
+    }
+    setHandoverReq(null);
+    setActionError("");
+    setSuccessMsg(t("handover.success", { name: target.itemName }));
   }
 
   function openResponseModal(req) {
@@ -158,9 +178,21 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
         </div>
       )}
 
+      {successMsg && (
+        <div className="alert alert-success" role="status">
+          {successMsg}
+          <button onClick={() => setSuccessMsg("")} className="alert-close">
+            {t("myListings.closeAlert")}
+          </button>
+        </div>
+      )}
+
       {myIncomingRequests.length ? (
         <div className="requests-list requests-list-updated">
-          {myIncomingRequests.map((req) => (
+          {myIncomingRequests.map((req) => {
+            // T-6.3: ส่งมอบแล้ว แสดงสถานะ "กำลังยืม"
+            const handedOver = isHandedOver(req);
+            return (
             <article className="request-card request-card-updated" key={req.id}>
               <div className="request-main">
                 <div className="request-card-top">
@@ -171,7 +203,7 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                       {t("incomingRequests.requestedBy")} <strong>{req.borrower}</strong>
                     </p>
                   </div>
-                  <StatusBadge status={req.status} />
+                  <StatusBadge status={handedOver ? "borrowed" : req.status} />
                 </div>
                 <p className="request-reason">{req.reason}</p>
                 {req.responseReason && (
@@ -232,23 +264,52 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                     </div>
                   ) : (
                     <div className="request-status-updated">
-                      <button
-                        className="text-button"
-                        onClick={() => updateStatus(req.id, "pending")}
-                      >
-                        {t("incomingRequests.resetToPending")}
-                      </button>
+                      {handedOver ? (
+                        <small className="status-hint">{t("handover.done")}</small>
+                      ) : (
+                        <>
+                          {/* T-6.3: ปุ่มบันทึกหลักฐานการส่งมอบ เฉพาะคำขอ accepted ที่ยังไม่ส่งมอบ */}
+                          {req.status === "accepted" && (
+                            <button
+                              type="button"
+                              className="button button-primary button-sm"
+                              onClick={() => {
+                                setSuccessMsg("");
+                                setHandoverReq(req);
+                              }}
+                            >
+                              <PackageCheck size={16} /> {t("handover.button")}
+                            </button>
+                          )}
+                          <button
+                            className="text-button"
+                            onClick={() => updateStatus(req.id, "pending")}
+                          >
+                            {t("incomingRequests.resetToPending")}
+                          </button>
+                        </>
+                      )}
                     </div>
                   )
                 )}
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <EmptyState
           title={t("incomingRequests.emptyTitle")}
           description={t("incomingRequests.emptyDesc")}
+        />
+      )}
+
+      {/* T-6.3: โมดอลบันทึกหลักฐานการส่งมอบ */}
+      {handoverReq && (
+        <HandoverModal
+          request={handoverReq}
+          onClose={() => setHandoverReq(null)}
+          onSuccess={handleHandoverSuccess}
         />
       )}
 
