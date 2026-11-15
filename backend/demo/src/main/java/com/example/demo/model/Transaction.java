@@ -9,7 +9,10 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
@@ -19,11 +22,16 @@ public class Transaction {
 
     //define attributes
     @Id 
-    @Column (name = "id", length = 36, updatable = false, nullable = false)
+    @Column(name = "id", length = 36, updatable = false, nullable = false)
     private String id;
 
-    @Column(name = "request_id", length = 36, nullable = false)
+    @Column(name = "request_id", length = 36, nullable = false, unique = true, insertable = false, updatable = false)
     private String requestId;
+
+    // เพิ่ม JPA Relationship ไปยัง BorrowRequest
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "request_id", referencedColumnName = "request_id", nullable = false)
+    private BorrowRequest borrowRequest;
 
     @Column(name = "borrower_id", length = 50, nullable = false)
     private String borrowerId;
@@ -68,6 +76,7 @@ public class Transaction {
      * 
      * @param id          รหัสประจำตัวการทำรายการ (Transaction ID)
      * @param requestId   รหัสประจำตัวคำขอยืมที่เกี่ยวข้อง (Borrow Request ID)
+     * @param borrowRequest ออบเจ็กต์ BorrowRequest ที่เกี่ยวข้อง
      * @param borrowerId  รหัสประจำตัวของผู้ขอยืม
      * @param lenderId    รหัสประจำตัวของผู้ให้ยืม
      * @param itemId      รหัสประจำตัวของสิ่งของที่ถูกยืม
@@ -75,9 +84,12 @@ public class Transaction {
      * @param borrowedAt  วันที่และเวลาที่เริ่มต้นการยืม
      * @param returnedAt  วันที่และเวลาที่คืนสิ่งของ 
      */
-    public Transaction(String id, String requestId, String borrowerId, String lenderId, String itemId, TransactionStatus status, LocalDateTime borrowedAt, LocalDateTime returnedAt) {
+    public Transaction(String id, BorrowRequest borrowRequest, String borrowerId, String lenderId, String itemId, TransactionStatus status, LocalDateTime borrowedAt, LocalDateTime returnedAt) {
         this.id = id;
-        this.requestId = requestId;
+        this.borrowRequest = borrowRequest;
+        if (borrowRequest != null) {
+            this.requestId = borrowRequest.getId();
+        }
         this.borrowerId = borrowerId;
         this.lenderId = lenderId;
         this.itemId = itemId;
@@ -88,7 +100,10 @@ public class Transaction {
 
     //define getters and setters
     public String getId() { return id; }
-    public String getRequestId() { return requestId; }
+    public String getRequestId() { 
+        return requestId != null ? requestId : (borrowRequest != null ? borrowRequest.getId() : null); 
+    }
+    public BorrowRequest getBorrowRequest() { return borrowRequest; }
     public String getBorrowerId() { return borrowerId; }
     public String getLenderId() { return lenderId; }
     public String getItemId() { return itemId; }
@@ -97,7 +112,12 @@ public class Transaction {
     public LocalDateTime getReturnedAt() { return returnedAt; }
     
     public void setId(String id) { this.id = id; }
-    public void setRequestId(String requestId) { this.requestId = requestId; }
+    public void setBorrowRequest(BorrowRequest borrowRequest) { 
+        this.borrowRequest = borrowRequest; 
+        if (borrowRequest != null) {
+            this.requestId = borrowRequest.getId();
+        }
+    }
     public void setBorrowerId(String borrowerId) { this.borrowerId = borrowerId; }
     public void setLenderId(String lenderId) { this.lenderId = lenderId; }
     public void setItemId(String itemId) { this.itemId = itemId; }

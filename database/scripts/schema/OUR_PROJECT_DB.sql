@@ -54,6 +54,7 @@ CREATE TABLE borrow_requests (
     start_date DATETIME2 NOT NULL,
     end_date DATETIME2 NOT NULL,
     reason NVARCHAR(MAX),
+    response_reason NVARCHAR(MAX),
     request_status VARCHAR(50) NOT NULL DEFAULT 'PENDING', -- PENDING, ACCEPTED, REJECTED, CANCELLED
     created_at DATETIME2 DEFAULT GETDATE(),
     updated_at DATETIME2 DEFAULT GETDATE(),
