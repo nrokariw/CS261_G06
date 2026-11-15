@@ -2,7 +2,9 @@ package com.example.demo.service;
 
 import com.example.demo.constant.ItemStatus;
 import com.example.demo.constant.TransactionStatus;
+import com.example.demo.constant.ProofType;
 import com.example.demo.model.BorrowRequest;
+import com.example.demo.model.EvidenceProof;
 import com.example.demo.model.Item;
 import com.example.demo.model.Transaction;
 import com.example.demo.repository.BorrowRequestRepository;
@@ -24,20 +26,20 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final BorrowRequestRepository borrowRequestRepository;
     private final ItemRepository itemRepository;
-    private final EvidenceProofRepository evidenceProofRepository;
     private final FileStorageService fileStorageService;
+    private final EvidenceProofService evidenceProofService;
 
     //define constructor
     public TransactionService(TransactionRepository transactionRepository,
                               BorrowRequestRepository borrowRequestRepository,
                               ItemRepository itemRepository,
-                              EvidenceProofRepository evidenceProofRepository,
-                              FileStorageService fileStorageService) {
+                              FileStorageService fileStorageService,
+                              EvidenceProofService evidenceProofService) {
         this.transactionRepository = transactionRepository;
         this.borrowRequestRepository = borrowRequestRepository;
         this.itemRepository = itemRepository;
-        this.evidenceProofRepository = evidenceProofRepository;
         this.fileStorageService = fileStorageService;
+        this.evidenceProofService = evidenceProofService;
     }
 
     // 1. อนุมัติคำขอและสร้าง Transaction เริ่มต้นการยืม
@@ -109,59 +111,43 @@ public class TransactionService {
         return transactionRepository.findByItemId(itemId);
     }
 
-    // T-7.1: บันทึกหลักฐานการส่งคืนสิ่งของและอัปเดตสถานะ
-    @Transactional
+    // T-7.1: บันทึกหลักฐานการส่งคืนสิ่งของและอัปเดตสถานะ    @Transactional
     public Transaction submitReturnEvidence(String requestId, String currentUserId, com.example.demo.dto.ReturnRequestDto dto) {
-        // 1. ตรวจสอบไฟล์รูปภาพ (400 Bad Request หากไม่แนบไฟล์หรือไฟล์ว่าง)
+        // 1. ตรวจสอบไฟล์รูปภาพ
         if (dto.getImageFile() == null || dto.getImageFile().isEmpty()) {
             throw new IllegalArgumentException("กรุณาแนบรูปภาพหลักฐานสภาพสิ่งของตอนส่งคืน");
         }
 
-        // 2. ค้นหา Transaction จาก requestId
+        // 2. ค้นหา Transaction
         Transaction transaction = transactionRepository.findByRequestId(requestId)
                 .orElseThrow(() -> new RuntimeException("ไม่พบประวัติธุรกรรมการยืมสำหรับคำขอนี้"));
 
-        // 3. ค้นหา Item ที่เกี่ยวข้อง
-        Item item = itemRepository.findById(transaction.getItemId())
-                .orElseThrow(() -> new RuntimeException("ไม่พบข้อมูลสิ่งของ"));
-
-        // 4. ตรวจสอบสิทธิ์คู่กรณี (User ต้องเป็น borrowerId หรือ lenderId เท่านั้น) -> 403 Forbidden
+        // 3. ตรวจสอบสิทธิ์คู่กรณี
         boolean isBorrower = transaction.getBorrowerId().equals(currentUserId);
         boolean isLender = transaction.getLenderId().equals(currentUserId);
         if (!isBorrower && !isLender) {
             throw new SecurityException("ผู้ใช้งานไม่มีสิทธิ์บันทึกการส่งคืนในรายการนี้");
         }
 
-        // 5. ตรวจสอบสถานะรายการยืมต้องอยู่ในสถานะ ACTIVE (กำลังยืม) -> 409 Conflict
+        // 4. ตรวจสอบสถานะรายการยืมต้องเป็น ACTIVE
         if (transaction.getStatus() != TransactionStatus.ACTIVE) {
             throw new IllegalStateException("สถานะรายการไม่ถูกต้องสำหรับการส่งคืน (รายการไม่ได้อยู่ในสถานะกำลังยืม)");
         }
 
-        // 6. อัปโหลดไฟล์รูปภาพหลักฐานผ่าน FileStorageService (มีการตรวจสอบ Mime-type และขนาดไม่เกิน 3MB ภายในตัว)
+        // 5. อัปโหลดไฟล์รูปภาพหลักฐาน
         String imageUrl = fileStorageService.storeFile(dto.getImageFile());
 
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-
-        // 7. บันทึก EvidenceProof (ProofType.RETURN)
-        com.example.demo.model.EvidenceProof proof = new com.example.demo.model.EvidenceProof();
-        proof.setTransactionId(transaction.getId());
+        // 6. แก้ไข Feature Envy: เรียกผ่าน EvidenceProofService แทนการเรียก Repository ตรงๆ
+        EvidenceProof proof = new EvidenceProof();
         proof.setUploaderId(currentUserId);
-        proof.setProofType(com.example.demo.constant.ProofType.RETURN);
+        proof.setProofType(ProofType.RETURN);
         proof.setImageUrl(imageUrl);
         proof.setNote(dto.getNote());
-        proof.setCapturedAt(now);
-        evidenceProofRepository.save(proof);
+        proof.setCapturedAt(LocalDateTime.now(ZoneOffset.UTC));
+        
+        evidenceProofService.addEvidenceProof(transaction.getId(), proof);
 
-        // 8. อัปเดตสถานะ Transaction เป็น COMPLETED และบันทึกเวลา returnedAt
-        transaction.completeTransaction();
-        transactionRepository.save(transaction);
-
-        // 9. เปลี่ยนสถานะสิ่งของกลับเป็น AVAILABLE
-        item.setStatus(ItemStatus.AVAILABLE);
-        item.setUpdatedAt(now);
-        itemRepository.save(item);
-
-        return transaction;
+        // 7. แก้ไข Duplicated Code: เรียกใช้เมธอด completeTransaction เพื่อจัดการสถานะ Transaction และ Item
+        return this.completeTransaction(transaction.getId());
     }
-
 }
