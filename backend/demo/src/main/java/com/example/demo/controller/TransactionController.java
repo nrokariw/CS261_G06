@@ -76,15 +76,9 @@ public class TransactionController {
             Authentication authentication,
             @ModelAttribute com.example.demo.dto.ReturnRequestDto requestDto) {
 
-         //edit เรียกใช้เมธอดกลางที่สร้างขึ้นแทนการเขียนเช็กซ้ำ
-        validateAuthHeader(authHeader);
-
-        // TODO: แยกดึง userId จริงจาก JWT Token หรือ SecurityContext 
-        // (ในตัวอย่างจำลองดึงผ่านระบบ Authentication หรือ Mock ID ตามโครงสร้างโปรเจกต์ของคุณ)
-        String currentUserId = "6400000001"; 
-
         // เรียกใช้งาน Service บันทึกหลักฐานและอัปเดตสถานะ
-        String authenticatedStudentId = requireAuthenticatedStudentId(authentication);
+        validateAuthHeader(authHeader);
+        String authenticatedStudentId = authentication.getName();
         Transaction updatedTransaction = transactionService.submitReturnEvidence(requestId, authenticatedStudentId, requestDto);
 
         return ResponseEntity.status(org.springframework.http.HttpStatus.OK).body(updatedTransaction);
