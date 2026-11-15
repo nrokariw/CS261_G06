@@ -10,6 +10,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.test.context.support.WithMockUser; // [เพิ่ม] import สำหรับจำลอง User login
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -31,6 +32,7 @@ class TransactionControllerTest {
     private EvidenceProofService evidenceProofService;
 
     @Test
+    @WithMockUser(username = "6400000001") // [เพิ่ม] จำลอง User ที่ผ่านการ Authentication แล้ว
     void submitReturnEvidence_Success() throws Exception {
         MockMultipartFile imageFile = new MockMultipartFile(
                 "imageFile",
@@ -54,6 +56,7 @@ class TransactionControllerTest {
     }
 
     @Test
+    // ไม่ใส่ @WithMockUser ในเคสนี้ เพื่อทดสอบตอนที่ยังไม่ผ่าน Authenticated หรือ Token ไม่ถูกต้อง
     void submitReturnEvidence_Unauthorized_MissingToken() throws Exception {
         MockMultipartFile imageFile = new MockMultipartFile(
                 "imageFile",
