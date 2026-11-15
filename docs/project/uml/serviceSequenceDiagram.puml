@@ -1,86 +1,39 @@
 @startuml
+title Core Lending Lifecycle Sequence (US-02 to US-08)
 skinparam style strictuml
 autonumber
 
-actor "Borrower\n(ผู้ยืม)" as B
-actor "Lender\n(ผู้ให้ยืม)" as L
-participant "Frontend Client\n(Web UI)" as UI
-participant "Backend API\n(Server)" as API
-database "Database / Storage\n(DB & Object Store)" as DB
+actor Borrower
+actor Lender
+participant Frontend
+participant Backend
+database DB
 
-== 1. ดูรายการและส่งคำขอยืม (Browse & Request) ==
+== Request & Approval (US-02, US-03, US-05) ==
+Borrower -> Frontend : Browse & request item
+Frontend -> Backend : POST /api/requests
+Backend -> DB : Save BorrowRequest (PENDING)
+Backend --> Frontend : 201 Created
 
-B -> UI : เลือกดูรายการของและกด "ขอยืม"
-activate UI
-UI -> API : POST /api/requests {itemId, dateRange}
-activate API
-API -> DB : บันทึกคำขอใหม่ (Status: Pending)
-activate DB
-DB --> API : บันทึกสำเร็จ (RequestId)
-deactivate DB
-API --> UI : 201 Created (Request Submitted)
-UI --> B : แสดงสถานะ "ส่งคำขอสำเร็จ รอการตอบรับ"
-API -->> L : ส่ง Notification แจ้งเตือนมีคำขอยืมเข้ามา
+Lender -> Frontend : Approve request
+Frontend -> Backend : POST /api/requests/{id}/approve
+Backend -> DB : Request -> ACCEPTED, Item -> RESERVED
+Backend --> Frontend : 200 OK
 
-== 2. ผู้ให้ยืมตอบรับคำขอ (Approve Request) ==
+== Handover & Return Evidence (US-06, US-07) ==
+Lender -> Frontend : Upload handover photo
+Frontend -> Backend : POST /api/transactions/start/{requestId} & /api/evidence/transaction/{id}
+Backend -> DB : Transaction (ACTIVE), Evidence (HANDOVER), Item -> BORROWED
+Backend --> Frontend : 200 OK
 
-L -> UI : เปิดดูรายละเอียดคำขอและกด "ยอมรับ"
-UI -> API : PATCH /api/requests/{id}/status {status: "Accepted"}
-API -> DB : อัปเดตสถานะคำขอ (Status: Accepted)\nและปรับของเป็น (Status: Reserved)
-activate DB
-DB --> API : อัปเดตสำเร็จ
-deactivate DB
-API --> UI : 200 OK
-UI --> L : แสดงผล "ยอมรับคำขอเรียบร้อย"
-API -->> B : ส่ง Notification นัดหมายส่งมอบของ
+Lender -> Frontend : Upload return photo & complete
+Frontend -> Backend : POST /api/evidence/transaction/{id} & /api/transactions/{id}/complete
+Backend -> DB : Evidence (RETURN), Transaction -> COMPLETED, Item -> AVAILABLE
+Backend --> Frontend : 200 OK
 
-== 3. ส่งมอบของและบันทึกหลักฐาน (Handover & Handover Proof) ==
-
-L -> UI : อัปโหลดรูปถ่ายสภาพของตอนส่งมอบ (Handover Proof)
-UI -> API : POST /api/transactions/{id}/handover-proof (FormData/Image)
-API -> DB : จัดเก็บรูปภาพ, Timestamp และปรับสถานะของ (Status: Borrowed)
-activate DB
-DB --> API : บันทึกสำเร็จ
-deactivate DB
-API --> UI : 200 OK
-UI --> L : แสดงผล "เริ่มรอบการยืมสำเร็จ"
-
-== 4. ส่งคืนของและบันทึกหลักฐาน (Return & Complete) ==
-
-B -> UI : นำของมาคืนและอัปโหลดรูปหลักฐานการส่งคืน (Return Proof)
-UI -> API : POST /api/transactions/{id}/return-proof (FormData/Image)
-API -> DB : จัดเก็บรูปหลักฐานการคืน
-activate DB
-DB --> API : บันทึกสำเร็จ
-deactivate DB
-API --> UI : 200 OK
-API -->> L : แจ้งเตือนผู้ให้ยืมตรวจสอบของ
-
-L -> UI : ตรวจสอบสภาพของและกด "ยืนยันการรับคืน"
-UI -> API : POST /api/transactions/{id}/complete
-API -> DB : อัปเดตสถานะรายการ (Status: Completed)\nและคืนสถานะของ (Status: Available)
-activate DB
-DB --> API : อัปเดตสำเร็จ
-deactivate DB
-API --> UI : 200 OK
-UI --> L : แสดงผล "ปิดรอบการยืมเรียบร้อย"
-UI --> B : แสดงผล "ปิดรอบการยืมเรียบร้อย"
-deactivate API
-deactivate UI
-
-== 5. ตรวจสอบหลักฐานย้อนหลัง (Audit / View Proof) ==
-
-B -> UI : เข้าหน้าประวัติการยืม-คืน (Transaction Detail)
-activate UI
-UI -> API : GET /api/transactions/{id}/proof
-activate API
-API -> DB : ดึงรูปหลักฐาน (ส่งมอบ/รับคืน) และ Timestamps
-activate DB
-DB --> API : Return Data
-deactivate DB
-API --> UI : 200 OK {handoverProof, returnProof, timestamps}
-deactivate API
-UI --> B : แสดงผลรูปภาพและประวัติยืนยันความถูกต้อง
-deactivate UI
-
+== Audit History (US-08) ==
+Borrower -> Frontend : View borrow history
+Frontend -> Backend : GET /api/transactions/borrower/{id}
+Backend -> DB : Load Transaction & EvidenceProof
+Backend --> Frontend : 200 OK {proofs, timestamps}
 @enduml
