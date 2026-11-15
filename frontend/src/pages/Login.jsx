@@ -28,6 +28,26 @@ export default function Login() {
     ? `${location.state.from.pathname}${location.state.from.search || ""}`
     : "/";
 
+  function resolveLoginError(err) {
+    if (err?.status === 401) {
+      return t("auth.invalidCredentials", {
+        defaultValue:
+          "รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง",
+      });
+    }
+    if (err?.status === 403) {
+      return t("auth.accountInactive", {
+        defaultValue:
+          "บัญชีผู้ใช้ไม่อยู่ในสถานะพร้อมใช้งาน (พ้นสภาพ/พักการศึกษา/ลาออก) กรุณาติดต่อผู้ดูแลระบบ",
+      });
+    }
+    return (
+      err?.data?.message ||
+      err?.message ||
+      t("auth.loginFailed", { defaultValue: "เข้าสู่ระบบไม่สำเร็จ" })
+    );
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -45,20 +65,7 @@ export default function Login() {
       await login(username.trim(), password);
       navigate(redirectPath, { replace: true });
     } catch (err) {
-      if (err?.status === 401) {
-        setError(
-          t("auth.invalidCredentials", {
-            defaultValue:
-              "รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง",
-          }),
-        );
-      } else {
-        setError(
-          err?.data?.message ||
-            err?.message ||
-            t("auth.loginFailed", { defaultValue: "เข้าสู่ระบบไม่สำเร็จ" }),
-        );
-      }
+      setError(resolveLoginError(err));
     } finally {
       setSubmitting(false);
     }
@@ -73,11 +80,7 @@ export default function Login() {
       await login(account.studentId, account.password);
       navigate(redirectPath, { replace: true });
     } catch (err) {
-      setError(
-        err?.data?.message ||
-          err?.message ||
-          t("auth.loginFailed", { defaultValue: "เข้าสู่ระบบไม่สำเร็จ" }),
-      );
+      setError(resolveLoginError(err));
     } finally {
       setSubmitting(false);
     }

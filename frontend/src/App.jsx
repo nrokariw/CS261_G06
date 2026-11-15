@@ -312,9 +312,15 @@ export default function App() {
                       <div className="profile-popover-header">
                         <Avatar name={user.name} />
                         <div className="profile-popover-user">
-                          <strong>{user.name}</strong>
-                          <small>{user.studentId} • {t("nav.studentRole")}</small>
+                          <strong>{user.fullName || user.name}</strong>
+                          <small>
+                            {user.username || user.studentId} •{" "}
+                            {String(user.role).toUpperCase() === "STAFF"
+                              ? t("nav.staffRole", { defaultValue: "บุคลากร" })
+                              : t("nav.studentRole")}
+                          </small>
                           {user.faculty && <small>{user.faculty}</small>}
+                          {user.department && <small>{user.department}</small>}
                         </div>
                       </div>
                     ) : (
