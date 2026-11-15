@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
+import { PackageCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeading, StatusBadge, EmptyState, Avatar } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
+import HandoverModal, { isHandedOver } from "../components/HandoverModal";
 
 function formatDate(date, locale = "th-TH") {
   if (!date) return "—";
@@ -15,12 +17,14 @@ function formatDate(date, locale = "th-TH") {
   });
 }
 
-export default function MyBorrows({ requests = [] }) {
+// T-6.3: รับ items/setItems/setRequests เพิ่ม เพื่ออัปเดตสถานะหลังบันทึกหลักฐานสำเร็จ
+export default function MyBorrows({ requests = [], items = [], setItems, setRequests }) {
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
+  const [handoverReq, setHandoverReq] = useState(null);
+  const [successMsg, setSuccessMsg] = useState("");
   const dateLocale = i18n.language === "en" ? "en-US" : "th-TH";
   
-  // คัดกรองมาเฉพาะรายการที่ "ฉัน" (ผู้ใช้ปัจจุบัน) เป็นคนกดยืม
   const myBorrows = (requests || []).filter((r) =>
     Boolean(
       (user?.studentId && r.borrowerId === user.studentId) ||
@@ -28,6 +32,23 @@ export default function MyBorrows({ requests = [] }) {
       (user?.name && r.borrower === user.name)
     )
   );
+
+  // T-6.3: บันทึกหลักฐานสำเร็จ → คำขอเก็บ handover และสิ่งของเป็น borrowed ทันที
+  function handleHandoverSuccess(handover) {
+    const target = handoverReq;
+    if (setRequests) {
+      setRequests((prev) =>
+        prev.map((r) => (r.id === target.id ? { ...r, handover } : r)),
+      );
+    }
+    if (setItems) {
+      setItems((prev) =>
+        prev.map((i) => (i.id === target.itemId ? { ...i, status: "borrowed" } : i)),
+      );
+    }
+    setHandoverReq(null);
+    setSuccessMsg(t("handover.success", { name: target.itemName }));
+  }
 
   return (
     <div className="page-stack">
@@ -37,9 +58,24 @@ export default function MyBorrows({ requests = [] }) {
         subtitle={t("myBorrows.subtitle", { defaultValue: "ติดตามสถานะคำขอยืมสิ่งของที่คุณส่งไปให้เพื่อนพิจารณา" })}
       />
 
+      {successMsg && (
+        <div className="alert alert-success" role="status">
+          {successMsg}
+          <button onClick={() => setSuccessMsg("")} className="alert-close">
+            {t("myListings.closeAlert")}
+          </button>
+        </div>
+      )}
+
       {myBorrows.length ? (
         <div className="requests-list">
-          {myBorrows.map((req) => (
+          {myBorrows.map((req) => {
+            // T-6.3: ส่งมอบแล้ว  แสดงสถานะ "กำลังยืม"
+            const handedOver = isHandedOver(
+              req,
+              items.find((i) => i.id === req.itemId),
+            );
+            return (
             <article className="request-card" key={req.id}>
               <div className="request-main">
                 <div className="request-card-top">
@@ -53,7 +89,7 @@ export default function MyBorrows({ requests = [] }) {
                       })}
                     </p>
                   </div>
-                  <StatusBadge status={req.status} />
+                  <StatusBadge status={handedOver ? "borrowed" : req.status} />
                 </div>
                 <p className="request-reason">
                   {t("myBorrows.reasonPrefix", { defaultValue: "เหตุผล: " })}{req.reason}
@@ -71,14 +107,46 @@ export default function MyBorrows({ requests = [] }) {
                     <dd>{formatDate(req.returnDate, dateLocale)}</dd>
                   </div>
                 </dl>
+
+                {/* T-6.3: ปุ่มบันทึกหลักฐานการส่งมอบ เฉพาะคำขอ accepted ที่ยังไม่ส่งมอบ */}
+                {handedOver ? (
+                  <div className="request-status-updated">
+                    <small className="status-hint">{t("handover.done")}</small>
+                  </div>
+                ) : (
+                  req.status === "accepted" && (
+                    <div className="request-status-updated">
+                      <button
+                        type="button"
+                        className="button button-primary button-sm"
+                        onClick={() => {
+                          setSuccessMsg("");
+                          setHandoverReq(req);
+                        }}
+                      >
+                        <PackageCheck size={16} /> {t("handover.button")}
+                      </button>
+                    </div>
+                  )
+                )}
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <EmptyState
           title={t("myBorrows.emptyTitle", { defaultValue: "ยังไม่มีประวัติการยืม" })}
           description={t("myBorrows.emptyDesc", { defaultValue: "คุณยังไม่ได้ส่งคำขอยืมสิ่งของชิ้นใดเลย ลองค้นหาของที่สนใจดูสิ" })}
+        />
+      )}
+
+      {/* T-6.3: โมดอลบันทึกหลักฐานการส่งมอบ */}
+      {handoverReq && (
+        <HandoverModal
+          request={handoverReq}
+          onClose={() => setHandoverReq(null)}
+          onSuccess={handleHandoverSuccess}
         />
       )}
     </div>

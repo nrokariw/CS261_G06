@@ -223,6 +223,9 @@ export default function App() {
               element={
                 <MyBorrows 
                   requests={requests} 
+                  items={items}
+                  setItems={setItems}
+                  setRequests={setRequests}
                 />
               } 
             />
