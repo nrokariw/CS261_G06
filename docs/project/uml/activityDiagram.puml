@@ -1,70 +1,47 @@
 @startuml
-title Business Workflow: การยืม-คืนสิ่งของภายในมหาวิทยาลัย
+title End-to-End Borrow & Return Activity (US-01 to US-09)
 
-|#E8F8F5|ผู้ขอยืม (Borrower)|
-|#FEF9E7|ระบบกลาง (TU Borrow System)|
-|#F4ECF7|ผู้ให้ยืม (Lender)|
-|#EBF5FB|ระบบภายนอก (TU API)|
-
-|ผู้ขอยืม (Borrower)|
+|Borrower|
 start
-:เข้าสู่ระบบด้วย TU Account;
+:Login with TU Account (US-09);
 
-|ระบบกลาง (TU Borrow System)|
-:ส่งข้อมูลตรวจสอบสิทธิ์;
+|TU REST API|
+:Verify Active Account & Role;
 
-|ระบบภายนอก (TU API)|
-:ยืนยันตัวตนสำเร็จ (Active Account);
+|Lender|
+:Create Item Listing (US-01);
 
-|ผู้ให้ยืม (Lender)|
-:สร้างประกาศสิ่งของให้ยืม;
+|Borrower|
+:Browse Available Items (US-02);
+:Submit Borrow Request (US-03);
 
-|ผู้ขอยืม (Borrower)|
-:ค้นหาและเปิดดูรายการสิ่งของ;
-:ส่งคำขอยืม (ระบุวันที่ยืม-คืน และเหตุผล);
-
-|ระบบกลาง (TU Borrow System)|
-:แจ้งเตือนคำขอไปยังผู้ให้ยืม;
-
-|ผู้ให้ยืม (Lender)|
-:ตรวจสอบคำขอยืม;
-if (ตัดสินใจยอมรับคำขอ?) then (ยอมรับ)
-  :กดยอมรับคำขอ (Accept);
-  |ระบบกลาง (TU Borrow System)|
-  :อัปเดตคำขอเป็น Accepted;
-  :เปลี่ยนสถานะสิ่งของเป็น Reserved;
-else (ปฏิเสธ)
-  :กดปฏิเสธคำขอ (Reject);
-  |ระบบกลาง (TU Borrow System)|
-  :อัปเดตคำขอเป็น Rejected;
-  :สิ่งของคงสถานะ Available;
-  |ผู้ขอยืม (Borrower)|
-  :รับการแจ้งเตือนปฏิเสธ;
+|Lender|
+:Review Request (US-05);
+if (Approve?) then (Yes)
+  |System|
+  :Request -> ACCEPTED\nItem -> RESERVED;
+else (No)
+  |System|
+  :Request -> REJECTED\nItem -> AVAILABLE;
   stop
 endif
 
-|ผู้ขอยืม (Borrower)|
-:นัดหมายรับมอบสิ่งของจริง;
+|Lender|
+:Record Handover Evidence (US-06);
 
-|ผู้ให้ยืม (Lender)|
-:ถ่ายรูปสภาพของและบันทึกหลักฐานส่งมอบ;
+|System|
+:Transaction -> ACTIVE\nItem -> BORROWED;
 
-|ระบบกลาง (TU Borrow System)|
-:อัปเดตสถานะการยืมเป็น Borrowed;
-:เปลี่ยนสถานะสิ่งของเป็น Borrowed;
+|Borrower|
+:Use & Return Item;
 
-|ผู้ขอยืม (Borrower)|
-:ใช้งานสิ่งของตามกำหนดเวลา;
-:นำสิ่งของไปส่งคืนตามนัดหมาย;
+|Lender|
+:Record Return Evidence (US-07);
 
-|ผู้ให้ยืม (Lender)|
-:ตรวจสอบสภาพและบันทึกหลักฐานส่งคืน;
+|System|
+:Transaction -> COMPLETED\nItem -> AVAILABLE;
 
-|ระบบกลาง (TU Borrow System)|
-:อัปเดตสถานะการยืมเป็น Returned;
-:เปลี่ยนสถานะสิ่งของกลับเป็น Available;
-
-|ผู้ขอยืม (Borrower)|
-:ตรวจสอบประวัติและปิดรอบการยืม;
+|Borrower|
+:View History & Proofs (US-08);
 stop
 @enduml

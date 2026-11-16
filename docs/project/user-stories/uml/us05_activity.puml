@@ -1,0 +1,20 @@
+@startuml
+title US-05 Activity: Approve or Reject Request
+
+start
+:Review incoming borrow request;
+if (User is item owner?) then (No)
+  :Deny access (403 Forbidden);
+elseif (Request status == PENDING?) then (No)
+  :Reject transition (409 Conflict);
+else (Yes)
+  if (Decision == Approve?) then (Yes)
+    :Request -> ACCEPTED;
+    :Item -> RESERVED;
+  else (Reject)
+    :Request -> REJECTED;
+    :Item remains AVAILABLE;
+  endif
+endif
+stop
+@enduml

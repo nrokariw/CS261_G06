@@ -1,0 +1,26 @@
+@startuml
+title US-09 DFD: Login with TU Account
+left to right direction
+skinparam roundcorner 12
+
+rectangle "User" as User
+rectangle "TU REST API" as TUAPI
+usecase "9.1\nValidate Input\nFormat" as P1
+usecase "9.2\nCheck Cache &\nIP Rate Limit" as P2
+usecase "9.3\nVerify with\nTU REST API" as P3
+usecase "9.4\nUpsert Profile &\nIssue JWT" as P4
+database "D6: RAM Cache & Limit" as D6
+database "D1: Users" as D1
+
+User --> P1 : username, password
+P1 --> P2 : Valid format (400 if bad)
+P2 <--> D6 : Lookup HMAC cache / IP window
+P2 --> P3 : Cache miss & under limit
+P2 --> P4 : Cache hit
+P3 --> TUAPI : POST /auth/Ad/verify
+TUAPI --> P3 : Status & TU profile
+P3 --> D6 : Store 5m TTL cache
+P3 --> P4 : Active profile & role
+P4 <--> D1 : Upsert user (no passwordHash)
+P4 --> User : JWT + user profile / 401 / 403 / 429
+@enduml

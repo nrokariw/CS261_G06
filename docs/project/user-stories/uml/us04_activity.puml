@@ -1,0 +1,18 @@
+@startuml
+title US-04 Activity: Update or Delete Item Listing
+
+start
+:Request edit or delete on item;
+if (User is item owner?) then (No)
+  :Deny access (403 Forbidden);
+elseif (Item status == AVAILABLE?) then (No)
+  :Reject modification (409 Conflict);
+else (Yes)
+  if (Action == Update?) then (Yes)
+    :Update item fields;
+  else (Delete)
+    :Mark item UNAVAILABLE;
+  endif
+endif
+stop
+@enduml
