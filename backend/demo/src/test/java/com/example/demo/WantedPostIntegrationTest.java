@@ -126,6 +126,13 @@ class WantedPostIntegrationTest {
                         .content(objectMapper.writeValueAsString(Map.of("message", "self offer"))))
                 .andExpect(status().isBadRequest());
 
+        // 3.5. Lender cannot submit an offer without selecting an item (400 Bad Request)
+        mockMvc.perform(post("/api/wanted-posts/" + postId + "/offers")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + lenderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("message", "no item"))))
+                .andExpect(status().isBadRequest());
+
         // 4. Lender submits offer with an AVAILABLE item
         MvcResult offerRes = mockMvc.perform(post("/api/wanted-posts/" + postId + "/offers")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + lenderToken)
@@ -152,6 +159,7 @@ class WantedPostIntegrationTest {
                 .andExpect(jsonPath("$.post.status").value("fulfilled"))
                 .andExpect(jsonPath("$.acceptedOffer.status").value("accepted"))
                 .andExpect(jsonPath("$.borrowRequestId").isNotEmpty())
+                .andExpect(jsonPath("$.borrowRequest.status").value("ACCEPTED"))
                 .andReturn();
 
         JsonNode acceptJson = objectMapper.readTree(acceptRes.getResponse().getContentAsString());

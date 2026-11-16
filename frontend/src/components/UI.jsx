@@ -6,11 +6,15 @@ import { getCategoryLabel, normalizeCategoryKey } from "../data";
 
 const STATUS_CONFIG = {
   available: "badge-success",
+  open: "badge-success",
   pending: "badge-warning",
   accepted: "badge-success",
+  fulfilled: "badge-info",
   rejected: "badge-danger",
+  cancelled: "badge-danger",
   reserved: "badge-warning",
   borrowed: "badge-neutral",
+  withdrawn: "badge-neutral",
   unavailable: "badge-danger",
   change_requested: "badge-info",
 };

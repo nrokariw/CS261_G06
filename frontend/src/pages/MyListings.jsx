@@ -196,20 +196,15 @@ export default function MyListings({ items, setItems }) {
               });
               const isOpen = String(post.status).toLowerCase() === "open";
               return (
-                <article className="listing-row" key={post.id}>
-                  <div className="listing-thumb image-placeholder">
-                    <HandHeart size={28} />
-                  </div>
+                <article className="listing-row listing-row-no-thumb" key={post.id}>
                   <div className="listing-details">
                     <span className="category-label">{categoryLabel}</span>
                     <h3>
                       <Link to={`/wanted/${post.id}`}>{post.title}</Link>
                     </h3>
                     <p>{post.description || t("wanted.noDescription")}</p>
-                    <div className="wanted-my-item-title-row">
-                      <span className={`status-badge status-${post.status}`}>
-                        {t(`wanted.status.${post.status}`, post.status)}
-                      </span>
+                    <div className="wanted-my-item-badges">
+                      <StatusBadge status={post.status} />
                       <span className="chip">
                         {t("wanted.pendingOffersCount", {
                           count: post.pendingOfferCount || 0,

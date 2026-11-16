@@ -1,19 +1,23 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
+  AlertCircle,
   ArrowLeft,
-  Calendar,
+  CalendarDays,
   CheckCircle2,
   HandHeart,
+  LogIn,
   Package,
   Pencil,
+  Send,
+  ShieldCheck,
   Trash2,
-  User,
+  UserRound,
   XCircle,
 } from "lucide-react";
-import { getCategoryLabel } from "../data";
-import { EmptyState, PageHeading } from "../components/UI";
+import { getCategoryLabel, normalizeCategoryKey } from "../data";
+import { Avatar, EmptyState, StatusBadge } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { BORROW_REASON_MAX_LENGTH } from "../constants/config";
 import {
@@ -23,7 +27,8 @@ import {
   getWantedPost,
   rejectLendOffer,
 } from "../api/wantedPostsApi";
-import { getAvailableItems } from "../api/itemsApi";
+import { getAllItems, getAvailableItems } from "../api/itemsApi";
+import { getBorrowRequests, normalizeBorrowRequest } from "../api/requestsApi";
 
 function formatDate(value, locale) {
   if (!value) return "—";
@@ -36,11 +41,19 @@ function formatDate(value, locale) {
   });
 }
 
-export default function WantedPostDetails({ items = [], onItemsRefresh }) {
+export default function WantedPostDetails({
+  items = [],
+  setItems,
+  requests = [],
+  setRequests,
+}) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, token } = useAuth();
   const { t, i18n } = useTranslation();
+
+  const authToken = token || user?.token;
 
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -48,9 +61,10 @@ export default function WantedPostDetails({ items = [], onItemsRefresh }) {
   const [actionMsg, setActionMsg] = useState(null);
   const [borrowRequestId, setBorrowRequestId] = useState(null);
 
-  const [availableItems, setAvailableItems] = useState(items);
+  const [fallbackItems, setFallbackItems] = useState([]);
   const [offeredItemId, setOfferedItemId] = useState("");
   const [offerMessage, setOfferMessage] = useState("");
+  const [offerFieldError, setOfferFieldError] = useState("");
   const [submittingOffer, setSubmittingOffer] = useState(false);
   const [processingOfferId, setProcessingOfferId] = useState(null);
   const [cancelling, setCancelling] = useState(false);
@@ -59,52 +73,61 @@ export default function WantedPostDetails({ items = [], onItemsRefresh }) {
     setLoading(true);
     setError(null);
     try {
-      const data = await getWantedPost(id, token);
+      const data = await getWantedPost(id, authToken);
       setPost(data);
     } catch (err) {
       setError(err.message || t("wanted.loadError"));
     } finally {
       setLoading(false);
     }
-  }, [id, token, t]);
+  }, [id, authToken, t]);
 
   useEffect(() => {
     loadPost();
   }, [loadPost]);
 
   useEffect(() => {
-    if (items && items.length > 0) {
-      setAvailableItems(items);
-      return;
-    }
-    if (!token) return;
-    getAvailableItems(token)
+    if (items && items.length > 0) return;
+    getAllItems(authToken)
+      .catch(() => getAvailableItems("AVAILABLE", authToken))
       .then((list) => {
-        if (Array.isArray(list)) setAvailableItems(list);
+        if (Array.isArray(list)) setFallbackItems(list);
       })
       .catch(() => {});
-  }, [items, token]);
+  }, [items, authToken]);
+
+  const effectiveItems = items && items.length > 0 ? items : fallbackItems;
 
   const isOwner = Boolean(
-    user && post && String(user.id) === String(post.requesterId)
+    user &&
+      post &&
+      ((user.studentId &&
+        String(user.studentId) === String(post.requesterId)) ||
+        (user.id && String(user.id) === String(post.requesterId)))
   );
 
   const myAvailableItems = useMemo(() => {
     if (!user) return [];
-    return (availableItems || []).filter(
-      (item) =>
-        String(item.ownerId) === String(user.id) &&
+    return (effectiveItems || []).filter((item) => {
+      const matchesOwner = item.ownerId
+        ? String(item.ownerId) === String(user.id || "") ||
+          String(item.ownerId) === String(user.studentId || "")
+        : Boolean(user.name && item.owner === user.name);
+      return (
+        matchesOwner &&
         String(item.status || "").toLowerCase() === "available"
-    );
-  }, [availableItems, user]);
+      );
+    });
+  }, [effectiveItems, user]);
 
   const handleSubmitOffer = async (e) => {
     e.preventDefault();
     setError(null);
     setActionMsg(null);
+    setOfferFieldError("");
 
-    if (!offeredItemId && !offerMessage.trim()) {
-      setError(t("wanted.offerValidation"));
+    if (!offeredItemId) {
+      setOfferFieldError(t("wanted.offerValidation"));
       return;
     }
 
@@ -113,10 +136,10 @@ export default function WantedPostDetails({ items = [], onItemsRefresh }) {
       await createLendOffer(
         post.id,
         {
-          offeredItemId: offeredItemId ? Number(offeredItemId) : null,
+          offeredItemId: String(offeredItemId),
           message: offerMessage.trim() || null,
         },
-        token
+        authToken
       );
       setOfferedItemId("");
       setOfferMessage("");
@@ -134,15 +157,55 @@ export default function WantedPostDetails({ items = [], onItemsRefresh }) {
     setActionMsg(null);
     setProcessingOfferId(offerId);
     try {
-      const res = await acceptLendOffer(post.id, offerId, token);
+      const res = await acceptLendOffer(post.id, offerId, authToken);
       if (res?.borrowRequestId) {
         setBorrowRequestId(res.borrowRequestId);
       }
+
+      const acceptedItemId = res?.acceptedOffer?.offeredItemId;
+      let nextItems = effectiveItems;
+      if (acceptedItemId) {
+        nextItems = effectiveItems.map((it) =>
+          String(it.id) === String(acceptedItemId)
+            ? { ...it, status: "reserved" }
+            : it
+        );
+        if (typeof setItems === "function") {
+          setItems((prev) =>
+            prev.map((it) =>
+              String(it.id) === String(acceptedItemId)
+                ? { ...it, status: "reserved" }
+                : it
+            )
+          );
+        }
+      }
+
+      if (typeof setRequests === "function") {
+        let refreshed = null;
+        try {
+          refreshed = await getBorrowRequests(user, authToken, nextItems);
+        } catch {
+          refreshed = null;
+        }
+        if (Array.isArray(refreshed) && refreshed.length > 0) {
+          setRequests(refreshed);
+        } else if (res?.borrowRequest) {
+          const normalized = normalizeBorrowRequest(
+            res.borrowRequest,
+            nextItems
+          );
+          if (normalized) {
+            setRequests((prev) => [
+              normalized,
+              ...(prev || []).filter((r) => String(r.id) !== String(normalized.id)),
+            ]);
+          }
+        }
+      }
+
       setActionMsg(t("wanted.offerAccepted"));
       await loadPost();
-      if (typeof onItemsRefresh === "function") {
-        onItemsRefresh();
-      }
     } catch (err) {
       setError(err.message || t("wanted.offerActionError"));
     } finally {
@@ -155,7 +218,7 @@ export default function WantedPostDetails({ items = [], onItemsRefresh }) {
     setActionMsg(null);
     setProcessingOfferId(offerId);
     try {
-      await rejectLendOffer(post.id, offerId, token);
+      await rejectLendOffer(post.id, offerId, authToken);
       setActionMsg(t("wanted.offerRejected"));
       await loadPost();
     } catch (err) {
@@ -169,8 +232,8 @@ export default function WantedPostDetails({ items = [], onItemsRefresh }) {
     setError(null);
     setCancelling(true);
     try {
-      await cancelWantedPost(post.id, token);
-      navigate("/?tab=wanted");
+      await cancelWantedPost(post.id, authToken);
+      navigate("/my-listings?tab=wanted");
     } catch (err) {
       setError(err.message || t("wanted.cancelError"));
       setCancelling(false);
@@ -180,7 +243,7 @@ export default function WantedPostDetails({ items = [], onItemsRefresh }) {
   if (loading) {
     return (
       <div className="page-stack">
-        <div className="card">
+        <div className="detail-main" style={{ padding: "24px" }}>
           <p>{t("common.loading")}</p>
         </div>
       </div>
@@ -193,245 +256,332 @@ export default function WantedPostDetails({ items = [], onItemsRefresh }) {
         <EmptyState
           title={t("wanted.notFoundTitle")}
           description={error || t("wanted.notFoundDesc")}
-          action={
-            <Link to="/?tab=wanted" className="button button-primary">
-              {t("wanted.backToList")}
-            </Link>
-          }
         />
+        <div>
+          <Link to="/?tab=wanted" className="button button-primary">
+            <ArrowLeft size={16} /> {t("wanted.backToList")}
+          </Link>
+        </div>
       </div>
     );
   }
 
   const offers = Array.isArray(post.offers) ? post.offers : [];
   const isOpen = String(post.status).toLowerCase() === "open";
+  const categoryKey = normalizeCategoryKey(post.category);
+  const categoryLabel = t(`categories.${categoryKey}`, {
+    defaultValue: getCategoryLabel(post.category),
+  });
+
+  const dateText =
+    post.neededFrom || post.neededUntil
+      ? `${formatDate(post.neededFrom, i18n.language)} — ${formatDate(
+          post.neededUntil,
+          i18n.language
+        )}`
+      : t("wanted.flexibleDates");
 
   return (
     <div className="page-stack">
-      <div className="back-link-row">
-        <Link to="/?tab=wanted" className="button button-outline button-sm">
-          <ArrowLeft size={16} /> {t("wanted.backToList")}
-        </Link>
+      <div className="detail-page-heading">
+        <div className="eyebrow">{t("wanted.eyebrow")}</div>
       </div>
+      <button
+        type="button"
+        className="back-link"
+        onClick={() => navigate("/?tab=wanted")}
+      >
+        <ArrowLeft size={16} /> {t("wanted.backToList")}
+      </button>
 
-      <PageHeading
-        eyebrow={t(`categories.${post.category}`, {
-          defaultValue: getCategoryLabel(post.category),
-        })}
-        title={post.title}
-        subtitle={t("wanted.postedBy", {
-          name: post.requesterName || t("common.unknown"),
-        })}
-        action={
-          <span className={`status-badge status-${post.status}`}>
-            {t(`wanted.status.${post.status}`, post.status)}
-          </span>
-        }
-      />
-
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && (
+        <div className="alert alert-error wanted-alert-error">
+          <AlertCircle size={18} />
+          <span>{error}</span>
+        </div>
+      )}
       {actionMsg && (
-        <div className="alert alert-success">
+        <div className="alert alert-success wanted-alert-success">
           <CheckCircle2 size={18} />
           <span>{actionMsg}</span>
           {borrowRequestId && (
-            <Link to="/my-borrows" className="button button-primary button-sm">
+            <Link
+              to="/my-borrows"
+              className="button button-primary button-sm"
+              style={{ marginLeft: "auto" }}
+            >
               {t("wanted.goToMyBorrows")}
             </Link>
           )}
         </div>
       )}
 
-      <div className="card wanted-detail-card">
-        <div className="wanted-meta-grid">
-          <div className="wanted-meta-item">
-            <User size={16} />
+      <div className="detail-layout">
+        <section className="detail-main">
+          <div className="detail-info">
+            <div className="wanted-detail-badges">
+              <StatusBadge status={post.status} />
+              <span className="category-label">{categoryLabel}</span>
+            </div>
+            <h1>{post.title}</h1>
+            <div className="owner-row">
+              <span className="owner-avatar avatar">
+                <UserRound size={20} />
+              </span>
+              <div>
+                <strong>{post.requesterName || "—"}</strong>
+                <small>{post.requesterFaculty || t("wanted.requesterLabel")}</small>
+              </div>
+              <span className="verified">
+                <ShieldCheck size={15} /> {t("itemDetails.verifiedMember")}
+              </span>
+            </div>
+
+            <hr />
+
+            <h2>{t("wanted.descriptionLabel")}</h2>
+            <p>{post.description || t("wanted.noDescription")}</p>
+
+            <div className="wanted-date-pill">
+              <CalendarDays size={16} />
+              <span>
+                {t("wanted.neededDatesLabel")}: {dateText}
+              </span>
+            </div>
+
+            {isOwner && isOpen && (
+              <div className="wanted-owner-actions">
+                <Link
+                  to={`/create?tab=wanted&edit=${post.id}`}
+                  className="button button-outline button-sm"
+                >
+                  <Pencil size={15} /> {t("wanted.editButton")}
+                </Link>
+                <button
+                  type="button"
+                  className="button button-danger-outline button-sm"
+                  onClick={handleCancelPost}
+                  disabled={cancelling}
+                >
+                  <Trash2 size={15} />{" "}
+                  {cancelling ? t("common.saving", { defaultValue: "กำลังบันทึก..." }) : t("wanted.cancelButton")}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {user && (isOwner || offers.length > 0) && (
+            <div className="wanted-offers-section">
+              <div className="wanted-offers-heading">
+                <h2>
+                  {isOwner
+                    ? t("wanted.incomingOffersTitle", { count: offers.length })
+                    : t("wanted.myOffersTitle")}
+                </h2>
+              </div>
+              {offers.length === 0 ? (
+                <p className="wanted-empty-hint">{t("wanted.noOffersYet")}</p>
+              ) : (
+                <div className="wanted-offers-list">
+                  {offers.map((offer) => {
+                    const isPending =
+                      String(offer.status).toLowerCase() === "pending";
+                    return (
+                      <article key={offer.id} className="wanted-offer-card">
+                        <div className="wanted-offer-header">
+                          <div className="wanted-offer-lender">
+                            <Avatar name={offer.lenderName} size="sm" />
+                            <div>
+                              <strong>{offer.lenderName}</strong>
+                              {offer.offeredItemTitle && (
+                                <div className="wanted-offer-item">
+                                  <Package size={14} />
+                                  <Link to={`/items/${offer.offeredItemId}`}>
+                                    {offer.offeredItemTitle}
+                                  </Link>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <StatusBadge status={offer.status} />
+                        </div>
+
+                        {offer.message && (
+                          <p className="wanted-offer-message">{offer.message}</p>
+                        )}
+
+                        {isOwner && isOpen && isPending && (
+                          <div className="wanted-offer-actions">
+                            <button
+                              type="button"
+                              className="button button-primary button-sm"
+                              disabled={processingOfferId === offer.id}
+                              onClick={() => handleAcceptOffer(offer.id)}
+                            >
+                              <CheckCircle2 size={15} /> {t("wanted.acceptOffer")}
+                            </button>
+                            <button
+                              type="button"
+                              className="button button-outline button-sm"
+                              disabled={processingOfferId === offer.id}
+                              onClick={() => handleRejectOffer(offer.id)}
+                            >
+                              <XCircle size={15} /> {t("wanted.rejectOffer")}
+                            </button>
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+        <aside className="borrow-panel">
+          <div className="borrow-panel-heading">
+            <span className="panel-icon">
+              <HandHeart size={20} />
+            </span>
             <div>
-              <small>{t("wanted.requesterLabel")}</small>
-              <strong>{post.requesterName || "—"}</strong>
-              {post.requesterFaculty && <span>{post.requesterFaculty}</span>}
+              <h2>
+                {isOwner
+                  ? t("wanted.ownerPanelTitle")
+                  : t("wanted.offerFormTitle")}
+              </h2>
+              <p>
+                {isOwner
+                  ? t("wanted.ownerPanelDesc")
+                  : t("wanted.offerFormSubtitle")}
+              </p>
             </div>
           </div>
-          <div className="wanted-meta-item">
-            <Calendar size={16} />
-            <div>
-              <small>{t("wanted.neededDatesLabel")}</small>
-              <strong>
-                {post.neededFrom || post.neededUntil
-                  ? `${formatDate(post.neededFrom, i18n.language)} — ${formatDate(
-                      post.neededUntil,
-                      i18n.language
-                    )}`
-                  : t("wanted.flexibleDates")}
-              </strong>
-            </div>
-          </div>
-        </div>
 
-        <div className="wanted-description-block">
-          <h3>{t("wanted.descriptionLabel")}</h3>
-          <p>{post.description || t("wanted.noDescription")}</p>
-        </div>
-
-        {isOwner && isOpen && (
-          <div className="form-actions">
-            <Link
-              to={`/create?tab=wanted&edit=${post.id}`}
-              className="button button-outline button-sm"
-            >
-              <Pencil size={15} /> {t("wanted.editButton")}
-            </Link>
-            <button
-              type="button"
-              className="button button-outline button-sm"
-              onClick={handleCancelPost}
-              disabled={cancelling}
-            >
-              <Trash2 size={15} />{" "}
-              {cancelling ? t("common.saving") : t("wanted.cancelButton")}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Lender Offer Form (for non-owners when post is open) */}
-      {!isOwner && isOpen && (
-        <div className="card">
-          <h3>
-            <HandHeart size={18} /> {t("wanted.offerFormTitle")}
-          </h3>
           {!user ? (
-            <div className="wanted-login-prompt">
-              <p>{t("wanted.loginToOffer")}</p>
-              <Link to="/login" className="button button-primary button-sm">
-                {t("auth.loginButton")}
+            <div style={{ display: "grid", gap: "12px" }}>
+              <div className="borrow-note">
+                <ShieldCheck size={17} />
+                <span>{t("wanted.loginToOffer")}</span>
+              </div>
+              <Link
+                to="/login"
+                state={{ from: location }}
+                className="button button-primary button-full"
+              >
+                <LogIn size={16} />{" "}
+                {t("nav.login", { defaultValue: "เข้าสู่ระบบ" })}
               </Link>
             </div>
+          ) : isOwner ? (
+            <div style={{ display: "grid", gap: "14px" }}>
+              <div className="borrow-note" style={{ margin: 0 }}>
+                <ShieldCheck size={17} />
+                <span>
+                  {String(post.status).toLowerCase() === "fulfilled"
+                    ? t("wanted.offerAccepted")
+                    : t("wanted.incomingOffersTitle", { count: offers.length })}
+                </span>
+              </div>
+              {String(post.status).toLowerCase() === "fulfilled" && (
+                <Link
+                  to="/my-borrows"
+                  className="button button-primary button-full"
+                >
+                  {t("wanted.goToMyBorrows")}
+                </Link>
+              )}
+            </div>
+          ) : !isOpen ? (
+            <div className="borrow-note" style={{ margin: 0 }}>
+              <AlertCircle size={17} />
+              <span>{t(`status.${post.status}`, post.status)}</span>
+            </div>
           ) : (
-            <form onSubmit={handleSubmitOffer} className="wanted-offer-form">
-              <div className="form-group">
-                <label htmlFor="offer-item">{t("wanted.selectItemLabel")}</label>
+            <form onSubmit={handleSubmitOffer} noValidate>
+              <div className="field">
+                <label htmlFor="offer-item">
+                  {t("wanted.selectItemLabel")} <span className="required">*</span>
+                </label>
                 <select
                   id="offer-item"
-                  className="input"
                   value={offeredItemId}
-                  onChange={(e) => setOfferedItemId(e.target.value)}
+                  onChange={(e) => {
+                    setOfferedItemId(e.target.value);
+                    if (offerFieldError) setOfferFieldError("");
+                  }}
+                  aria-invalid={!!offerFieldError}
+                  disabled={myAvailableItems.length === 0}
                 >
                   <option value="">{t("wanted.selectItemPlaceholder")}</option>
-                  {myAvailableItems.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.title} (
-                      {t(`categories.${item.category}`, {
-                        defaultValue: getCategoryLabel(item.category),
-                      })}
-                      )
-                    </option>
-                  ))}
+                  {myAvailableItems.map((item) => {
+                    const catKey = normalizeCategoryKey(item.category);
+                    const catLabel = t(`categories.${catKey}`, {
+                      defaultValue: getCategoryLabel(item.category),
+                    });
+                    const itemLabel = item.name || item.title || item.id;
+                    return (
+                      <option key={item.id} value={item.id}>
+                        {itemLabel} ({catLabel})
+                      </option>
+                    );
+                  })}
                 </select>
+                {offerFieldError && (
+                  <small className="field-error">
+                    <AlertCircle size={13} />
+                    {offerFieldError}
+                  </small>
+                )}
                 {myAvailableItems.length === 0 && (
-                  <span className="field-hint">
-                    {t("wanted.noAvailableItemsHint")}{" "}
-                    <Link to="/create">{t("nav.create")}</Link>
-                  </span>
+                  <div className="wanted-no-items-callout">
+                    <span>{t("wanted.noAvailableItemsHint")}</span>
+                    <Link
+                      to="/create"
+                      className="button button-outline button-sm"
+                    >
+                      {t("nav.create")}
+                    </Link>
+                  </div>
                 )}
               </div>
 
-              <div className="form-group">
+              <div className="field">
                 <label htmlFor="offer-message">
                   {t("wanted.offerMessageLabel")}
                 </label>
                 <textarea
                   id="offer-message"
-                  className="input"
-                  rows={3}
+                  rows={4}
                   maxLength={BORROW_REASON_MAX_LENGTH}
                   placeholder={t("wanted.offerMessagePlaceholder")}
                   value={offerMessage}
                   onChange={(e) => setOfferMessage(e.target.value)}
                 />
+                <small className="helper-text">
+                  {offerMessage.length}/{BORROW_REASON_MAX_LENGTH}
+                </small>
               </div>
 
-              <div className="form-actions">
-                <button
-                  type="submit"
-                  className="button button-primary"
-                  disabled={submittingOffer}
-                >
-                  {submittingOffer
-                    ? t("common.saving")
-                    : t("wanted.submitOfferButton")}
-                </button>
+              <div className="borrow-note">
+                <ShieldCheck size={17} />
+                <span>{t("wanted.offerNote")}</span>
               </div>
+
+              <button
+                type="submit"
+                className="button button-primary button-full"
+                disabled={submittingOffer || myAvailableItems.length === 0}
+              >
+                <Send size={16} />{" "}
+                {submittingOffer
+                  ? t("common.saving", { defaultValue: "กำลังบันทึก..." })
+                  : t("wanted.submitOfferButton")}
+              </button>
             </form>
           )}
-        </div>
-      )}
-
-      {/* Offers List (visible to owner and lenders who submitted an offer) */}
-      {user && (isOwner || offers.length > 0) && (
-        <div className="card">
-          <h3>
-            {isOwner
-              ? t("wanted.incomingOffersTitle", { count: offers.length })
-              : t("wanted.myOffersTitle")}
-          </h3>
-          {offers.length === 0 ? (
-            <p className="field-hint">{t("wanted.noOffersYet")}</p>
-          ) : (
-            <div className="wanted-offers-list">
-              {offers.map((offer) => {
-                const isPending =
-                  String(offer.status).toLowerCase() === "pending";
-                return (
-                  <div key={offer.id} className="wanted-offer-card">
-                    <div className="wanted-offer-header">
-                      <div>
-                        <strong>{offer.lenderName}</strong>
-                        {offer.offeredItemTitle && (
-                          <div className="wanted-offer-item">
-                            <Package size={14} />{" "}
-                            <Link to={`/items/${offer.offeredItemId}`}>
-                              {offer.offeredItemTitle}
-                            </Link>
-                          </div>
-                        )}
-                      </div>
-                      <span className={`status-badge status-${offer.status}`}>
-                        {t(`wanted.offerStatus.${offer.status}`, offer.status)}
-                      </span>
-                    </div>
-
-                    {offer.message && (
-                      <p className="wanted-offer-message">{offer.message}</p>
-                    )}
-
-                    {isOwner && isOpen && isPending && (
-                      <div className="wanted-offer-actions">
-                        <button
-                          type="button"
-                          className="button button-primary button-sm"
-                          disabled={processingOfferId === offer.id}
-                          onClick={() => handleAcceptOffer(offer.id)}
-                        >
-                          <CheckCircle2 size={15} /> {t("wanted.acceptOffer")}
-                        </button>
-                        <button
-                          type="button"
-                          className="button button-outline button-sm"
-                          disabled={processingOfferId === offer.id}
-                          onClick={() => handleRejectOffer(offer.id)}
-                        >
-                          <XCircle size={15} /> {t("wanted.rejectOffer")}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+        </aside>
+      </div>
     </div>
   );
 }

@@ -145,19 +145,17 @@ public class WantedPostService {
                 : null;
         String message = dto != null && dto.getMessage() != null ? dto.getMessage().trim() : "";
 
-        if (offeredItemId == null && message.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Please select an item or enter an offer message");
+        if (offeredItemId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Please select an AVAILABLE item to offer");
         }
 
-        if (offeredItemId != null) {
-            Item item = itemRepository.findById(offeredItemId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Offered item not found"));
-            if (!lenderId.equals(item.getOwnerId())) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only offer your own items");
-            }
-            if (item.getStatus() != ItemStatus.AVAILABLE) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Offered item is not AVAILABLE");
-            }
+        Item item = itemRepository.findById(offeredItemId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Offered item not found"));
+        if (!lenderId.equals(item.getOwnerId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only offer your own items");
+        }
+        if (item.getStatus() != ItemStatus.AVAILABLE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Offered item is not AVAILABLE");
         }
 
         if (lendOfferRepository.existsByWantedPostIdAndLenderIdAndStatus(postId, lenderId, LendOfferStatus.PENDING)) {
@@ -211,7 +209,13 @@ public class WantedPostService {
             request.setBorrowerId(post.getRequesterId());
             request.setStartDate(start);
             request.setEndDate(end);
-            request.setReason("Matched from Wanted Post: " + post.getTitle());
+            String baseReason = (post.getDescription() != null && !post.getDescription().isBlank())
+                    ? post.getDescription().trim()
+                    : post.getTitle();
+            request.setReason(baseReason);
+            if (offer.getMessage() != null && !offer.getMessage().isBlank()) {
+                request.setResponseReason(offer.getMessage().trim());
+            }
             request.setStatus(RequestStatus.ACCEPTED);
             createdRequest = borrowRequestRepository.save(request);
         }
@@ -234,6 +238,7 @@ public class WantedPostService {
         result.put("post", toPostMap(post, requesterId, true));
         result.put("acceptedOffer", toOfferMap(offer));
         result.put("borrowRequestId", createdRequest != null ? createdRequest.getId() : null);
+        result.put("borrowRequest", createdRequest);
         return result;
     }
 

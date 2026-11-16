@@ -1,9 +1,21 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Search, Plus, ArrowRight, Calendar, HandHeart } from "lucide-react";
+import {
+  Search,
+  Plus,
+  ArrowUpRight,
+  Calendar,
+  HandHeart,
+  UserRound,
+} from "lucide-react";
 import { CATEGORIES, getCategoryLabel, normalizeCategoryKey } from "../data";
-import { ItemCard, PageHeading, EmptyState } from "../components/UI";
+import {
+  ItemCard,
+  PageHeading,
+  EmptyState,
+  StatusBadge,
+} from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvailableItems } from "../api/itemsApi";
 import { listWantedPosts } from "../api/wantedPostsApi";
@@ -225,52 +237,65 @@ export default function Browse({
           />
         ) : filteredWantedPosts.length ? (
           <section className="item-grid">
-            {filteredWantedPosts.map((post) => (
-              <Link
-                key={post.id}
-                to={`/wanted/${post.id}`}
-                className="card wanted-card"
-              >
-                <div className="wanted-card-top">
-                  <span className="chip">
-                    {t(`categories.${post.category}`, {
-                      defaultValue: getCategoryLabel(post.category),
-                    })}
-                  </span>
-                  <span className={`status-badge status-${post.status}`}>
-                    {t(`wanted.status.${post.status}`, post.status)}
-                  </span>
-                </div>
-                <h3 className="wanted-card-title">{post.title}</h3>
-                {post.description && (
-                  <p className="wanted-card-desc">{post.description}</p>
-                )}
-                <div className="wanted-card-meta">
-                  <span>{post.requesterName}</span>
-                  {(post.neededFrom || post.neededUntil) && (
-                    <span className="wanted-card-dates">
+            {filteredWantedPosts.map((post) => {
+              const categoryKey = normalizeCategoryKey(post.category);
+              const categoryLabel = t(`categories.${categoryKey}`, {
+                defaultValue: getCategoryLabel(post.category),
+              });
+              const dateLocale = i18n.language === "en" ? "en-US" : "th-TH";
+              const formatShortDate = (val) => {
+                if (!val) return "";
+                const d = new Date(val);
+                if (Number.isNaN(d.getTime())) return String(val).slice(0, 10);
+                return d.toLocaleDateString(dateLocale, {
+                  month: "short",
+                  day: "numeric",
+                });
+              };
+              const dateRange =
+                post.neededFrom || post.neededUntil
+                  ? `${formatShortDate(post.neededFrom) || "—"} – ${
+                      formatShortDate(post.neededUntil) || "—"
+                    }`
+                  : t("wanted.flexibleDates");
+
+              return (
+                <article key={post.id} className="item-card wanted-item-card">
+                  <div className="item-card-body wanted-item-card-body">
+                    <div className="wanted-card-top">
+                      <span className="category-label">{categoryLabel}</span>
+                      <StatusBadge status={post.status} />
+                    </div>
+                    <Link to={`/wanted/${post.id}`} className="item-title">
+                      {post.title}
+                    </Link>
+                    <p className="wanted-card-desc">
+                      {post.description || t("wanted.noDescription")}
+                    </p>
+                    <div className="wanted-card-dates">
                       <Calendar size={13} />
-                      {post.neededFrom
-                        ? new Date(post.neededFrom).toLocaleDateString(
-                            i18n.language === "en" ? "en-US" : "th-TH",
-                            { month: "short", day: "numeric" }
-                          )
-                        : "—"}
-                    </span>
-                  )}
-                </div>
-                <div className="wanted-card-footer">
-                  <span>
-                    {t("wanted.pendingOffersCount", {
-                      count: post.pendingOfferCount || 0,
-                    })}
-                  </span>
-                  <span className="wanted-card-link">
-                    {t("wanted.viewDetails")} <ArrowRight size={14} />
-                  </span>
-                </div>
-              </Link>
-            ))}
+                      <span>{dateRange}</span>
+                    </div>
+                    <div className="item-owner">
+                      <span className="mini-avatar">
+                        <UserRound size={13} />
+                      </span>
+                      <span>{post.requesterName}</span>
+                    </div>
+                    <div className="item-card-bottom">
+                      <span className="wanted-card-offers-count">
+                        {t("wanted.pendingOffersCount", {
+                          count: post.pendingOfferCount || 0,
+                        })}
+                      </span>
+                      <Link to={`/wanted/${post.id}`} className="text-link">
+                        {t("wanted.viewDetails")} <ArrowUpRight size={14} />
+                      </Link>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
           </section>
         ) : (
           <EmptyState
