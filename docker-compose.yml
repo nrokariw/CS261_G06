@@ -67,6 +67,7 @@ services:
       API_USERS_PATH: "${API_USERS_PATH:-/api/users}"
       API_TRANSACTIONS_PATH: "${API_TRANSACTIONS_PATH:-/api/transactions}"
       API_EVIDENCE_PATH: "${API_EVIDENCE_PATH:-/api/evidence}"
+      API_WANTED_POSTS_PATH: "${API_WANTED_POSTS_PATH:-/api/wanted-posts}"
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:
@@ -97,6 +98,7 @@ services:
         VITE_API_USERS_PATH: ${API_USERS_PATH:-/api/users}
         VITE_API_TRANSACTIONS_PATH: ${API_TRANSACTIONS_PATH:-/api/transactions}
         VITE_API_EVIDENCE_PATH: ${API_EVIDENCE_PATH:-/api/evidence}
+        VITE_API_WANTED_POSTS_PATH: ${API_WANTED_POSTS_PATH:-/api/wanted-posts}
     container_name: cs261-frontend
     env_file:
       - .env.example
@@ -112,6 +114,7 @@ services:
       API_USERS_PATH: ${API_USERS_PATH:-/api/users}
       API_TRANSACTIONS_PATH: ${API_TRANSACTIONS_PATH:-/api/transactions}
       API_EVIDENCE_PATH: ${API_EVIDENCE_PATH:-/api/evidence}
+      API_WANTED_POSTS_PATH: ${API_WANTED_POSTS_PATH:-/api/wanted-posts}
     ports:
       - "${FRONTEND_PORT:-3000}:80"
     depends_on:

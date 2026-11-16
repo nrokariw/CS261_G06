@@ -82,6 +82,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout", "/api/auth/demo-accounts").permitAll()
                 .requestMatchers("/uploads/products/**", "/uploads/evidence/**", "/actuator/**", "/error").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/items", "/api/items/all", "/api/items/*").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/wanted-posts/my").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/wanted-posts", "/api/wanted-posts/*").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
