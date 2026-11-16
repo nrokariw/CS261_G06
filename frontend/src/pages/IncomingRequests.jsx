@@ -1,12 +1,15 @@
-import React, { useState } from "react";
-import { Check, X, AlertCircle } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Check, X, AlertCircle, MessageSquare, PackageCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeading, StatusBadge, EmptyState, Avatar } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import {
   updateBorrowRequestStatus,
   cancelBorrowRequest,
+  respondToBorrowRequest,
 } from "../api/requestsApi";
+import { getRequestTransactionMap } from "../api/transactionsApi";
+import HandoverModal from "../components/HandoverModal";
 
 function formatDate(date, language = "th") {
   if (!date) return "—";
@@ -22,15 +25,54 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
   const { user, token } = useAuth();
   const { t, i18n } = useTranslation();
   const [actionError, setActionError] = useState("");
+  const [activeResponseReq, setActiveResponseReq] = useState(null);
+  const [responseReason, setResponseReason] = useState("");
+  const [modalError, setModalError] = useState("");
+  // T-6.3: ธุรกรรมของแต่ละคำขอ { [requestId]: transaction } (มี Transaction = ส่งมอบแล้ว)
+  const [handoverByRequest, setHandoverByRequest] = useState({});
+  const [handoverReady, setHandoverReady] = useState(false);
+  const [handoverReq, setHandoverReq] = useState(null);
+  const [successMsg, setSuccessMsg] = useState("");
+  const acceptedKey = requests
+    .filter((r) => r.status === "accepted")
+    .map((r) => `${r.id}:${r.itemId}`)
+    .join("|");
+
+  useEffect(() => {
+    let cancelled = false;
+    getRequestTransactionMap(requests, token)
+      .then((map) => {
+        if (cancelled) return;
+        setHandoverByRequest((prev) => ({ ...map, ...prev }));
+        setHandoverReady(true);
+      })
+      .catch(() => {
+        // โหลดไม่สำเร็จ → ไม่แสดงปุ่ม (กันบันทึกซ้ำโดยไม่รู้ว่าส่งมอบไปแล้ว)
+        if (!cancelled) setHandoverReady(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acceptedKey, token]);
 
   const checkIsItemOwner = (req) => {
-    const matchedItem = (items || []).find((i) => i.id === req.itemId);
+    const matchedItem = (items || []).find((i) => String(i.id) === String(req.itemId));
     const ownerId = req.ownerId || matchedItem?.ownerId;
     const ownerName = req.owner || matchedItem?.owner;
     return Boolean(
-      (user?.studentId && ownerId === user.studentId) ||
-      (user?.id && ownerId === user.id) ||
+      (user?.studentId && String(ownerId) === String(user.studentId)) ||
+      (user?.id && String(ownerId) === String(user.id)) ||
       (user?.name && ownerName === user.name)
+    );
+  };
+
+  const isItemReservedByOther = (req) => {
+    return requests.some(
+      (r) =>
+        r.id !== req.id &&
+        String(r.itemId) === String(req.itemId) &&
+        r.status === "accepted"
     );
   };
 
@@ -72,6 +114,59 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
     }
   }
 
+  function openResponseModal(req) {
+    setActiveResponseReq(req);
+    setResponseReason("");
+    setModalError("");
+  }
+
+  async function handleModalResponse(action) {
+    if (action === "request_change" && !responseReason.trim()) {
+      setModalError(t("validation.reasonRequired", { defaultValue: "กรุณาระบุเหตุผลในการขอให้แก้ไขข้อมูล" }));
+      return;
+    }
+    setModalError("");
+    const authToken = token || user?.token;
+    try {
+      await respondToBorrowRequest(activeResponseReq.id, action, responseReason.trim(), authToken);
+      const nextStatus = action === "request_change" ? "change_requested" : "rejected";
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === activeResponseReq.id
+            ? { ...r, status: nextStatus, responseReason: responseReason.trim() }
+            : r,
+        ),
+      );
+      if (setItems && activeResponseReq?.itemId) {
+        setItems((prev) =>
+          prev.map((item) =>
+            item.id === activeResponseReq.itemId
+              ? { ...item, status: "available" }
+              : item,
+          ),
+        );
+      }
+      setActiveResponseReq(null);
+      setResponseReason("");
+    } catch (err) {
+      setModalError(err.message || t("validation.submitFailed"));
+    }
+  }
+
+  // T-6.3: backend บันทึกหลักฐานสำเร็จ (201) → แสดง "กำลังยืม" ทันที
+  function handleHandoverSuccess(transaction) {
+    const target = handoverReq;
+    setHandoverByRequest((prev) => ({ ...prev, [target.id]: transaction }));
+    if (setItems) {
+      setItems((prev) =>
+        prev.map((i) => (i.id === target.itemId ? { ...i, status: "borrowed" } : i)),
+      );
+    }
+    setHandoverReq(null);
+    setActionError("");
+    setSuccessMsg(t("handover.success", { name: target.itemName }));
+  }
+
   return (
     <div className="page-stack">
       <PageHeading
@@ -106,9 +201,21 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
         </div>
       )}
 
+      {successMsg && (
+        <div className="alert alert-success" role="status">
+          <span>{successMsg}</span>
+          <button onClick={() => setSuccessMsg("")} className="alert-close">
+            {t("myListings.closeAlert")}
+          </button>
+        </div>
+      )}
+
       {myIncomingRequests.length ? (
         <div className="requests-list requests-list-updated">
-          {myIncomingRequests.map((req) => (
+          {myIncomingRequests.map((req) => {
+            // T-6.3: มี Transaction ของคำขอนี้ = ส่งมอบแล้ว (backend สร้างพร้อมหลักฐาน)
+            const handedOver = Boolean(handoverByRequest[req.id]);
+            return (
             <article className="request-card request-card-updated" key={req.id}>
               <div className="request-main">
                 <div className="request-card-top">
@@ -119,9 +226,26 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                       {t("incomingRequests.requestedBy")} <strong>{req.borrower}</strong>
                     </p>
                   </div>
-                  <StatusBadge status={req.status} />
+                  <StatusBadge status={handedOver ? "borrowed" : req.status} />
                 </div>
                 <p className="request-reason">{req.reason}</p>
+                {req.responseReason && (
+                  <p
+                    className="request-response-note"
+                    style={{
+                      fontSize: "0.85rem",
+                      color: "var(--muted, #64748b)",
+                      marginTop: "6px",
+                      background: "var(--surface-muted, #f8fafc)",
+                      padding: "6px 10px",
+                      borderRadius: "6px",
+                      borderLeft: "3px solid #0284c7",
+                    }}
+                  >
+                    <strong>{t("incomingRequests.ownerFeedbackLabel")}</strong>
+                    {req.responseReason}
+                  </p>
+                )}
               </div>
 
               <div className="request-side">
@@ -138,39 +262,144 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
 
                 {checkIsItemOwner(req) && (
                   req.status === "pending" ? (
-                    <div className="request-actions">
-                      <button
-                        className="button button-primary"
-                        onClick={() => updateStatus(req.id, "accepted")}
-                      >
-                        <Check size={16} /> {t("incomingRequests.accept")}
-                      </button>
-                      <button
-                        className="button button-danger-outline"
-                        onClick={() => updateStatus(req.id, "rejected")}
-                      >
-                        <X size={16} /> {t("incomingRequests.reject")}
-                      </button>
+                    <div className="request-actions" style={{ flexDirection: "column", alignItems: "stretch" }}>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                          className="button button-primary"
+                          disabled={isItemReservedByOther(req)}
+                          title={isItemReservedByOther(req) ? t("incomingRequests.itemAlreadyReserved") : ""}
+                          onClick={() => updateStatus(req.id, "accepted")}
+                        >
+                          <Check size={16} /> {t("incomingRequests.accept")}
+                        </button>
+                        <button
+                          className="button button-danger-outline"
+                          onClick={() => openResponseModal(req)}
+                        >
+                          <MessageSquare size={16} /> {t("incomingRequests.respond")}
+                        </button>
+                      </div>
+                      {isItemReservedByOther(req) && (
+                        <small style={{ color: "#b45309", fontSize: "0.8rem", marginTop: "4px" }}>
+                          {t("incomingRequests.itemAlreadyReserved")}
+                        </small>
+                      )}
                     </div>
                   ) : (
-                    <div className="request-status-updated">
-                      <button
-                        className="text-button"
-                        onClick={() => updateStatus(req.id, "pending")}
-                      >
-                        {t("incomingRequests.resetToPending")}
-                      </button>
+                    <div className="request-status-updated handover-actions">
+                      {handedOver ? (
+                        <small className="status-hint">{t("handover.done")}</small>
+                      ) : (
+                        <>
+                          {/* T-6.3: ปุ่มบันทึกหลักฐานการส่งมอบ เฉพาะคำขอ accepted ที่ยังไม่ส่งมอบ */}
+                          {req.status === "accepted" && handoverReady && (
+                            <button
+                              type="button"
+                              className="button button-primary button-sm"
+                              onClick={() => {
+                                setSuccessMsg("");
+                                setHandoverReq(req);
+                              }}
+                            >
+                              <PackageCheck size={16} /> {t("handover.button")}
+                            </button>
+                          )}
+                          <button
+                            className="text-button"
+                            onClick={() => updateStatus(req.id, "pending")}
+                          >
+                            {t("incomingRequests.resetToPending")}
+                          </button>
+                        </>
+                      )}
                     </div>
                   )
                 )}
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <EmptyState
           title={t("incomingRequests.emptyTitle")}
           description={t("incomingRequests.emptyDesc")}
+        />
+      )}
+
+      {activeResponseReq && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setActiveResponseReq(null)}
+        >
+          <div
+            className="modal-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3 className="modal-title">{t("incomingRequests.responseModalTitle")}</h3>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setActiveResponseReq(null)}
+                aria-label={t("common.close", { defaultValue: "ปิด" })}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p className="modal-desc">
+              {t("incomingRequests.responseModalDesc")}
+            </p>
+            <div className="modal-item-summary">
+              <strong>{activeResponseReq.itemName}</strong>
+              <div className="modal-borrower-meta">
+                {t("incomingRequests.requestedBy")}: {activeResponseReq.borrower}
+              </div>
+            </div>
+            <div className="field" style={{ marginBottom: "16px" }}>
+              <label htmlFor="responseReason">
+                {t("incomingRequests.reasonLabel")}
+              </label>
+              <textarea
+                id="responseReason"
+                rows={3}
+                value={responseReason}
+                onChange={(e) => setResponseReason(e.target.value)}
+                placeholder={t("incomingRequests.reasonPlaceholder")}
+              />
+              {modalError && (
+                <small className="field-error" style={{ marginTop: "4px" }}>
+                  <AlertCircle size={13} />
+                  {modalError}
+                </small>
+              )}
+            </div>
+            <div className="modal-actions-grid">
+              <button
+                type="button"
+                className="button button-outline modal-btn-change"
+                onClick={() => handleModalResponse("request_change")}
+              >
+                {t("incomingRequests.requestChange")}
+              </button>
+              <button
+                type="button"
+                className="button button-danger"
+                onClick={() => handleModalResponse("reject")}
+              >
+                {t("incomingRequests.permanentReject")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* T-6.3: โมดอลบันทึกหลักฐานการส่งมอบ */}
+      {handoverReq && (
+        <HandoverModal
+          request={handoverReq}
+          onClose={() => setHandoverReq(null)}
+          onSuccess={handleHandoverSuccess}
         />
       )}
     </div>
