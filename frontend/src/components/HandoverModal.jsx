@@ -1,11 +1,9 @@
 // T-6.3: โมดอล "บันทึกหลักฐานการส่งมอบ (Handover Evidence)"
 // ใช้ได้ทั้งฝั่งผู้ให้ยืม (IncomingRequests) และผู้ยืม (MyBorrows) กับคำขอสถานะ accepted
 //
-// ลำดับเรียก API (ใช้ฟังก์ชันที่มีอยู่แล้วใน api/transactionsApi.js):
-//   1) startTransaction(requestId)               → POST /api/transactions/start/{requestId}
-//      (backend สร้าง Transaction ACTIVE และเปลี่ยนสิ่งของเป็น BORROWED ให้เอง)
-//   2) uploadHandoverProof(transactionId, form)  → POST /api/evidence/transaction/{transactionId}
-//      ส่งเป็น multipart/form-data: imageFile (ไฟล์รูป), note, uploaderId
+// เรียก API แบบ Atomic ผ่าน api/transactionsApi.js:
+//   submitHandoverEvidence(requestId, formData, token) → POST /api/transactions/{requestId}/handover-evidence
+//   ส่งเป็น multipart/form-data: imageFile (ไฟล์รูป), note (หมายเหตุสภาพของ)
 import React, { useEffect, useRef, useState } from "react";
 import {
   X,
@@ -22,7 +20,7 @@ import {
   MAX_IMAGE_SIZE_BYTES,
   MAX_IMAGE_SIZE_MB,
 } from "../constants/config";
-import { startTransaction, uploadHandoverProof } from "../api/transactionsApi";
+import { submitHandoverEvidence } from "../api/transactionsApi";
 
 const NOTE_MAX = 300;
 const FOCUSABLE =
@@ -60,7 +58,6 @@ export default function HandoverModal({ request, onClose, onSuccess }) {
 
   const fileRef = useRef(null);
   const dialogRef = useRef(null);
-  const transactionRef = useRef(null); // ถ้าขั้นอัปโหลดพลาด กดลองใหม่จะไม่เรียก start ซ้ำ
   const submittingRef = useRef(false);
   submittingRef.current = submitting;
 
@@ -145,27 +142,18 @@ export default function HandoverModal({ request, onClose, onSuccess }) {
     const authToken = token || user?.token;
     const trimmedNote = note.trim();
     try {
-      if (!transactionRef.current) {
-        transactionRef.current = await startTransaction(request.id, authToken);
-      }
-      const transactionId = transactionRef.current?.id;
-      if (!transactionId) throw new Error(t("validation.submitFailed"));
-
       const form = new FormData();
       form.append("imageFile", imageFile);
       form.append("note", trimmedNote);
-      form.append("uploaderId", user?.studentId || user?.id || "");
-      const proof = await uploadHandoverProof(transactionId, form, authToken);
+      const tx = await submitHandoverEvidence(request.id, form, authToken);
 
       onSuccess({
-        transactionId,
-        proofId: proof?.id,
-        imageUrl: proof?.imageUrl || "",
+        transactionId: tx?.id,
         note: trimmedNote,
-        capturedAt: proof?.capturedAt || new Date().toISOString(),
+        capturedAt: tx?.borrowedAt || new Date().toISOString(),
       });
     } catch (err) {
-      setApiError(err?.message || t("validation.submitFailed"));
+      setApiError(err?.data?.message || err?.message || t("validation.submitFailed"));
       setSubmitting(false);
     }
   }
