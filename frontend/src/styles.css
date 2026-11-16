@@ -3405,3 +3405,163 @@ textarea:focus-visible {
     flex-direction: column;
     gap: 8px;
 }
+
+/* US-BRRQS: Wanted Posts & Lend Offers */
+.tab-bar {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    padding-bottom: 10px;
+}
+
+.tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--border, #e5e7eb);
+    background: transparent;
+    color: var(--muted, #64748b);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.tab-btn-active {
+    background: var(--primary, #ea580c);
+    border-color: var(--primary, #ea580c);
+    color: #fff;
+}
+
+.wanted-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    text-decoration: none;
+    color: inherit;
+    padding: 18px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.wanted-card:hover {
+    transform: translateY(-2px);
+}
+
+.wanted-card-top,
+.wanted-card-meta,
+.wanted-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.wanted-card-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.wanted-card-desc {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted, #64748b);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.wanted-card-meta,
+.wanted-card-footer {
+    font-size: 13px;
+    color: var(--muted, #64748b);
+}
+
+.wanted-card-dates,
+.wanted-card-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.wanted-card-link {
+    color: var(--primary, #ea580c);
+    font-weight: 500;
+}
+
+.wanted-detail-card,
+.wanted-offer-form,
+.wanted-offers-list,
+.wanted-my-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.wanted-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+}
+
+.wanted-meta-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.wanted-meta-item > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.wanted-meta-item small {
+    color: var(--muted, #64748b);
+    font-size: 12px;
+}
+
+.wanted-offer-card,
+.wanted-my-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 12px;
+}
+
+.wanted-my-item {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.wanted-offer-header,
+.wanted-my-header,
+.wanted-my-item-title-row,
+.wanted-my-item-actions,
+.wanted-offer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.wanted-my-item-meta {
+    display: flex;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--muted, #64748b);
+}
+
+.form-row-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+}

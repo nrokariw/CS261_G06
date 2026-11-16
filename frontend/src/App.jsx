@@ -34,6 +34,8 @@ import ItemDetails from "./pages/ItemDetails";
 import MyListings from "./pages/MyListings";
 import IncomingRequests from "./pages/IncomingRequests";
 import MyBorrows from "./pages/MyBorrows";
+import WantedPostCreate from "./pages/WantedPostCreate";
+import WantedPostDetails from "./pages/WantedPostDetails";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./contexts/AuthContext";
@@ -471,6 +473,29 @@ export default function App() {
                   />
                 </ProtectedRoute>
               }
+            />
+            <Route
+              path="/wanted"
+              element={
+                <Browse
+                  items={items}
+                  requests={requests}
+                  loading={itemsLoading}
+                  initialTab="wanted"
+                />
+              }
+            />
+            <Route
+              path="/wanted/create"
+              element={
+                <ProtectedRoute>
+                  <WantedPostCreate />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wanted/:id"
+              element={<WantedPostDetails items={items} />}
             />
             <Route path="*" element={<NotFound />} />
           </Routes>

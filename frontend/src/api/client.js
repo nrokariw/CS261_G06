@@ -11,6 +11,8 @@ const DEFAULT_API_PATHS = {
   transactions:
     import.meta.env.VITE_API_TRANSACTIONS_PATH || "/api/transactions",
   evidence: import.meta.env.VITE_API_EVIDENCE_PATH || "/api/evidence",
+  wantedPosts:
+    import.meta.env.VITE_API_WANTED_POSTS_PATH || "/api/wanted-posts",
 };
 
 let runtimeAppEnv = DEFAULT_APP_ENV;

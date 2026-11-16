@@ -1,10 +1,12 @@
-import React, { useState } from "react";
-import { PackageCheck } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { PackageCheck, Plus, Pencil, Trash2, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PageHeading, StatusBadge, EmptyState, Avatar } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import HandoverModal, { isHandedOver } from "../components/HandoverModal";
+import { getCategoryLabel } from "../data";
+import { cancelWantedPost, getMyWantedPosts } from "../api/wantedPostsApi";
 
 function formatDate(date, locale = "th-TH") {
   if (!date) return "—";
@@ -20,11 +22,43 @@ function formatDate(date, locale = "th-TH") {
 
 // T-6.3: รับ items/setItems/setRequests เพิ่ม เพื่ออัปเดตสถานะหลังบันทึกหลักฐานสำเร็จ
 export default function MyBorrows({ requests = [], items = [], setItems, setRequests }) {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { t, i18n } = useTranslation();
   const [handoverReq, setHandoverReq] = useState(null);
   const [successMsg, setSuccessMsg] = useState("");
+  const [myWantedPosts, setMyWantedPosts] = useState([]);
+  const [wantedLoading, setWantedLoading] = useState(false);
   const dateLocale = i18n.language === "en" ? "en-US" : "th-TH";
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    setWantedLoading(true);
+    getMyWantedPosts(token)
+      .then((list) => {
+        if (!cancelled) {
+          setMyWantedPosts(Array.isArray(list) ? list : []);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setWantedLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const handleCancelWanted = async (postId) => {
+    try {
+      await cancelWantedPost(postId, token);
+      setMyWantedPosts((prev) =>
+        prev.map((p) => (p.id === postId ? { ...p, status: "cancelled" } : p))
+      );
+    } catch {
+      // ignore
+    }
+  };
   
   const myBorrows = (requests || []).filter((r) =>
     Boolean(
@@ -168,6 +202,84 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
           description={t("myBorrows.emptyDesc", { defaultValue: "คุณยังไม่ได้ส่งคำขอยืมสิ่งของชิ้นใดเลย ลองค้นหาของที่สนใจดูสิ" })}
         />
       )}
+
+      {/* US-BRRQS: ประกาศขอยืมของฉัน */}
+      <section className="card wanted-my-section">
+        <div className="wanted-my-header">
+          <div>
+            <h2>{t("wanted.myWantedSectionTitle")}</h2>
+          </div>
+          <Link to="/wanted/create" className="button button-primary button-sm">
+            <Plus size={15} /> {t("wanted.createCtaButton")}
+          </Link>
+        </div>
+
+        {wantedLoading ? (
+          <p>{t("common.loading")}</p>
+        ) : myWantedPosts.length === 0 ? (
+          <p className="field-hint">{t("wanted.myWantedEmpty")}</p>
+        ) : (
+          <div className="wanted-my-list">
+            {myWantedPosts.map((post) => {
+              const isOpen = String(post.status).toLowerCase() === "open";
+              return (
+                <div key={post.id} className="wanted-my-item">
+                  <div className="wanted-my-item-info">
+                    <div className="wanted-my-item-title-row">
+                      <Link to={`/wanted/${post.id}`}>
+                        <strong>{post.title}</strong>
+                      </Link>
+                      <span className={`status-badge status-${post.status}`}>
+                        {t(`wanted.status.${post.status}`, post.status)}
+                      </span>
+                    </div>
+                    <div className="wanted-my-item-meta">
+                      <span>
+                        {t(`categories.${post.category}`, {
+                          defaultValue: getCategoryLabel(post.category),
+                        })}
+                      </span>
+                      <span>·</span>
+                      <span>
+                        {t("wanted.pendingOffersCount", {
+                          count: post.pendingOfferCount || 0,
+                        })}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="wanted-my-item-actions">
+                    <Link
+                      to={`/wanted/${post.id}`}
+                      className="button button-outline button-sm"
+                    >
+                      {t("wanted.viewDetails")} <ArrowRight size={14} />
+                    </Link>
+                    {isOpen && (
+                      <>
+                        <Link
+                          to={`/wanted/create?edit=${post.id}`}
+                          className="button button-outline button-sm"
+                        >
+                          <Pencil size={14} />
+                        </Link>
+                        <button
+                          type="button"
+                          className="button button-outline button-sm"
+                          onClick={() => handleCancelWanted(post.id)}
+                          aria-label={t("wanted.cancelButton")}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* T-6.3: โมดอลบันทึกหลักฐานการส่งมอบ */}
       {handoverReq && (
