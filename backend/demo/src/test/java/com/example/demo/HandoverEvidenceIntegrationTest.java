@@ -223,4 +223,29 @@ class HandoverEvidenceIntegrationTest {
 
         assertThat(transactionRepository.count()).isZero();
     }
+
+    @Test
+    @DisplayName("POST /api/transactions/{requestId}/handover-evidence: 201 Created when item is RESERVED after approval")
+    void handoverSucceedsWhenItemIsReservedAfterApproval() throws Exception {
+        item.setStatus(ItemStatus.RESERVED);
+        itemRepository.save(item);
+
+        MockMultipartFile imageFile = new MockMultipartFile(
+                "imageFile",
+                "handover-reserved.jpg",
+                "image/jpeg",
+                "fake-jpeg-bytes".getBytes(StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(
+                        multipart("/api/transactions/" + acceptedRequest.getId() + "/handover-evidence")
+                                .file(imageFile)
+                                .param("note", "ส่งมอบจากสถานะ RESERVED")
+                                .header(HttpHeaders.AUTHORIZATION, bearerFor(OWNER_ID))
+                )
+                .andExpect(status().isCreated());
+
+        assertThat(itemRepository.findById(item.getId()).orElseThrow().getStatus())
+                .isEqualTo(ItemStatus.BORROWED);
+    }
 }
