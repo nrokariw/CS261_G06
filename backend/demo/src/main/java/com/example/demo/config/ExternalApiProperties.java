@@ -10,7 +10,7 @@ public class ExternalApiProperties {
     @Value("${app.env:demo}")
     private String appEnv;
 
-    @Value("${app.external-services.tu-api-base-url:https://api.tu.ac.th/v1}")
+    @Value("${app.external-services.tu-api-base-url:https://restapi.tu.ac.th/api/v1}")
     private String tuApiBaseUrl;
 
     @Value("${app.external-services.tu-api-verify-path:/auth/Ad/verify}")

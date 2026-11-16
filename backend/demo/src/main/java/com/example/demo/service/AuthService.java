@@ -17,9 +17,13 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 @Service
 public class AuthService {
+
+    private static final Pattern USERNAME_PATTERN = Pattern.compile("^[A-Za-z0-9._-]{3,50}$");
+    private static final int MAX_PASSWORD_LENGTH = 128;
 
     public record AuthResult(
             String accessToken,
@@ -33,6 +37,8 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final TuAuthClient tuAuthClient;
     private final ExternalApiProperties externalApiProperties;
+    private final LoginRateLimiter loginRateLimiter;
+    private final TuAuthCacheService tuAuthCacheService;
 
     public AuthService(
             UserRepository userRepository,
@@ -40,37 +46,54 @@ public class AuthService {
             JwtService jwtService,
             PasswordEncoder passwordEncoder,
             TuAuthClient tuAuthClient,
-            ExternalApiProperties externalApiProperties) {
+            ExternalApiProperties externalApiProperties,
+            LoginRateLimiter loginRateLimiter,
+            TuAuthCacheService tuAuthCacheService) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.jwtService = jwtService;
         this.passwordEncoder = passwordEncoder;
         this.tuAuthClient = tuAuthClient;
         this.externalApiProperties = externalApiProperties;
+        this.loginRateLimiter = loginRateLimiter;
+        this.tuAuthCacheService = tuAuthCacheService;
     }
 
     @Transactional
     public AuthResult login(String usernameOrStudentId, String password) {
+        return login(usernameOrStudentId, password, "unknown");
+    }
+
+    @Transactional
+    public AuthResult login(String usernameOrStudentId, String password, String clientIp) {
         if (usernameOrStudentId == null || usernameOrStudentId.isBlank()
                 || password == null || password.isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Username and password are required");
         }
 
         String identifier = usernameOrStudentId.trim();
+        if (!USERNAME_PATTERN.matcher(identifier).matches() || password.length() > MAX_PASSWORD_LENGTH) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid username or password format");
+        }
+
         String mode = externalApiProperties.getAuthMode() != null
                 ? externalApiProperties.getAuthMode().trim().toUpperCase()
                 : "HYBRID";
 
         User authenticatedUser = null;
 
-        // 1. Check Local Database (BCrypt) unless mode is strictly TU_ONLY
+        // 1. Check Local Database (BCrypt) only for LOCAL demo accounts unless mode is strictly TU_ONLY
         if (!"TU_ONLY".equals(mode)) {
             Optional<User> localCandidate = userRepository.findById(identifier)
                     .or(() -> userRepository.findByUsername(identifier));
 
             if (localCandidate.isPresent()) {
                 User localUser = localCandidate.get();
-                if (localUser.getPasswordHash() != null
+                boolean isLocalAccount = localUser.getAuthProvider() == null
+                        || localUser.getAuthProvider().isBlank()
+                        || "LOCAL".equalsIgnoreCase(localUser.getAuthProvider());
+                if (isLocalAccount
+                        && localUser.getPasswordHash() != null
                         && !localUser.getPasswordHash().isBlank()
                         && passwordEncoder.matches(password, localUser.getPasswordHash())) {
                     authenticatedUser = localUser;
@@ -78,15 +101,30 @@ public class AuthService {
             }
         }
 
-        // 2. Fallback or verify via TU REST API if not authenticated locally and mode is HYBRID or TU_ONLY
+        // 2. Check Short-TTL TU Auth Cache, otherwise enforce IP Rate Limit before calling TU REST API
+        boolean recordedAttempt = false;
         if (authenticatedUser == null && ("HYBRID".equals(mode) || "TU_ONLY".equals(mode) || "TU_API".equals(mode))) {
-            Optional<TuUserProfile> tuProfile = tuAuthClient.verifyWithTuApi(identifier, password);
-            if (tuProfile.isPresent()) {
-                authenticatedUser = upsertTuUser(tuProfile.get(), password);
+            Optional<TuUserProfile> cachedProfile = tuAuthCacheService.get(identifier, password);
+            if (cachedProfile.isPresent()) {
+                authenticatedUser = upsertTuUser(cachedProfile.get(), password);
+            } else {
+                loginRateLimiter.checkAllowed(clientIp);
+                loginRateLimiter.recordAttempt(clientIp);
+                recordedAttempt = true;
+
+                Optional<TuUserProfile> tuProfile = tuAuthClient.verifyWithTuApi(identifier, password);
+                if (tuProfile.isPresent()) {
+                    tuAuthCacheService.put(identifier, password, tuProfile.get());
+                    authenticatedUser = upsertTuUser(tuProfile.get(), password);
+                }
             }
         }
 
         if (authenticatedUser == null) {
+            if (!recordedAttempt) {
+                loginRateLimiter.checkAllowed(clientIp);
+                loginRateLimiter.recordAttempt(clientIp);
+            }
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid student ID/username or password");
         }
 
@@ -121,14 +159,10 @@ public class AuthService {
         }
 
         String resolvedRole = "employee".equalsIgnoreCase(profile.type()) ? "STAFF" : "STUDENT";
-        if (user.getRole() == null || user.getRole().isBlank()) {
-            user.setRole(resolvedRole);
-        }
+        user.setRole(resolvedRole);
         user.setAuthProvider("TU_API");
-
-        if (rawPassword != null && !rawPassword.isBlank()) {
-            user.setPasswordHash(passwordEncoder.encode(rawPassword));
-        }
+        // Do not cache password hashes for TU_API users so TU password changes always take effect immediately
+        user.setPasswordHash(null);
 
         return userRepository.save(user);
     }
