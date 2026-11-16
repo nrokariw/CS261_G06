@@ -1,6 +1,7 @@
 package com.example.demo.model;
 
 import com.example.demo.constant.TransactionStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
@@ -29,6 +30,7 @@ public class Transaction {
     private String requestId;
 
     // เพิ่ม JPA Relationship ไปยัง BorrowRequest
+    @JsonIgnore
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "request_id", referencedColumnName = "request_id", nullable = false)
     private BorrowRequest borrowRequest;
