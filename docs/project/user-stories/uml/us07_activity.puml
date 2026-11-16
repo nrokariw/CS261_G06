@@ -1,0 +1,16 @@
+@startuml
+title US-07 Activity: Record Return Evidence
+
+start
+:Open Borrowed transaction;
+if (User is participant?) then (No)
+  :Deny access (403 Forbidden);
+elseif (Return image & note provided?) then (No)
+  :Show validation error (400);
+else (Yes)
+  :Store return photo;
+  :Save Proof (RETURN) & Transaction -> COMPLETED;
+  :Update Item -> AVAILABLE;
+endif
+stop
+@enduml

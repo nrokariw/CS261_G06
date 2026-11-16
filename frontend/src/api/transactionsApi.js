@@ -8,6 +8,18 @@ export async function startTransaction(requestId, token) {
   });
 }
 
+export async function submitHandoverEvidence(requestId, formData, token) {
+  const { transactions } = getApiPaths();
+  return apiRequest(
+    `${transactions}/${encodeURIComponent(requestId)}/handover-evidence`,
+    {
+      method: "POST",
+      body: formData,
+      token,
+    },
+  );
+}
+
 export async function completeTransaction(transactionId, token) {
   const { transactions } = getApiPaths();
   return apiRequest(

@@ -1,0 +1,58 @@
+@startuml
+title DFD Level 1: User Stories (US-01 to US-09)
+left to right direction
+skinparam roundcorner 12
+
+' External Entities
+rectangle "TU User\n(Lender / Borrower)" as User
+rectangle "TU REST API" as TUAPI
+
+' Processes
+usecase "1.0\nAuthenticate &\nSync User\n(US-09)" as P1
+usecase "2.0\nManage &\nBrowse Items\n(US-01, US-02, US-04)" as P2
+usecase "3.0\nProcess Borrow\nRequests\n(US-03, US-05)" as P3
+usecase "4.0\nRecord Handover\n& Return Proof\n(US-06, US-07)" as P4
+usecase "5.0\nView History &\nEvidence\n(US-08)" as P5
+
+' Data Stores
+database "D1: Users" as D1
+database "D2: Items" as D2
+database "D3: BorrowRequests" as D3
+database "D4: Transactions" as D4
+database "D5: Evidence & Storage" as D5
+
+' US-09 Auth Flows
+User --> P1 : Credentials
+P1 --> TUAPI : Verify Request
+TUAPI --> P1 : User Profile & Role
+P1 <--> D1 : Upsert Profile (no password)
+P1 --> User : JWT & User Info
+
+' US-01, US-02, US-04 Item Flows
+User --> P2 : Item Form / Search / Edit
+P2 <--> D2 : Read / Write Items
+P2 <--> D5 : Store / Delete Item Image
+P2 --> User : Available Listings
+
+' US-03, US-05 Request Flows
+User --> P3 : Borrow Request / Decision
+D2 --> P3 : Item Status
+P3 <--> D3 : Save / Update Request
+P3 --> D2 : Update Item Status (RESERVED)
+P3 --> User : Request Status
+
+' US-06, US-07 Handover & Return Flows
+User --> P4 : Handover / Return Photo & Note
+D3 --> P4 : Accepted Request
+P4 <--> D4 : Start / Complete Transaction
+P4 --> D5 : Save Evidence Photo & Note
+P4 --> D2 : Update Item Status (BORROWED / AVAILABLE)
+P4 --> User : Loan Status Updated
+
+' US-08 History Flows
+User --> P5 : History Query
+D3 --> P5 : Request Info
+D4 --> P5 : Transaction Timeline
+D5 --> P5 : Handover & Return Proofs
+P5 --> User : Evidence & History View
+@enduml

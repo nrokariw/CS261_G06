@@ -1,0 +1,15 @@
+@startuml
+title US-02 DFD: Browse Available Items
+left to right direction
+skinparam roundcorner 12
+
+rectangle "User" as User
+usecase "2.1\nAuthenticate\nSession" as P1
+usecase "2.2\nQuery Available\nItems" as P2
+database "D2: Items" as D2
+
+User --> P1 : JWT + filter query
+P1 --> P2 : Authorized query
+D2 --> P2 : Items (AVAILABLE)
+P2 --> User : Item list / Empty state
+@enduml

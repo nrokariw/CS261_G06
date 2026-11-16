@@ -1,0 +1,19 @@
+@startuml
+title DFD Level 0: Context Diagram
+left to right direction
+skinparam componentStyle rectangle
+
+rectangle "Lender\n(TU Student / Staff)" as Lender
+rectangle "Borrower\n(TU Student / Staff)" as Borrower
+usecase "0.0\nCampusShare\nLending System" as System
+rectangle "TU REST API\n(Active Directory)" as TUAPI
+
+Lender --> System : Login Credentials, Item Info,\nApproval/Rejection, Evidence Photos
+System --> Lender : Session JWT, Incoming Requests,\nLoan History & Evidence
+
+Borrower --> System : Login Credentials, Search Query,\nBorrow Request, Evidence Photos
+System --> Borrower : Session JWT, Available Items,\nBorrow Status & Evidence
+
+System --> TUAPI : UserName & PassWord\n(Application-Key)
+TUAPI --> System : Verification Status,\nProfile & Active Status
+@enduml
