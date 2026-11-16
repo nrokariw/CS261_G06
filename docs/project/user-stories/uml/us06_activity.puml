@@ -1,0 +1,16 @@
+@startuml
+title US-06 Activity: Record Handover Evidence
+
+start
+:Open Accepted request;
+if (User is participant?) then (No)
+  :Deny access (403 Forbidden);
+elseif (Image & note provided?) then (No)
+  :Show validation error (400);
+else (Yes)
+  :Store handover photo;
+  :Create Transaction (ACTIVE) + Proof (HANDOVER);
+  :Update Item -> BORROWED;
+endif
+stop
+@enduml

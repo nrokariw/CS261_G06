@@ -5,57 +5,52 @@ skinparam classAttributeIconSize 0
 skinparam style strictuml
 
 class User {
-  studentId / employeeId
+  studentId
+  username
   fullName
   email
-  role
-  accountStatus
+  faculty
+  department
+  role : STUDENT | STAFF
+  authProvider : LOCAL | TU_API
 }
 
 class Item {
-  itemId
+  id
   title
-  description
   category
-  status: Available | Reserved | Borrowed
-  createdAt
+  description
+  imageUrl
+  status : AVAILABLE | RESERVED | BORROWED | UNAVAILABLE
 }
 
 class BorrowRequest {
-  requestId
-  borrowDate
-  returnDate
+  id
+  startDate
+  endDate
   reason
-  requestStatus: Pending | Accepted | Rejected | Cancelled
-  createdAt
+  status : PENDING | ACCEPTED | REJECTED | CANCELLED
 }
 
-class LoanTransaction {
-  transactionId
-  handoverDate
-  actualReturnDate
-  loanStatus: Borrowed | Returned
+class Transaction {
+  id
+  status : ACTIVE | COMPLETED | DISPUTED
+  borrowedAt
+  returnedAt
 }
 
-class HandoverEvidence {
-  evidenceId
+class EvidenceProof {
+  id
+  proofType : HANDOVER | RETURN
   imageUrl
-  conditionNote
-  recordedTimestamp
+  note
+  capturedAt
 }
 
-class ReturnEvidence {
-  evidenceId
-  imageUrl
-  conditionNote
-  recordedTimestamp
-}
-
-User "1" -- "0..*" Item : เป็นเจ้าของ (owns) >
-User "1" -- "0..*" BorrowRequest : ส่งคำขอ (requests) >
-Item "1" -- "0..*" BorrowRequest : ถูกร้องขอ (requested for) >
-
-BorrowRequest "1" -- "0..1" LoanTransaction : ก่อให้เกิด (results in) >
-LoanTransaction "1" -- "1" HandoverEvidence : มีหลักฐานส่งมอบ >
-LoanTransaction "1" -- "0..1" ReturnEvidence : มีหลักฐานส่งคืน >
+User "1" -- "0..*" Item : owns >
+User "1" -- "0..*" BorrowRequest : submits >
+Item "1" -- "0..*" BorrowRequest : requested in <
+BorrowRequest "1" -- "0..1" Transaction : creates >
+Transaction "1" *-- "0..*" EvidenceProof : records >
+User "1" -- "0..*" EvidenceProof : uploads >
 @enduml

@@ -170,7 +170,7 @@ refactor / test / docs / chore: ...
 ## แนวทางการจัดการฐานข้อมูลและไฟล์จัดเก็บ (MSSQL & Storage)
 
 - **SQL Scripts (`database/scripts/`)**: จัดเก็บแยกตามประเภทการทำงาน
-  - `schema/` — สำหรับสคริปต์สร้าง Database และตารางเริ่มต้น (DDL) เช่น `DB_ITEM_TABLE.sql`
+  - `schema/` — สำหรับสคริปต์สร้าง Database และตารางเริ่มต้น (DDL) เช่น `OUR_PROJECT_DB.sql`
   - `seeds/` — สำหรับสคริปต์ Mock Data หรือข้อมูลเริ่มต้น (DML)
   - `migrations/` — สำหรับสคริปต์ Alter Table / Migration ตามแต่ละ Sprint
 - **Storage & Caching (`storage/`)**:

@@ -1,0 +1,14 @@
+@startuml
+title US-03 Activity: Submit Borrow Request
+
+start
+:Select item & fill dates / reason;
+if (Requester is owner?) then (Yes)
+  :Reject (400 Cannot borrow own item);
+elseif (Item status == AVAILABLE?) then (No)
+  :Reject (409 Item unavailable);
+else (Yes)
+  :Create BorrowRequest (PENDING);
+endif
+stop
+@enduml

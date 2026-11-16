@@ -1,51 +1,41 @@
 @startuml
+title Use Case Diagram (US-01 to US-09)
 left to right direction
 skinparam packageStyle rectangle
 
-actor "นักศึกษา / บุคลากร มธ." as User
-actor "ผู้ขอยืม (Borrower)" as Borrower
-actor "ผู้ให้ยืม (Lender)" as Lender
-actor "ระบบ TU Open API" as TUAPI <<External System>>
+actor "TU User\n(Student / Staff)" as User
+actor Borrower
+actor Lender
+actor "TU REST API" as TUAPI <<External System>>
 
 User <|-- Borrower
 User <|-- Lender
 
-rectangle "ระบบยืมของระหว่างนักศึกษาภายในมหาวิทยาลัย" {
-  usecase "Login ด้วย TU Account" as UC_Login
-  usecase "ดูโปรไฟล์และข้อมูลสิทธิ์" as UC_Profile
-  
-  usecase "สร้างประกาศสิ่งของให้ยืม" as UC_CreateItem
-  usecase "แก้ไขและลบประกาศสิ่งของ" as UC_ManageItem
-  usecase "แสดงรายการสิ่งของที่เปิดให้ยืม" as UC_BrowseItems
-  
-  usecase "ส่งคำขอยืมสิ่งของ" as UC_RequestBorrow
-  usecase "ตอบรับหรือปฏิเสธคำขอยืม" as UC_RespondRequest
-  
-  usecase "บันทึกหลักฐานการส่งมอบสิ่งของ" as UC_HandoverEvidence
-  usecase "บันทึกหลักฐานการส่งคืนสิ่งของ" as UC_ReturnEvidence
-  usecase "เรียกดูประวัติและหลักฐานการยืม-คืน" as UC_ViewHistory
+rectangle "CampusShare Lending System" {
+  usecase "US-09: Login with TU Account" as UC_Login
+  usecase "US-01: Create Item Listing" as UC_Create
+  usecase "US-02: Browse Available Items" as UC_Browse
+  usecase "US-04: Update / Delete Item" as UC_Manage
+  usecase "US-03: Submit Borrow Request" as UC_Request
+  usecase "US-05: Approve / Reject Request" as UC_Respond
+  usecase "US-06: Record Handover Evidence" as UC_Handover
+  usecase "US-07: Record Return Evidence" as UC_Return
+  usecase "US-08: View History & Evidence" as UC_History
 }
 
-' Login dependencies
 User --> UC_Login
 UC_Login ..> TUAPI : <<include>>
-User --> UC_Profile
+User --> UC_Browse
 
-' Browse & Manage items
-User --> UC_BrowseItems
-Lender --> UC_CreateItem
-Lender --> UC_ManageItem
+Lender --> UC_Create
+Lender --> UC_Manage
+Lender --> UC_Respond
+Lender --> UC_Handover
+Lender --> UC_Return
+Lender --> UC_History
 
-' Borrow Workflow
-Borrower --> UC_RequestBorrow
-Lender --> UC_RespondRequest
-
-' Evidence & History
-Lender --> UC_HandoverEvidence
-Borrower --> UC_HandoverEvidence
-Lender --> UC_ReturnEvidence
-Borrower --> UC_ReturnEvidence
-
-Borrower --> UC_ViewHistory
-Lender --> UC_ViewHistory
+Borrower --> UC_Request
+Borrower --> UC_Handover
+Borrower --> UC_Return
+Borrower --> UC_History
 @enduml

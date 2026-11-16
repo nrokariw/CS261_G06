@@ -6,6 +6,7 @@ import com.example.demo.model.User;
 import com.example.demo.service.AuthService;
 import com.example.demo.service.AuthService.AuthResult;
 import com.example.demo.service.JwtService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -53,6 +54,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> login(
             @RequestBody Map<String, String> payload,
+            HttpServletRequest request,
             HttpServletResponse response) {
         String username = firstNonBlank(
                 payload.get("username"),
@@ -64,10 +66,26 @@ public class AuthController {
                 payload.get("PassWord")
         );
 
-        AuthResult result = authService.login(username, password);
+        AuthResult result = authService.login(username, password, extractClientIp(request));
         addRefreshTokenCookie(response, result.rawRefreshToken(), Duration.ofMillis(jwtService.getRefreshExpirationMs()));
 
         return ResponseEntity.ok(buildAuthResponse(result.accessToken(), result.user()));
+    }
+
+    private String extractClientIp(HttpServletRequest request) {
+        if (request == null) {
+            return "unknown";
+        }
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
+        }
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            int commaIdx = forwardedFor.indexOf(',');
+            return (commaIdx > 0 ? forwardedFor.substring(0, commaIdx) : forwardedFor).trim();
+        }
+        return request.getRemoteAddr() != null ? request.getRemoteAddr() : "unknown";
     }
 
     @PostMapping("/refresh")

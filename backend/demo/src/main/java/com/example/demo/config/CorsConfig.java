@@ -6,6 +6,7 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 @Configuration
@@ -14,13 +15,16 @@ public class CorsConfig implements WebMvcConfigurer {
     //define attributes
     private final CorsProperties corsProperties;
     private final String uploadDir;
+    private final String evidenceUploadDir;
 
     // Constructor for injecting CorsProperties
     public CorsConfig(
             CorsProperties corsProperties,
-            @Value("${file.upload-dir:uploads/products}") String uploadDir) {
+            @Value("${file.upload-dir:storage/products}") String uploadDir,
+            @Value("${file.evidence-upload-dir:storage/evidence}") String evidenceUploadDir) {
         this.corsProperties = corsProperties;
         this.uploadDir = uploadDir;
+        this.evidenceUploadDir = evidenceUploadDir;
     }
 
     /**
@@ -42,12 +46,21 @@ public class CorsConfig implements WebMvcConfigurer {
      */
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // 1. Products Uploads
         String productsLocation = Paths.get(uploadDir).toAbsolutePath().normalize().toUri().toString();
         if (!productsLocation.endsWith("/")) {
             productsLocation += "/";
         }
         registry.addResourceHandler("/uploads/products/**")
                 .addResourceLocations(productsLocation);
+
+        // 2. Evidence Uploads
+        String evidenceLocation = Paths.get(evidenceUploadDir).toAbsolutePath().normalize().toUri().toString();
+        if (!evidenceLocation.endsWith("/")) {
+            evidenceLocation += "/";
+        }
+        registry.addResourceHandler("/uploads/evidence/**")
+                .addResourceLocations(evidenceLocation);
     }
 
 }
