@@ -34,7 +34,6 @@ import ItemDetails from "./pages/ItemDetails";
 import MyListings from "./pages/MyListings";
 import IncomingRequests from "./pages/IncomingRequests";
 import MyBorrows from "./pages/MyBorrows";
-import WantedPostCreate from "./pages/WantedPostCreate";
 import WantedPostDetails from "./pages/WantedPostDetails";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -489,7 +488,7 @@ export default function App() {
               path="/wanted/create"
               element={
                 <ProtectedRoute>
-                  <WantedPostCreate />
+                  <CreateListing items={items} setItems={setItems} initialTab="wanted" />
                 </ProtectedRoute>
               }
             />

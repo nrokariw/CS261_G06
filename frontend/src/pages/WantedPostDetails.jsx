@@ -276,7 +276,7 @@ export default function WantedPostDetails({ items = [], onItemsRefresh }) {
         {isOwner && isOpen && (
           <div className="form-actions">
             <Link
-              to={`/wanted/create?edit=${post.id}`}
+              to={`/create?tab=wanted&edit=${post.id}`}
               className="button button-outline button-sm"
             >
               <Pencil size={15} /> {t("wanted.editButton")}

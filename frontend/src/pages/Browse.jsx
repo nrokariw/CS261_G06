@@ -304,7 +304,7 @@ export default function Browse({
           </p>
         </div>
         <Link
-          to={activeTab === "wanted" ? "/wanted/create" : "/create"}
+          to={activeTab === "wanted" ? "/create?tab=wanted" : "/create"}
           className="button button-primary"
         >
           <Plus size={17} />{" "}
