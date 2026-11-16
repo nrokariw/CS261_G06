@@ -184,8 +184,10 @@ export default function MyListings({ items, setItems }) {
 
       {activeTab === "wanted" ? (
         wantedLoading ? (
-          <div className="card">
-            <p>{t("common.loading")}</p>
+          <div className="detail-main">
+            <div className="detail-info">
+              <p>{t("common.loading")}</p>
+            </div>
           </div>
         ) : filteredWanted.length ? (
           <div className="my-listings-list">

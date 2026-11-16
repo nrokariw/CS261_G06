@@ -33,6 +33,8 @@ import java.util.UUID;
 @Service
 public class WantedPostService {
 
+    private static final int DEFAULT_LOAN_DAYS = 3;
+
     private final WantedPostRepository wantedPostRepository;
     private final LendOfferRepository lendOfferRepository;
     private final UserRepository userRepository;
@@ -201,7 +203,7 @@ public class WantedPostService {
             itemRepository.save(item);
 
             LocalDateTime start = post.getNeededFrom() != null ? post.getNeededFrom() : LocalDateTime.now(ZoneOffset.UTC);
-            LocalDateTime end = post.getNeededUntil() != null ? post.getNeededUntil() : start.plusDays(3);
+            LocalDateTime end = post.getNeededUntil() != null ? post.getNeededUntil() : start.plusDays(DEFAULT_LOAN_DAYS);
 
             BorrowRequest request = new BorrowRequest();
             request.setId(UUID.randomUUID().toString());

@@ -499,7 +499,6 @@ export default function App() {
                 <WantedPostDetails
                   items={items}
                   setItems={setItems}
-                  requests={requests}
                   setRequests={setRequests}
                 />
               }

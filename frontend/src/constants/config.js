@@ -1,4 +1,5 @@
 export const ITEM_DETAIL_MAX_LENGTH = 500;
+export const WANTED_TITLE_MAX_LENGTH = 120;
 export const BORROW_REASON_MAX_LENGTH = 300;
 export const MAX_IMAGE_SIZE_MB = 3;
 export const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;

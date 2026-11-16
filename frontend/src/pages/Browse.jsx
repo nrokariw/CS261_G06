@@ -227,12 +227,14 @@ export default function Browse({
       </div>
       {activeTab === "wanted" ? (
         wantedLoading ? (
-          <div className="card">
-            <p>{t("common.loading", { defaultValue: "กำลังโหลดข้อมูล..." })}</p>
+          <div className="detail-main">
+            <div className="detail-info">
+              <p>{t("common.loading")}</p>
+            </div>
           </div>
         ) : wantedError ? (
           <EmptyState
-            title={t("common.error", { defaultValue: "เกิดข้อผิดพลาด" })}
+            title={t("common.error")}
             description={wantedError}
           />
         ) : filteredWantedPosts.length ? (

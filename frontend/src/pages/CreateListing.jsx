@@ -28,6 +28,7 @@ import {
   MAX_IMAGE_SIZE_BYTES,
   MAX_IMAGE_SIZE_MB,
   REDIRECT_DELAY_MS,
+  WANTED_TITLE_MAX_LENGTH,
 } from "../constants/config";
 
 function toLocalDateTimePayload(dateValue, isEndOfDay = false) {
@@ -81,9 +82,7 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
   const fileRef = useRef(null);
 
   const [wantedTitle, setWantedTitle] = useState("");
-  const [wantedCategory, setWantedCategory] = useState(
-    CATEGORIES.find((c) => c !== "ALL") || "Electronics",
-  );
+  const [wantedCategory, setWantedCategory] = useState("");
   const [wantedDescription, setWantedDescription] = useState("");
   const [neededFrom, setNeededFrom] = useState("");
   const [neededUntil, setNeededUntil] = useState("");
@@ -98,7 +97,7 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
     if (activeTab !== "wanted") return;
     if (!editId) {
       setWantedTitle("");
-      setWantedCategory(CATEGORIES.find((c) => c !== "ALL") || "Electronics");
+      setWantedCategory("");
       setWantedDescription("");
       setNeededFrom("");
       setNeededUntil("");
@@ -114,11 +113,7 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
       .then((post) => {
         if (cancelled) return;
         setWantedTitle(post.title || "");
-        setWantedCategory(
-          normalizeCategoryKey(post.category) ||
-            CATEGORIES.find((c) => c !== "ALL") ||
-            "Electronics",
-        );
+        setWantedCategory(normalizeCategoryKey(post.category) || "");
         setWantedDescription(post.description || "");
         setNeededFrom(post.neededFrom ? String(post.neededFrom).slice(0, 10) : "");
         setNeededUntil(
@@ -282,6 +277,9 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
     if (!wantedTitle.trim()) {
       next.title = t("wanted.titleRequired");
     }
+    if (!wantedCategory) {
+      next.category = t("validation.categoryRequired");
+    }
     if (neededFrom && neededUntil && neededUntil < neededFrom) {
       next.neededUntil = t("wanted.dateRangeInvalid");
     }
@@ -392,7 +390,7 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
               </label>
               <input
                 id="wanted-title"
-                maxLength={120}
+                maxLength={WANTED_TITLE_MAX_LENGTH}
                 value={wantedTitle}
                 onChange={(e) => setWantedTitle(e.target.value)}
                 placeholder={t("wanted.fieldTitlePlaceholder")}
@@ -412,14 +410,27 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
               <select
                 id="wanted-category"
                 value={wantedCategory}
-                onChange={(e) => setWantedCategory(e.target.value)}
+                onChange={(e) => {
+                  setWantedCategory(e.target.value);
+                  if (wantedErrors.category) {
+                    setWantedErrors((prev) => ({ ...prev, category: "" }));
+                  }
+                }}
+                aria-invalid={!!wantedErrors.category}
               >
-                {CATEGORIES.filter((c) => c !== "ALL").map((c) => (
+                <option value="">{t("createListing.categoryPlaceholder")}</option>
+                {CATEGORIES.map((c) => (
                   <option key={c} value={c}>
                     {t(`categories.${c}`, { defaultValue: getCategoryLabel(c) })}
                   </option>
                 ))}
               </select>
+              {wantedErrors.category && (
+                <small className="field-error">
+                  <AlertCircle size={13} />
+                  {wantedErrors.category}
+                </small>
+              )}
             </div>
             <div className="field">
               <div className="label-row">
@@ -479,19 +490,7 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
               </div>
             </div>
             {wantedSubmitError && (
-              <div
-                className="alert alert-error"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  marginBottom: "16px",
-                  padding: "12px",
-                  background: "#ffebee",
-                  color: "#c62828",
-                  borderRadius: "6px",
-                }}
-              >
+              <div className="alert alert-error wanted-alert-error">
                 <AlertCircle size={18} />
                 <span>{wantedSubmitError}</span>
               </div>

@@ -3701,6 +3701,19 @@ textarea:focus-visible {
     flex-wrap: wrap;
 }
 
+.wanted-alert-action {
+    margin-left: auto;
+}
+
+.wanted-panel-stack {
+    display: grid;
+    gap: 14px;
+}
+
+.borrow-note-flush {
+    margin: 0;
+}
+
 [data-theme="dark"] .wanted-alert-error {
     background: rgba(185, 56, 43, 0.16);
     color: #FCA5A5;

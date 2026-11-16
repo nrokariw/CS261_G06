@@ -1,7 +1,7 @@
 import { apiRequest, getApiPaths } from "./client";
 
 function buildWantedBasePath() {
-  return getApiPaths().wantedPosts || "/api/wanted-posts";
+  return getApiPaths().wantedPosts;
 }
 
 export async function listWantedPosts(params = {}, token) {

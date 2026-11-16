@@ -44,7 +44,6 @@ function formatDate(value, locale) {
 export default function WantedPostDetails({
   items = [],
   setItems,
-  requests = [],
   setRequests,
 }) {
   const { id } = useParams();
@@ -243,8 +242,10 @@ export default function WantedPostDetails({
   if (loading) {
     return (
       <div className="page-stack">
-        <div className="detail-main" style={{ padding: "24px" }}>
-          <p>{t("common.loading")}</p>
+        <div className="detail-main">
+          <div className="detail-info">
+            <p>{t("common.loading")}</p>
+          </div>
         </div>
       </div>
     );
@@ -307,8 +308,7 @@ export default function WantedPostDetails({
           {borrowRequestId && (
             <Link
               to="/my-borrows"
-              className="button button-primary button-sm"
-              style={{ marginLeft: "auto" }}
+              className="button button-primary button-sm wanted-alert-action"
             >
               {t("wanted.goToMyBorrows")}
             </Link>
@@ -364,7 +364,7 @@ export default function WantedPostDetails({
                   disabled={cancelling}
                 >
                   <Trash2 size={15} />{" "}
-                  {cancelling ? t("common.saving", { defaultValue: "กำลังบันทึก..." }) : t("wanted.cancelButton")}
+                  {cancelling ? t("common.saving") : t("wanted.cancelButton")}
                 </button>
               </div>
             )}
@@ -459,8 +459,8 @@ export default function WantedPostDetails({
           </div>
 
           {!user ? (
-            <div style={{ display: "grid", gap: "12px" }}>
-              <div className="borrow-note">
+            <div className="wanted-panel-stack">
+              <div className="borrow-note borrow-note-flush">
                 <ShieldCheck size={17} />
                 <span>{t("wanted.loginToOffer")}</span>
               </div>
@@ -469,13 +469,12 @@ export default function WantedPostDetails({
                 state={{ from: location }}
                 className="button button-primary button-full"
               >
-                <LogIn size={16} />{" "}
-                {t("nav.login", { defaultValue: "เข้าสู่ระบบ" })}
+                <LogIn size={16} /> {t("nav.login")}
               </Link>
             </div>
           ) : isOwner ? (
-            <div style={{ display: "grid", gap: "14px" }}>
-              <div className="borrow-note" style={{ margin: 0 }}>
+            <div className="wanted-panel-stack">
+              <div className="borrow-note borrow-note-flush">
                 <ShieldCheck size={17} />
                 <span>
                   {String(post.status).toLowerCase() === "fulfilled"
@@ -493,7 +492,7 @@ export default function WantedPostDetails({
               )}
             </div>
           ) : !isOpen ? (
-            <div className="borrow-note" style={{ margin: 0 }}>
+            <div className="borrow-note borrow-note-flush">
               <AlertCircle size={17} />
               <span>{t(`status.${post.status}`, post.status)}</span>
             </div>
@@ -575,7 +574,7 @@ export default function WantedPostDetails({
               >
                 <Send size={16} />{" "}
                 {submittingOffer
-                  ? t("common.saving", { defaultValue: "กำลังบันทึก..." })
+                  ? t("common.saving")
                   : t("wanted.submitOfferButton")}
               </button>
             </form>

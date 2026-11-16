@@ -229,6 +229,7 @@
   },
   "common": {
     "loading": "Loading...",
+    "saving": "Saving...",
     "error": "An error occurred",
     "viewDetails": "View Details",
     "back": "Back",
@@ -314,7 +315,6 @@
     "offerRejected": "Offer rejected",
     "offerActionError": "Failed to process offer",
     "goToMyBorrows": "Go to My Borrows",
-    "goToIncomingRequests": "Go to Incoming Requests",
     "ownerPanelTitle": "Your Borrow Request Status",
     "ownerPanelDesc": "Review incoming offers on the left. Accepting an offer immediately creates a borrow request ready for handover.",
     "incomingOffersTitle": "Incoming Lend Offers ({{count}})",
@@ -323,19 +323,7 @@
     "acceptOffer": "Accept Offer",
     "rejectOffer": "Reject",
     "pendingOffersCount": "{{count}} pending offer(s)",
-    "myWantedSectionTitle": "My Borrow Requests",
     "myWantedEmpty": "You have not posted any borrow requests yet.",
-    "viewDetails": "View Details",
-    "status": {
-      "open": "Open",
-      "fulfilled": "Fulfilled",
-      "cancelled": "Cancelled"
-    },
-    "offerStatus": {
-      "pending": "Pending",
-      "accepted": "Accepted",
-      "rejected": "Rejected",
-      "withdrawn": "Withdrawn"
-    }
+    "viewDetails": "View Details"
   }
 }

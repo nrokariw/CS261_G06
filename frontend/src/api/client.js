@@ -53,6 +53,7 @@ export async function loadRuntimeConfig() {
           transactions:
             data.api.transactions || DEFAULT_API_PATHS.transactions,
           evidence: data.api.evidence || DEFAULT_API_PATHS.evidence,
+          wantedPosts: data.api.wantedPosts || DEFAULT_API_PATHS.wantedPosts,
         };
       }
     }

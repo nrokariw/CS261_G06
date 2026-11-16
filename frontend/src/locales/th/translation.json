@@ -229,6 +229,7 @@
   },
   "common": {
     "loading": "กำลังโหลดข้อมูล...",
+    "saving": "กำลังบันทึก...",
     "error": "เกิดข้อผิดพลาด",
     "viewDetails": "ดูรายละเอียด",
     "back": "กลับ",
@@ -314,7 +315,6 @@
     "offerRejected": "ปฏิเสธข้อเสนอเรียบร้อยแล้ว",
     "offerActionError": "ไม่สามารถดำเนินการกับข้อเสนอได้",
     "goToMyBorrows": "ไปที่การยืมของฉัน",
-    "goToIncomingRequests": "ไปที่คำขอยืมเข้า",
     "ownerPanelTitle": "สถานะประกาศขอยืมของคุณ",
     "ownerPanelDesc": "ตรวจสอบข้อเสนอจากเพื่อนด้านซ้าย เมื่อกดยอมรับระบบจะสร้างคำขอยืมให้ส่งมอบหลักฐานต่อได้ทันที",
     "incomingOffersTitle": "ข้อเสนอให้ยืมที่ได้รับ ({{count}})",
@@ -323,19 +323,7 @@
     "acceptOffer": "ยอมรับข้อเสนอ",
     "rejectOffer": "ปฏิเสธ",
     "pendingOffersCount": "{{count}} ข้อเสนอที่รอตอบรับ",
-    "myWantedSectionTitle": "ประกาศขอยืมของฉัน",
     "myWantedEmpty": "คุณยังไม่มีประกาศขอยืมสิ่งของ",
-    "viewDetails": "ดูรายละเอียด",
-    "status": {
-      "open": "เปิดรับข้อเสนอ",
-      "fulfilled": "จับคู่สำเร็จแล้ว",
-      "cancelled": "ยกเลิกแล้ว"
-    },
-    "offerStatus": {
-      "pending": "รอการตอบรับ",
-      "accepted": "ยอมรับแล้ว",
-      "rejected": "ปฏิเสธแล้ว",
-      "withdrawn": "ถอนข้อเสนอแล้ว"
-    }
+    "viewDetails": "ดูรายละเอียด"
   }
 }
