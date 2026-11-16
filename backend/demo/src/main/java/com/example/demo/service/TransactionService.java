@@ -154,6 +154,7 @@ public class TransactionService {
 
         // 7. บันทึกหลักฐานการส่งคืน (ProofType.RETURN)
         EvidenceProof proof = new EvidenceProof();
+        proof.setTransaction(savedTransaction);
         proof.setUploaderId(currentUserId);
         proof.setProofType(ProofType.RETURN);
         proof.setImageUrl(imageUrl);

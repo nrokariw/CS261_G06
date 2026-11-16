@@ -20,6 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
@@ -68,6 +69,9 @@ class ReturnEvidenceIntegrationTest {
     @Autowired
     private EvidenceProofRepository evidenceProofRepository;
 
+    @Value("${file.evidence-upload-dir:storage/evidence}")
+    private String evidenceUploadDir;
+
     private Item testItem;
     private BorrowRequest testRequest;
     private Transaction testTransaction;
@@ -101,7 +105,7 @@ class ReturnEvidenceIntegrationTest {
 
         testTransaction = new Transaction();
         testTransaction.setId(UUID.randomUUID().toString());
-        testTransaction.setRequestId(testRequest.getId());
+        testTransaction.setBorrowRequest(testRequest);
         testTransaction.setItemId(testItem.getId());
         testTransaction.setBorrowerId(BORROWER_ID);
         testTransaction.setLenderId(LENDER_ID);
@@ -116,7 +120,7 @@ class ReturnEvidenceIntegrationTest {
         for (EvidenceProof proof : proofs) {
             if (proof.getImageUrl() != null && proof.getImageUrl().startsWith("/uploads/evidence/")) {
                 String filename = proof.getImageUrl().substring("/uploads/evidence/".length());
-                Files.deleteIfExists(Paths.get("uploads/evidence").resolve(filename));
+                Files.deleteIfExists(Paths.get(evidenceUploadDir).resolve(filename));
             }
         }
         evidenceProofRepository.deleteAll(proofs);
@@ -159,7 +163,7 @@ class ReturnEvidenceIntegrationTest {
         assertThat(savedProof.getNote()).isEqualTo("สภาพสมบูรณ์ครบถ้วน");
 
         String storedName = savedProof.getImageUrl().substring("/uploads/evidence/".length());
-        Path storedPath = Paths.get("uploads/evidence").resolve(storedName);
+        Path storedPath = Paths.get(evidenceUploadDir).resolve(storedName);
         assertThat(Files.exists(storedPath)).isTrue();
     }
 
