@@ -2,9 +2,9 @@
 * @nrokariw
 
 # Backend & Database
-backend/ @Boomnasapon68 @Apichaya-Thangbhandit @SandSimme
-storage/ @Boomnasapon68
-database/ @Boomnasapon68
+/backend/ @Boomnasapon68 @Apichaya-Thangbhandit @SandSimme @nrokariw
+/storage/ @Boomnasapon68 @nrokariw
+/database/ @Boomnasapon68 @nrokariw
 
 # Frontend, UX&UI
-frontend/ @Nattarinee01 @nasishah @tenwuttiphat-spec
+/frontend/ @Nattarinee01 @nasishah @tenwuttiphat-spec @nrokariw
