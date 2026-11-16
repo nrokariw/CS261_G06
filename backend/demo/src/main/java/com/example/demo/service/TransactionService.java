@@ -149,7 +149,8 @@ public class TransactionService {
         if (request.getStatus() != RequestStatus.ACCEPTED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "สถานะรายการไม่ถูกต้อง (ต้องเป็น Accepted เท่านั้น)");
         }
-        if (transactionRepository.existsByRequestId(requestId) || item.getStatus() != ItemStatus.AVAILABLE) {
+        if (transactionRepository.existsByRequestId(requestId)
+                || (item.getStatus() != ItemStatus.AVAILABLE && item.getStatus() != ItemStatus.RESERVED)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "รายการนี้ถูกส่งมอบหรือสิ่งของถูกยืมไปแล้ว");
         }
 
