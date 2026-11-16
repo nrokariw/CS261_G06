@@ -276,10 +276,11 @@ create_item() {
   payload=$(build_payload "$title" "$category" "$description")
 
   local res
-  res=$(curl -s -w "\n%{http_code}" -X POST "${BACKEND_URL}/api/items" \
+  # Pipe JSON through stdin so Git Bash does not recode Thai text in a Windows argv.
+  res=$(printf '%s' "${payload}" | curl -s -w "\n%{http_code}" -X POST "${BACKEND_URL}/api/items" \
     -H "Authorization: Bearer ${token}" \
     -H "Content-Type: application/json; charset=utf-8" \
-    -d "${payload}")
+    --data-binary @-)
 
   local http_code
   http_code=$(echo "$res" | tail -n1)
