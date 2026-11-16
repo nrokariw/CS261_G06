@@ -19,8 +19,8 @@ public class FileStorageService {
 
     //define constructor where injected from application.properties
     public FileStorageService(
-            @Value("${file.upload-dir:uploads/products}") String uploadDir,
-            @Value("${file.evidence-upload-dir:uploads/evidence}") String evidenceUploadDir) {
+            @Value("${file.upload-dir:storage/products}") String uploadDir,
+            @Value("${file.evidence-upload-dir:storage/evidence}") String evidenceUploadDir) {
         this.fileStorageLocation = Paths.get(uploadDir).toAbsolutePath().normalize();
         this.evidenceStorageLocation = Paths.get(evidenceUploadDir).toAbsolutePath().normalize();
         try {

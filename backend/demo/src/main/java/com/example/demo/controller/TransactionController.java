@@ -1,10 +1,17 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.ReturnRequestDto;
 import com.example.demo.model.EvidenceProof;
 import com.example.demo.model.Transaction;
 import com.example.demo.service.EvidenceProofService;
 import com.example.demo.service.TransactionService;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -54,6 +61,23 @@ public class TransactionController {
     @GetMapping("/item/{itemId}")
     public List<Transaction> getTransactionsByItem(@PathVariable String itemId) {
         return transactionService.getTransactionsByItem(itemId);
+    }
+
+    // T-7.1: POST API สำหรับบันทึกหลักฐานการส่งคืนสิ่งของ
+    @PostMapping(value = "/request/{requestId}/return-evidence", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Transaction> submitReturnEvidence(
+            @PathVariable String requestId,
+            Authentication authentication,
+            @ModelAttribute ReturnRequestDto requestDto) {
+
+        if (authentication == null || !authentication.isAuthenticated() || authentication.getName() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
+        }
+
+        String authenticatedStudentId = authentication.getName();
+        Transaction updatedTransaction = transactionService.submitReturnEvidence(requestId, authenticatedStudentId, requestDto);
+
+        return ResponseEntity.ok(updatedTransaction);
     }
 
 }
