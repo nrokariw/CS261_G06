@@ -463,7 +463,12 @@ export default function App() {
               path="/my-borrows"
               element={
                 <ProtectedRoute>
-                  <MyBorrows requests={requests} />
+                  <MyBorrows
+                    requests={requests}
+                    items={items}
+                    setItems={setItems}
+                    setRequests={setRequests}
+                  />
                 </ProtectedRoute>
               }
             />

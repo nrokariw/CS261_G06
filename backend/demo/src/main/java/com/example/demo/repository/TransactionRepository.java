@@ -4,9 +4,12 @@ import com.example.demo.model.Transaction;
 import com.example.demo.constant.TransactionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
+import java.util.Optional;
 
 public interface TransactionRepository extends JpaRepository<Transaction, String> {
     
+    Optional<Transaction> findByRequestId(String requestId);
+
     // ค้นหาธุรกรรมทั้งหมดที่เกี่ยวข้องกับผู้ใช้งานคนนี้ (ในฐานะผู้ยืม)
     List<Transaction> findByBorrowerId(String borrowerId);
     
@@ -15,4 +18,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, String
     
     // ค้นหาธุรกรรมตามสถานะ (เช่น ACTIVE ที่กำลังยืมอยู่ หรือ COMPLETED ที่คืนแล้ว)
     List<Transaction> findByStatus(TransactionStatus status);
+
+    // ตรวจสอบว่าคำขอยืมนี้มี Transaction อยู่แล้วหรือไม่ (ป้องกันการส่งมอบซ้ำ)
+    boolean existsByRequestId(String requestId);
 }

@@ -1,0 +1,14 @@
+@startuml
+title US-01 Activity: Create Item Listing
+
+start
+:Fill item form & attach image;
+if (Required fields & image valid?) then (Yes)
+  :Save image file to Storage;
+  :Save Item (status = AVAILABLE);
+  :Show listing in Browse feed;
+else (No)
+  :Show validation error (400);
+endif
+stop
+@enduml

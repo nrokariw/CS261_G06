@@ -1,37 +1,22 @@
 @startuml
+title Login Flow Overview (US-09)
 skinparam style strictuml
 autonumber
 
-actor "User\n(นักศึกษา/บุคลากร)" as User
-participant "Frontend Client\n(Web UI)" as UI
-participant "Backend API\n(Server)" as API
-participant "TU Identity Provider\n(restapi.tu.ac.th)" as TU
-database "Database\n(DB)" as DB
+actor User
+participant Frontend
+participant Backend
+participant "Cache / RateLimit" as Guard
+participant "TU REST API" as TU
+database DB
 
-User -> UI : กรอก Username & Password (TU Account)
-activate UI
-UI -> API : POST /api/auth/login {username, password}
-activate API
-
-API -> TU : POST /api/v1/auth/tu (Verify Credentials)
-activate TU
-TU --> API : Return Response (Success / Fail + Student Data)
-deactivate TU
-
-alt การตรวจสอบกับ TU สำเร็จ (Valid Credentials)
-    API -> DB : ค้นหาหรือบันทึกข้อมูล User (Upsert)
-    activate DB
-    DB --> API : ยืนยันบันทึกสำเร็จ (User Profile)
-    deactivate DB
-    
-    API -> API : ออก Session หรือ JWT Token
-    API --> UI : 200 OK {token, userProfile}
-    UI --> User : นำทางไปยังหน้าหลัก (Redirect to /home)
-else การตรวจสอบล้มเหลว (Invalid Credentials / Server Error)
-    API --> UI : 401 Unauthorized / Error Response
-    deactivate API
-    UI --> User : แสดงข้อความแจ้งเตือน "ข้อมูลเข้าสู่ระบบไม่ถูกต้อง"
-    deactivate UI
-end
-
+User -> Frontend : Submit credentials
+Frontend -> Backend : POST /api/auth/login
+Backend -> Backend : Validate format (400 if invalid)
+Backend -> Guard : Check 5m cache & IP limit (429 if exceeded)
+Backend -> TU : POST /auth/Ad/verify
+TU --> Backend : Status & TU profile
+Backend -> DB : Upsert User (role, profile, no passwordHash)
+Backend --> Frontend : 200 OK {accessToken, user} / 401 / 403
+Frontend --> User : Navigate home or show alert
 @enduml

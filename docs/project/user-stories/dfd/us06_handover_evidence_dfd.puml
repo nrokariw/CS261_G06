@@ -1,0 +1,25 @@
+@startuml
+title US-06 DFD: Record Handover Evidence
+left to right direction
+skinparam roundcorner 12
+
+rectangle "Lender / Borrower" as User
+usecase "6.1\nVerify Participant\n& ACCEPTED State" as P1
+usecase "6.2\nStore Handover\nPhoto" as P2
+usecase "6.3\nStart Transaction &\nUpdate Status" as P3
+database "D3: BorrowRequests" as D3
+database "D5: Evidence & Storage" as D5
+database "D4: Transactions" as D4
+database "D2: Items" as D2
+
+User --> P1 : requestId, photo, note
+D3 --> P1 : Participant & ACCEPTED
+P1 --> P2 : Validated image
+P2 --> D5 : Save photo + HANDOVER proof
+D5 --> P2 : imageUrl
+P1 --> P3 : Authorized
+P2 --> P3 : imageUrl
+P3 --> D4 : Insert Transaction (ACTIVE)
+P3 --> D2 : Update Item -> BORROWED
+P3 --> User : 200 OK / 400 / 403
+@enduml

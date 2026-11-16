@@ -232,5 +232,25 @@
     "publish": "Publish",
     "saveChanges": "Save Changes",
     "footerTagline": "A campus community built on sharing."
+  },
+  "handover": {
+    "button": "Record handover evidence",
+    "title": "Record handover evidence",
+    "borrower": "Borrower",
+    "period": "Loan period",
+    "photoLabel": "Photo of the item's condition",
+    "uploadPrompt": "Click to choose a photo",
+    "uploadHint": "JPG, PNG or WEBP, up to {{max}} MB",
+    "previewAlt": "Preview of the item's condition",
+    "changeImage": "Change photo",
+    "removeImage": "Remove photo",
+    "noteLabel": "Condition note (optional)",
+    "notePlaceholder": "e.g. small scratch on the side, all accessories included",
+    "imageRequired": "Please attach a photo of the item before confirming",
+    "confirm": "Confirm handover",
+    "saving": "Saving...",
+    "close": "Close dialog",
+    "done": "Item handed over, evidence recorded",
+    "success": "Handover evidence for \"{{name}}\" saved. Status is now Borrowed"
   }
 }

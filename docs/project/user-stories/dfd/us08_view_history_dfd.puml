@@ -1,0 +1,20 @@
+@startuml
+title US-08 DFD: View Borrow History & Evidence
+left to right direction
+skinparam roundcorner 12
+
+rectangle "User (Participant / Outsider)" as User
+usecase "8.1\nAuthorize\nParticipant" as P1
+usecase "8.2\nAggregate Timeline\n& Proofs" as P2
+database "D3: BorrowRequests" as D3
+database "D4: Transactions" as D4
+database "D5: Evidence & Storage" as D5
+
+User --> P1 : Query by borrower or item
+D3 --> P1 : Request parties
+D4 --> P1 : Lender & Borrower IDs
+P1 --> P2 : Authorized participant
+D4 --> P2 : Loan timestamps & status
+D5 --> P2 : Handover & return proofs
+P2 --> User : History timeline / 403 Forbidden
+@enduml

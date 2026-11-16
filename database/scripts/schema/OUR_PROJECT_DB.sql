@@ -79,61 +79,36 @@ BEGIN
 END
 GO
 
--- สร้างตาราง borrowing_transaction สำหรับเก็บประวัติการยืม-คืนสิ่งของ
+-- สร้างตาราง borrowing_transaction สำหรับเก็บรายการธุรกรรมการยืม-คืน (Sprint 2: US-06, US-07, US-08)
 IF OBJECT_ID('borrowing_transaction', 'U') IS NULL
 BEGIN
     CREATE TABLE borrowing_transaction (
-        id VARCHAR(255) NOT NULL PRIMARY KEY,
-        request_id VARCHAR(255),
-        borrower_id VARCHAR(255),
-        lender_id VARCHAR(255),
-        item_id VARCHAR(255),
-        status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
-        borrowed_at DATETIME2,
-        returned_at DATETIME2
+        id VARCHAR(36) PRIMARY KEY,
+        request_id VARCHAR(36) NOT NULL,
+        borrower_id VARCHAR(50) NOT NULL,
+        lender_id VARCHAR(50) NOT NULL,
+        item_id VARCHAR(36) NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE', -- ACTIVE, COMPLETED, DISPUTED
+        borrowed_at DATETIME2 DEFAULT SYSUTCDATETIME(),
+        returned_at DATETIME2 NULL,
+        CONSTRAINT FK_borrowing_transaction_requests FOREIGN KEY (request_id) REFERENCES borrow_requests(request_id),
+        CONSTRAINT FK_borrowing_transaction_items FOREIGN KEY (item_id) REFERENCES items(item_id)
     );
 END
-GO
-
--- สร้างตาราง evidence_proof สำหรับเก็บหลักฐานการรับ-คืนสิ่งของ
-IF OBJECT_ID('evidence_proof', 'U') IS NULL
-BEGIN
-    CREATE TABLE evidence_proof (
-        id VARCHAR(255) NOT NULL PRIMARY KEY,
-        transaction_id VARCHAR(255),
-        uploader_id VARCHAR(255),
-        proof_type VARCHAR(50),
-        image_url VARCHAR(255),
-        note NVARCHAR(MAX),
-        captured_at DATETIME2
-    );
-END
-GO
-
--- สร้างตาราง borrowing_transaction สำหรับเก็บรายการธุรกรรมการยืม-คืน (Sprint 2: US-06, US-07, US-08)
-CREATE TABLE borrowing_transaction (
-    id VARCHAR(36) PRIMARY KEY,
-    request_id VARCHAR(36) NOT NULL,
-    borrower_id VARCHAR(50) NOT NULL,
-    lender_id VARCHAR(50) NOT NULL,
-    item_id VARCHAR(36) NOT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE', -- ACTIVE, COMPLETED, DISPUTED
-    borrowed_at DATETIME2 DEFAULT GETDATE(),
-    returned_at DATETIME2 NULL,
-    CONSTRAINT FK_borrowing_transaction_requests FOREIGN KEY (request_id) REFERENCES borrow_requests(request_id),
-    CONSTRAINT FK_borrowing_transaction_items FOREIGN KEY (item_id) REFERENCES items(item_id)
-);
 GO
 
 -- สร้างตาราง evidence_proof สำหรับเก็บหลักฐานภาพถ่ายการส่งมอบ (HANDOVER) และการส่งคืน (RETURN)
-CREATE TABLE evidence_proof (
-    id VARCHAR(36) PRIMARY KEY,
-    transaction_id VARCHAR(36) NOT NULL,
-    uploader_id VARCHAR(50) NOT NULL,
-    proof_type VARCHAR(50) NOT NULL, -- HANDOVER, RETURN
-    image_url VARCHAR(500) NOT NULL,
-    note NVARCHAR(MAX) NULL,
-    captured_at DATETIME2 DEFAULT GETDATE(),
-    CONSTRAINT FK_evidence_proof_transaction FOREIGN KEY (transaction_id) REFERENCES borrowing_transaction(id)
-);
+IF OBJECT_ID('evidence_proof', 'U') IS NULL
+BEGIN
+    CREATE TABLE evidence_proof (
+        id VARCHAR(36) PRIMARY KEY,
+        transaction_id VARCHAR(36) NOT NULL,
+        uploader_id VARCHAR(50) NOT NULL,
+        proof_type VARCHAR(50) NOT NULL, -- HANDOVER, RETURN
+        image_url VARCHAR(500) NOT NULL,
+        note NVARCHAR(MAX) NULL,
+        captured_at DATETIME2 DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_evidence_proof_transaction FOREIGN KEY (transaction_id) REFERENCES borrowing_transaction(id)
+    );
+END
 GO

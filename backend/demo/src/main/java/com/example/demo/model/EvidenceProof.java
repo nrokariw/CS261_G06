@@ -9,22 +9,44 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 
 @Entity 
+@Table(name = "evidence_proof")
 public class EvidenceProof {
-    @Id 
+    
     //define attributes
+    @Id 
+    @Column(name = "id", length = 36, updatable = false, nullable = false)
     private String id;
+
+    @Column(name = "transaction_id", length = 36, nullable = false, insertable = false, updatable = false)
     private String transactionId;
+
+    // เพิ่ม JPA Relationship กลับไปที่ Transaction
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "transaction_id", referencedColumnName = "id", nullable = false)
+    private Transaction transaction;
+
+    @Column(name = "uploader_id", length = 50, nullable = false)
     private String uploaderId;
+
     @Enumerated(EnumType.STRING)
+    @Column(name = "proof_type", nullable = false)
     private ProofType proofType;
+
+    @Column(name = "image_url", length = 500, nullable = false)
     private String imageUrl;
-    @Column(columnDefinition = "NVARCHAR(MAX)")
+
+    @Column(name = "note", columnDefinition = "NVARCHAR(MAX)")
     private String note;
-    @Column(columnDefinition = "DATETIME2")
+
+    @Column(name = "captured_at", columnDefinition = "DATETIME2")
     private LocalDateTime capturedAt;
 
     // สั่งให้สุ่มสร้าง UUID และกำหนดเวลาเป็น UTC+0 อัตโนมัติหากไม่ได้ระบุมา
@@ -48,15 +70,19 @@ public class EvidenceProof {
      * 
      * @param id            รหัสประจำตัวหลักฐาน (Evidence ID)
      * @param transactionId รหัสประจำตัวการทำรายการ (Transaction ID) 
+     * @param transaction     ออบเจ็กต์ Transaction ที่เกี่ยวข้อง
      * @param uploaderId    รหัสประจำตัวของผู้อัปโหลด (Uploader ID) 
      * @param proofType     ประเภทของหลักฐาน (เช่น HANDOVER, RETURN)
      * @param imageUrl      ลิงก์หรือที่อยู่ของรูปภาพหลักฐานที่อัปโหลด
      * @param note          หมายเหตุเพิ่มเติม
      * @param capturedAt    วันที่และเวลาที่จับภาพหลักฐาน
      */
-    public EvidenceProof(String id, String transactionId, String uploaderId, ProofType proofType, String imageUrl, String note, LocalDateTime capturedAt) {
+    public EvidenceProof(String id, Transaction transaction, String uploaderId, ProofType proofType, String imageUrl, String note, LocalDateTime capturedAt) {
         this.id = id;
-        this.transactionId = transactionId;
+        this.transaction = transaction;
+        if (transaction != null) {
+            this.transactionId = transaction.getId();
+        }
         this.uploaderId = uploaderId;
         this.proofType = proofType;
         this.imageUrl = imageUrl;
@@ -66,7 +92,10 @@ public class EvidenceProof {
 
     //define getters and setters
     public String getId() { return id; }
-    public String getTransactionId() { return transactionId; }
+    public String getTransactionId() { 
+        return transactionId != null ? transactionId : (transaction != null ? transaction.getId() : null); 
+    }
+    public Transaction getTransaction() { return transaction; }
     public String getUploaderId() { return uploaderId; }
     public ProofType getProofType() { return proofType; }
     public String getImageUrl() { return imageUrl; }
@@ -74,7 +103,16 @@ public class EvidenceProof {
     public LocalDateTime getCapturedAt() { return capturedAt; }
     
     public void setId(String id) { this.id = id; }
-    public void setTransactionId(String transactionId) { this.transactionId = transactionId; }
+    public void setTransaction(Transaction transaction) { 
+        this.transaction = transaction; 
+        if (transaction != null) {
+            this.transactionId = transaction.getId();
+        }
+    }
+    // รองรับกรณีอยากเซ็ตผ่าน ID ตรงๆ
+    public void setTransactionId(String transactionId) {
+        this.transactionId = transactionId;
+    }
     public void setUploaderId(String uploaderId) { this.uploaderId = uploaderId; }
     public void setProofType(ProofType proofType) { this.proofType = proofType; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }

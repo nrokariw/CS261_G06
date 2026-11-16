@@ -1,10 +1,18 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.HandoverRequestDto;
+import com.example.demo.dto.ReturnRequestDto;
 import com.example.demo.model.EvidenceProof;
 import com.example.demo.model.Transaction;
 import com.example.demo.service.EvidenceProofService;
 import com.example.demo.service.TransactionService;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -54,6 +62,49 @@ public class TransactionController {
     @GetMapping("/item/{itemId}")
     public List<Transaction> getTransactionsByItem(@PathVariable String itemId) {
         return transactionService.getTransactionsByItem(itemId);
+    }
+
+    /**
+     * T-6.2: Endpoint สำหรับบันทึกหลักฐานการส่งมอบสิ่งของ
+     */
+    @PostMapping(value = "/{requestId}/handover-evidence", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Transaction> submitHandoverEvidence(
+            @PathVariable("requestId") String requestId,
+            Authentication authentication,
+            @ModelAttribute HandoverRequestDto requestDto) {
+
+        // 1. ตรวจสอบการยืนยันตัวตนจาก Spring Security Context (401 Unauthorized ถ้ายังไม่ได้ Login)
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication.getName() == null || authentication.getName().isBlank()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: กรุณาเข้าสู่ระบบก่อนทำรายการ");
+        }
+
+        // ดึง User ID (Username หรือ Subject จาก JWT ที่ถูกเซ็ตไว้ใน SecurityContext)
+        String authenticatedStudentId = authentication.getName();
+
+        // 2. เรียกใช้ Service ดำเนินการ Business Logic และ Transaction
+        Transaction savedTransaction = transactionService.createHandoverEvidence(requestId, authenticatedStudentId, requestDto);
+
+        // 3. ตอบกลับ 201 Created เมื่อทำรายการสำเร็จ
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedTransaction);
+    }
+
+    // T-7.1: POST API สำหรับบันทึกหลักฐานการส่งคืนสิ่งของ
+    @PostMapping(value = "/request/{requestId}/return-evidence", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Transaction> submitReturnEvidence(
+            @PathVariable String requestId,
+            Authentication authentication,
+            @ModelAttribute ReturnRequestDto requestDto) {
+
+        if (authentication == null || !authentication.isAuthenticated() || authentication.getName() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
+        }
+
+        String authenticatedStudentId = authentication.getName();
+        Transaction updatedTransaction = transactionService.submitReturnEvidence(requestId, authenticatedStudentId, requestDto);
+
+        return ResponseEntity.ok(updatedTransaction);
     }
 
 }
