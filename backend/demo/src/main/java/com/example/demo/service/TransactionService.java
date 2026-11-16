@@ -58,7 +58,7 @@ public class TransactionService {
         // สร้าง Transaction ใหม่โดยใช้ค่าที่ได้จาก TransactionStatus และกำหนดเวลาเป็น UTC+0
         Transaction transaction = new Transaction();
         transaction.setId(java.util.UUID.randomUUID().toString());
-        transaction.setRequestId(request.getId()); // ผูกกับ Request ID
+        transaction.setBorrowRequest(request); // ใช้เซ็ตออบเจ็กต์แทนการเซ็ต String ID ตรงๆ (ผูกกับ Request ID)
         transaction.setItemId(request.getItemId());
         transaction.setBorrowerId(request.getBorrowerId());
         transaction.setLenderId(item.getOwnerId()); // ดึงรหัสเจ้าของไอเท็มมาเป็น lenderId
