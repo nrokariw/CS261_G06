@@ -1,14 +1,17 @@
 package com.example.demo.controller;
 
 import com.example.demo.dto.HandoverRequestDto;
+import com.example.demo.dto.ReturnRequestDto;
 import com.example.demo.model.EvidenceProof;
 import com.example.demo.model.Transaction;
 import com.example.demo.service.EvidenceProofService;
 import com.example.demo.service.TransactionService;
-import org.springframework.web.bind.annotation.*;
+
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -64,7 +67,7 @@ public class TransactionController {
     /**
      * T-6.2: Endpoint สำหรับบันทึกหลักฐานการส่งมอบสิ่งของ
      */
-    @PostMapping(value = "/{requestId}/handover-evidence", consumes = {"multipart/form-data"})
+    @PostMapping(value = "/{requestId}/handover-evidence", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Transaction> submitHandoverEvidence(
             @PathVariable("requestId") String requestId,
             Authentication authentication,
@@ -85,6 +88,23 @@ public class TransactionController {
 
         // 3. ตอบกลับ 201 Created เมื่อทำรายการสำเร็จ
         return ResponseEntity.status(HttpStatus.CREATED).body(savedTransaction);
+    }
+
+    // T-7.1: POST API สำหรับบันทึกหลักฐานการส่งคืนสิ่งของ
+    @PostMapping(value = "/request/{requestId}/return-evidence", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Transaction> submitReturnEvidence(
+            @PathVariable String requestId,
+            Authentication authentication,
+            @ModelAttribute ReturnRequestDto requestDto) {
+
+        if (authentication == null || !authentication.isAuthenticated() || authentication.getName() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
+        }
+
+        String authenticatedStudentId = authentication.getName();
+        Transaction updatedTransaction = transactionService.submitReturnEvidence(requestId, authenticatedStudentId, requestDto);
+
+        return ResponseEntity.ok(updatedTransaction);
     }
 
 }
