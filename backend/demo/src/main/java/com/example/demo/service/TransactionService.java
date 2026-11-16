@@ -1,19 +1,21 @@
 package com.example.demo.service;
 
 import com.example.demo.constant.ItemStatus;
-import com.example.demo.constant.TransactionStatus;
 import com.example.demo.constant.ProofType;
+import com.example.demo.constant.TransactionStatus;
+import com.example.demo.dto.ReturnRequestDto;
 import com.example.demo.model.BorrowRequest;
 import com.example.demo.model.EvidenceProof;
 import com.example.demo.model.Item;
 import com.example.demo.model.Transaction;
 import com.example.demo.repository.BorrowRequestRepository;
-import com.example.demo.repository.EvidenceProofRepository;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.TransactionRepository;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -111,43 +113,55 @@ public class TransactionService {
         return transactionRepository.findByItemId(itemId);
     }
 
-    // T-7.1: บันทึกหลักฐานการส่งคืนสิ่งของและอัปเดตสถานะ    @Transactional
-    public Transaction submitReturnEvidence(String requestId, String currentUserId, com.example.demo.dto.ReturnRequestDto dto) {
+    // T-7.1: บันทึกหลักฐานการส่งคืนสิ่งของและอัปเดตสถานะ
+    @Transactional
+    public Transaction submitReturnEvidence(String requestId, String currentUserId, ReturnRequestDto dto) {
         // 1. ตรวจสอบไฟล์รูปภาพ
-        if (dto.getImageFile() == null || dto.getImageFile().isEmpty()) {
-            throw new IllegalArgumentException("กรุณาแนบรูปภาพหลักฐานสภาพสิ่งของตอนส่งคืน");
+        if (dto == null || dto.getImageFile() == null || dto.getImageFile().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "กรุณาแนบรูปภาพหลักฐานสภาพสิ่งของตอนส่งคืน");
         }
 
         // 2. ค้นหา Transaction
         Transaction transaction = transactionRepository.findByRequestId(requestId)
-                .orElseThrow(() -> new RuntimeException("ไม่พบประวัติธุรกรรมการยืมสำหรับคำขอนี้"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบประวัติธุรกรรมการยืมสำหรับคำขอนี้"));
 
         // 3. ตรวจสอบสิทธิ์คู่กรณี
         boolean isBorrower = transaction.getBorrowerId().equals(currentUserId);
         boolean isLender = transaction.getLenderId().equals(currentUserId);
         if (!isBorrower && !isLender) {
-            throw new SecurityException("ผู้ใช้งานไม่มีสิทธิ์บันทึกการส่งคืนในรายการนี้");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ผู้ใช้งานไม่มีสิทธิ์บันทึกการส่งคืนในรายการนี้");
         }
 
         // 4. ตรวจสอบสถานะรายการยืมต้องเป็น ACTIVE
         if (transaction.getStatus() != TransactionStatus.ACTIVE) {
-            throw new IllegalStateException("สถานะรายการไม่ถูกต้องสำหรับการส่งคืน (รายการไม่ได้อยู่ในสถานะกำลังยืม)");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "สถานะรายการไม่ถูกต้องสำหรับการส่งคืน (รายการไม่ได้อยู่ในสถานะกำลังยืม)");
         }
 
-        // 5. อัปโหลดไฟล์รูปภาพหลักฐาน
-        String imageUrl = fileStorageService.storeFile(dto.getImageFile());
+        // 5. อัปโหลดไฟล์รูปภาพหลักฐานลง storage/evidence
+        String imageUrl = fileStorageService.storeEvidenceFile(dto.getImageFile());
 
-        // 6. แก้ไข Feature Envy: เรียกผ่าน EvidenceProofService แทนการเรียก Repository ตรงๆ
+        // 6. ปิดรอบ Transaction และคืนสถานะ Item เป็น AVAILABLE ก่อน เพื่อให้ ProofType เป็น RETURN
+        Item item = itemRepository.findById(transaction.getItemId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบข้อมูลสิ่งของ"));
+
+        transaction.completeTransaction();
+        ItemStatus nextItemStatus = transaction.getStatus().getItemStatus();
+        if (nextItemStatus != null) {
+            item.setStatus(nextItemStatus);
+        }
+        itemRepository.save(item);
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        // 7. บันทึกหลักฐานการส่งคืน (ProofType.RETURN)
         EvidenceProof proof = new EvidenceProof();
         proof.setUploaderId(currentUserId);
         proof.setProofType(ProofType.RETURN);
         proof.setImageUrl(imageUrl);
         proof.setNote(dto.getNote());
         proof.setCapturedAt(LocalDateTime.now(ZoneOffset.UTC));
-        
-        evidenceProofService.addEvidenceProof(transaction.getId(), proof);
 
-        // 7. แก้ไข Duplicated Code: เรียกใช้เมธอด completeTransaction เพื่อจัดการสถานะ Transaction และ Item
-        return this.completeTransaction(transaction.getId());
+        evidenceProofService.addEvidenceProof(savedTransaction.getId(), proof);
+
+        return savedTransaction;
     }
 }

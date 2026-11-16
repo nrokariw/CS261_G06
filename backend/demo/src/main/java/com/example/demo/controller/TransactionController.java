@@ -1,11 +1,13 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.ReturnRequestDto;
 import com.example.demo.model.EvidenceProof;
 import com.example.demo.model.Transaction;
 import com.example.demo.service.EvidenceProofService;
 import com.example.demo.service.TransactionService;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -27,13 +29,6 @@ public class TransactionController {
                                 EvidenceProofService evidenceProofService) {
         this.transactionService = transactionService;
         this.evidenceProofService = evidenceProofService;
-    }
-    
-    // Helper method ลดโค้ดตรวจสอบซ้ำซ้อน
-    private void validateAuthHeader(String authHeader) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
-        }
     }
 
     // 1. เริ่มต้น Transaction การยืม
@@ -69,19 +64,20 @@ public class TransactionController {
     }
 
     // T-7.1: POST API สำหรับบันทึกหลักฐานการส่งคืนสิ่งของ
-    @PostMapping(value = "/request/{requestId}/return-evidence", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/request/{requestId}/return-evidence", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Transaction> submitReturnEvidence(
             @PathVariable String requestId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
             Authentication authentication,
-            @ModelAttribute com.example.demo.dto.ReturnRequestDto requestDto) {
+            @ModelAttribute ReturnRequestDto requestDto) {
 
-        // เรียกใช้งาน Service บันทึกหลักฐานและอัปเดตสถานะ
-        validateAuthHeader(authHeader);
+        if (authentication == null || !authentication.isAuthenticated() || authentication.getName() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
+        }
+
         String authenticatedStudentId = authentication.getName();
         Transaction updatedTransaction = transactionService.submitReturnEvidence(requestId, authenticatedStudentId, requestDto);
 
-        return ResponseEntity.status(org.springframework.http.HttpStatus.OK).body(updatedTransaction);
+        return ResponseEntity.ok(updatedTransaction);
     }
 
 }
