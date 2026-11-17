@@ -13,6 +13,7 @@ import {
   LogIn,
 } from "lucide-react";
 import { PageHeading, StatusBadge } from "../components/UI";
+import { isReturned } from "../components/HandoverModal";
 import { useAuth } from "../contexts/AuthContext";
 import { BORROW_REASON_MAX_LENGTH } from "../constants/config";
 import { getCategoryLabel, normalizeCategoryKey } from "../data";
@@ -68,6 +69,7 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
       (user?.name && r.borrower === user.name)
     );
     if (!matchesBorrower) return false;
+    if (isReturned(r) || r.status === "cancelled") return false;
     const matchesItem = String(r.itemId) === String(id || item?.id);
     return matchesItem;
   });

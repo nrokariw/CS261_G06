@@ -2,6 +2,7 @@ package com.example.demo.controller;
 
 import com.example.demo.dto.HandoverRequestDto;
 import com.example.demo.dto.ReturnRequestDto;
+import com.example.demo.dto.LoanEvidenceResponseDto;
 import com.example.demo.model.EvidenceProof;
 import com.example.demo.model.Transaction;
 import com.example.demo.service.EvidenceProofService;
@@ -54,7 +55,13 @@ public class TransactionController {
 
     // 4. ดึงประวัติธุรกรรมของผู้ยืม
     @GetMapping("/borrower/{borrowerId}")
-    public List<Transaction> getTransactionsByBorrower(@PathVariable String borrowerId) {
+    public List<Transaction> getTransactionsByBorrower(
+            @PathVariable String borrowerId,
+            Authentication authentication) {
+        String currentUserId = requireAuthenticatedUserId(authentication);
+        if (!currentUserId.equals(borrowerId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Forbidden: You can only view your own transactions");
+        }
         return transactionService.getTransactionsByBorrower(borrowerId);
     }
 
@@ -73,20 +80,8 @@ public class TransactionController {
             Authentication authentication,
             @ModelAttribute HandoverRequestDto requestDto) {
 
-        // 1. ตรวจสอบการยืนยันตัวตนจาก Spring Security Context (401 Unauthorized ถ้ายังไม่ได้ Login)
-        if (authentication == null || !authentication.isAuthenticated()
-                || authentication.getName() == null || authentication.getName().isBlank()
-                || "anonymousUser".equals(authentication.getPrincipal())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: กรุณาเข้าสู่ระบบก่อนทำรายการ");
-        }
-
-        // ดึง User ID (Username หรือ Subject จาก JWT ที่ถูกเซ็ตไว้ใน SecurityContext)
-        String authenticatedStudentId = authentication.getName();
-
-        // 2. เรียกใช้ Service ดำเนินการ Business Logic และ Transaction
+        String authenticatedStudentId = requireAuthenticatedUserId(authentication);
         Transaction savedTransaction = transactionService.createHandoverEvidence(requestId, authenticatedStudentId, requestDto);
-
-        // 3. ตอบกลับ 201 Created เมื่อทำรายการสำเร็จ
         return ResponseEntity.status(HttpStatus.CREATED).body(savedTransaction);
     }
 
@@ -97,14 +92,28 @@ public class TransactionController {
             Authentication authentication,
             @ModelAttribute ReturnRequestDto requestDto) {
 
-        if (authentication == null || !authentication.isAuthenticated() || authentication.getName() == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
-        }
-
-        String authenticatedStudentId = authentication.getName();
+        String authenticatedStudentId = requireAuthenticatedUserId(authentication);
         Transaction updatedTransaction = transactionService.submitReturnEvidence(requestId, authenticatedStudentId, requestDto);
-
         return ResponseEntity.ok(updatedTransaction);
     }
 
+    // T-8.1: GET API สำหรับเรียกดูประวัติและหลักฐานการยืม-คืนสิ่งของ พร้อมจำกัดสิทธิ์เฉพาะคู่สัญญา (รองรับทั้ง requestId และ transactionId)
+    @GetMapping("/{id}/evidence")
+    public ResponseEntity<LoanEvidenceResponseDto> getLoanEvidence(
+            @PathVariable("id") String id,
+            Authentication authentication) {
+
+        String userId = requireAuthenticatedUserId(authentication);
+        LoanEvidenceResponseDto responseDto = transactionService.getLoanEvidenceDetail(id, userId);
+        return ResponseEntity.ok(responseDto);
+    }
+
+    private String requireAuthenticatedUserId(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication.getName() == null || authentication.getName().isBlank()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
+        }
+        return authentication.getName();
+    }
 }

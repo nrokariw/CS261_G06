@@ -15,6 +15,7 @@ const STATUS_CONFIG = {
   reserved: "badge-warning",
   borrowed: "badge-neutral",
   withdrawn: "badge-neutral",
+  returned: "badge-info",
   unavailable: "badge-danger",
   change_requested: "badge-info",
 };

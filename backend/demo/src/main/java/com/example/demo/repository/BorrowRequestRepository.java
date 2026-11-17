@@ -21,4 +21,5 @@ public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, St
     
     // ค้นหาคำขอตามสถานะ (เช่น ดึงเฉพาะ PENDING ที่รอเจ้าของอนุมัติ)
     List<BorrowRequest> findByStatus(RequestStatus status);
+
 }

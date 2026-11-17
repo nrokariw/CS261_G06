@@ -60,6 +60,7 @@
     "cancelled": "Cancelled",
     "withdrawn": "Withdrawn",
     "borrowed": "Borrowed",
+    "returned": "Returned",
     "reserved": "Reserved",
     "change_requested": "Change Requested"
   },
@@ -325,5 +326,18 @@
     "pendingOffersCount": "{{count}} pending offer(s)",
     "myWantedEmpty": "You have not posted any borrow requests yet.",
     "viewDetails": "View Details"
+  },
+  "returnEvidence": {
+    "button": "Record return evidence",
+    "title": "Record return evidence",
+    "photoLabel": "Photo of the item's returned condition",
+    "noteLabel": "Return condition note (optional)",
+    "notePlaceholder": "e.g. good condition, working normally, all accessories returned",
+    "imageRequired": "Please attach a photo of the returned item before confirming",
+    "confirm": "Confirm return",
+    "saving": "Saving...",
+    "close": "Close dialog",
+    "done": "Item returned, evidence recorded",
+    "success": "Return evidence for \"{{name}}\" saved. Status is now Returned and item is Available again"
   }
 }

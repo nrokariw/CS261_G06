@@ -16,6 +16,7 @@ import {
   EmptyState,
   StatusBadge,
 } from "../components/UI";
+import { isReturned } from "../components/HandoverModal";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvailableItems } from "../api/itemsApi";
 import { listWantedPosts } from "../api/wantedPostsApi";
@@ -125,6 +126,7 @@ export default function Browse({
               (user?.name && r.borrower === user.name)
             );
             if (!matchesBorrower) return false;
+            if (isReturned(r) || r.status === "cancelled") return false;
             const matchesItem = String(r.itemId) === String(item.id);
             return matchesItem;
           });
