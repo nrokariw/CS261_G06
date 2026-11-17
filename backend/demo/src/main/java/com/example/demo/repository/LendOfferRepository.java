@@ -13,4 +13,5 @@ public interface LendOfferRepository extends JpaRepository<LendOffer, String> {
     List<LendOffer> findByWantedPostIdAndLenderIdOrderByCreatedAtDesc(String wantedPostId, String lenderId);
     boolean existsByWantedPostIdAndLenderIdAndStatus(String wantedPostId, String lenderId, LendOfferStatus status);
     long countByWantedPostIdAndStatus(String wantedPostId, LendOfferStatus status);
+    List<LendOffer> findByOfferedItemIdAndStatus(String offeredItemId, LendOfferStatus status);
 }

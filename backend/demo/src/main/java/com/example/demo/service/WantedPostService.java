@@ -242,6 +242,14 @@ public class WantedPostService {
             }
             request.setStatus(RequestStatus.ACCEPTED);
             createdRequest = borrowRequestRepository.save(request);
+
+            // Sync-reject any other pending lend offers for the same item on other posts
+            for (LendOffer otherItemOffer : lendOfferRepository.findByOfferedItemIdAndStatus(item.getId(), LendOfferStatus.PENDING)) {
+                if (!otherItemOffer.getId().equals(offerId)) {
+                    otherItemOffer.setStatus(LendOfferStatus.REJECTED);
+                    lendOfferRepository.save(otherItemOffer);
+                }
+            }
         }
 
         offer.setStatus(LendOfferStatus.ACCEPTED);
@@ -280,6 +288,20 @@ public class WantedPostService {
 
         offer.setStatus(LendOfferStatus.REJECTED);
         LendOffer saved = lendOfferRepository.save(offer);
+
+        // Sync-reject any pending direct borrow request from this requester for the same offered item
+        if (offer.getOfferedItemId() != null && !offer.getOfferedItemId().isBlank()) {
+            List<BorrowRequest> matchingRequests = borrowRequestRepository.findByItemIdAndBorrowerIdAndStatus(
+                    offer.getOfferedItemId(),
+                    post.getRequesterId(),
+                    RequestStatus.PENDING
+            );
+            for (BorrowRequest req : matchingRequests) {
+                req.reject("Related lend offer was rejected");
+                borrowRequestRepository.save(req);
+            }
+        }
+
         return toOfferMap(saved);
     }
 

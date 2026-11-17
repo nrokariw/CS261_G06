@@ -1,15 +1,21 @@
 package com.example.demo.service;
 
 import com.example.demo.constant.ItemStatus;
+import com.example.demo.constant.LendOfferStatus;
 import com.example.demo.constant.RequestStatus;
+import com.example.demo.constant.WantedPostStatus;
 import com.example.demo.dto.BorrowRequestDto;
 import com.example.demo.model.BorrowRequest;
 import com.example.demo.model.Item;
+import com.example.demo.model.LendOffer;
 import com.example.demo.model.User;
 import com.example.demo.repository.BorrowRequestRepository;
 import com.example.demo.repository.ItemRepository;
+import com.example.demo.repository.LendOfferRepository;
 import com.example.demo.repository.UserRepository;
+import com.example.demo.repository.WantedPostRepository;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,14 +32,27 @@ public class BorrowRequestService {
     private final BorrowRequestRepository borrowRequestRepository;
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
+    private final LendOfferRepository lendOfferRepository;
+    private final WantedPostRepository wantedPostRepository;
 
     //define constructor
     public BorrowRequestService(BorrowRequestRepository borrowRequestRepository,
                                 ItemRepository itemRepository,
                                 UserRepository userRepository) {
+        this(borrowRequestRepository, itemRepository, userRepository, null, null);
+    }
+
+    @Autowired
+    public BorrowRequestService(BorrowRequestRepository borrowRequestRepository,
+                                ItemRepository itemRepository,
+                                UserRepository userRepository,
+                                LendOfferRepository lendOfferRepository,
+                                WantedPostRepository wantedPostRepository) {
         this.borrowRequestRepository = borrowRequestRepository;
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
+        this.lendOfferRepository = lendOfferRepository;
+        this.wantedPostRepository = wantedPostRepository;
     }
 
     // 1. ผู้ยืมสร้างคำขอยืม (Borrow Request)
@@ -151,7 +170,31 @@ public class BorrowRequestService {
         }
 
         itemRepository.save(item);
-        return borrowRequestRepository.save(request);
+        BorrowRequest savedRequest = borrowRequestRepository.save(request);
+
+        // Sync pending lend offers for this item + same requester: accept matching offer and fulfill post
+        if (lendOfferRepository != null && wantedPostRepository != null) {
+            for (LendOffer offer : lendOfferRepository.findByOfferedItemIdAndStatus(item.getId(), LendOfferStatus.PENDING)) {
+                wantedPostRepository.findById(offer.getWantedPostId()).ifPresent(post -> {
+                    if (post.getDeletedAt() == null && post.getRequesterId().equals(request.getBorrowerId())) {
+                        offer.setStatus(LendOfferStatus.ACCEPTED);
+                        lendOfferRepository.save(offer);
+                        if (post.getStatus() == WantedPostStatus.OPEN) {
+                            post.setStatus(WantedPostStatus.FULFILLED);
+                            wantedPostRepository.save(post);
+                        }
+                        for (LendOffer postOffer : lendOfferRepository.findByWantedPostIdOrderByCreatedAtDesc(post.getId())) {
+                            if (!postOffer.getId().equals(offer.getId()) && postOffer.getStatus() == LendOfferStatus.PENDING) {
+                                postOffer.setStatus(LendOfferStatus.REJECTED);
+                                lendOfferRepository.save(postOffer);
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        return savedRequest;
     }
 
     // 3.2. เจ้าของปฏิเสธคำขอ
@@ -207,7 +250,21 @@ public class BorrowRequestService {
         }
 
         itemRepository.save(item);
-        return borrowRequestRepository.save(request);
+        BorrowRequest savedRequest = borrowRequestRepository.save(request);
+
+        // Sync-reject any pending lend offer for the same item and requester when owner rejects
+        if ("reject".equals(normalized) && lendOfferRepository != null && wantedPostRepository != null) {
+            for (LendOffer offer : lendOfferRepository.findByOfferedItemIdAndStatus(item.getId(), LendOfferStatus.PENDING)) {
+                wantedPostRepository.findById(offer.getWantedPostId()).ifPresent(post -> {
+                    if (post.getDeletedAt() == null && post.getRequesterId().equals(request.getBorrowerId())) {
+                        offer.setStatus(LendOfferStatus.REJECTED);
+                        lendOfferRepository.save(offer);
+                    }
+                });
+            }
+        }
+
+        return savedRequest;
     }
 
     // 4.3 ผู้ยืมแก้ไขข้อมูลคำขอและส่งกลับมาให้เจ้าของพิจารณาใหม่
@@ -272,6 +329,25 @@ public class BorrowRequestService {
 
         if (!hasOtherAccepted && item.getStatus() == ItemStatus.RESERVED) {
             item.setStatus(ItemStatus.AVAILABLE);
+        }
+
+        if (lendOfferRepository != null && wantedPostRepository != null) {
+            List<LendOffer> acceptedOffers = lendOfferRepository.findByOfferedItemIdAndStatus(
+                    item.getId(),
+                    LendOfferStatus.ACCEPTED
+            );
+            for (LendOffer offer : acceptedOffers) {
+                wantedPostRepository.findById(offer.getWantedPostId()).ifPresent(post -> {
+                    if (post.getDeletedAt() == null && post.getRequesterId().equals(request.getBorrowerId())) {
+                        offer.setStatus(LendOfferStatus.PENDING);
+                        lendOfferRepository.save(offer);
+                        if (post.getStatus() == WantedPostStatus.FULFILLED) {
+                            post.setStatus(WantedPostStatus.OPEN);
+                            wantedPostRepository.save(post);
+                        }
+                    }
+                });
+            }
         }
 
         itemRepository.save(item);

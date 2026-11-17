@@ -16,7 +16,9 @@ export function isReturned(req) {
 export function isHandedOver(req, item) {
   if (isReturned(req)) return false;
   return Boolean(
-    req?.handover || (req?.status === "accepted" && item?.status === "borrowed"),
+    req?.handover ||
+      String(req?.transactionStatus || "").toLowerCase() === "active" ||
+      (req?.status === "accepted" && item?.status === "borrowed"),
   );
 }
 
