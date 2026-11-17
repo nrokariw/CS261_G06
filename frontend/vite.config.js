@@ -45,6 +45,11 @@ export default defineConfig(({ mode }) => {
           rootEnv.API_CATEGORIES_PATH ||
           "/api/categories",
       ),
+      "import.meta.env.VITE_API_WANTED_POSTS_PATH": JSON.stringify(
+        rootEnv.VITE_API_WANTED_POSTS_PATH ||
+          rootEnv.API_WANTED_POSTS_PATH ||
+          "/api/wanted-posts",
+      ),
       "import.meta.env.VITE_ITEMS_PER_PAGE": JSON.stringify(
         rootEnv.VITE_ITEMS_PER_PAGE || rootEnv.ITEMS_PER_PAGE || "9",
       ),

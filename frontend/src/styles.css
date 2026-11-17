@@ -295,6 +295,10 @@ html.theme-transition *::after {
     @apply w-full max-w-[520px] max-h-[calc(100vh-40px)] flex flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] shadow-[0_24px_60px_rgba(40,18,8,0.3)] outline-none;
   }
 
+  .modal-wide {
+    @apply max-w-[680px];
+  }
+
   .modal form {
     @apply flex flex-col min-h-0;
   }

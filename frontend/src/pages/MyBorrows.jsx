@@ -1,16 +1,18 @@
 import React, { useState } from "react";
-import { PackageCheck } from "lucide-react";
+import { PackageCheck, History } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PageHeading, EmptyState, RequestCard } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
-import HandoverModal, { isHandedOver } from "../components/HandoverModal";
+import HandoverModal, { isHandedOver, isReturned } from "../components/HandoverModal";
+import LoanEvidenceTimelineModal from "../components/LoanEvidenceTimelineModal";
 
 // T-6.3: รับ items/setItems/setRequests เพิ่ม เพื่ออัปเดตสถานะหลังบันทึกหลักฐานสำเร็จ
 export default function MyBorrows({ requests = [], items = [], setItems, setRequests }) {
   const { user } = useAuth();
   const { t } = useTranslation();
   const [handoverReq, setHandoverReq] = useState(null);
+  const [evidenceRequestId, setEvidenceRequestId] = useState(null);
   const [successMsg, setSuccessMsg] = useState("");
   
   const myBorrows = (requests || []).filter((r) =>
@@ -58,53 +60,64 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
       {myBorrows.length ? (
         <div className="flex flex-col gap-4">
           {myBorrows.map((req) => {
-            // T-6.3: ส่งมอบแล้ว แสดงสถานะ "กำลังยืม"
-            const handedOver = isHandedOver(
-              req,
-              items.find((i) => String(i.id) === String(req.itemId)),
+            // T-6.3 / US-07.3 / US-08.2: ส่งมอบแล้วแสดง "กำลังยืม" / คืนแล้วแสดง "คืนแล้ว"
+            const matchedItem = items.find((i) => String(i.id) === String(req.itemId));
+            const returned = isReturned(req);
+            const handedOver = isHandedOver(req, matchedItem);
+            const canViewEvidence = Boolean(
+              handedOver ||
+                returned ||
+                (req?.status === "accepted" && matchedItem?.status === "available"),
             );
             return (
               <RequestCard
                 key={req.id}
                 request={req}
                 role="borrower"
-                status={handedOver ? "borrowed" : req.status}
+                status={returned ? "returned" : handedOver ? "borrowed" : req.status}
                 actions={
-                  <>
-                    {/* T-6.3: ปุ่มบันทึกหลักฐานการส่งมอบ เฉพาะคำขอ accepted ที่ยังไม่ส่งมอบ */}
-                    {handedOver ? (
-                      <div className="flex flex-col items-stretch sm:items-end gap-2">
-                        <small className="text-[13px] text-[var(--muted)] text-center sm:text-right">
-                          {t("handover.done")}
-                        </small>
-                      </div>
+                  <div className="flex flex-col items-stretch sm:items-end gap-2">
+                    {/* T-6.3 / US-07.3: ปุ่มบันทึกหลักฐานการส่งมอบ เฉพาะคำขอ accepted ที่ยังไม่ส่งมอบและยังไม่คืน */}
+                    {returned ? (
+                      <small className="text-[13px] text-[var(--muted)] text-center sm:text-right">
+                        {t("returnEvidence.done")}
+                      </small>
+                    ) : handedOver ? (
+                      <small className="text-[13px] text-[var(--muted)] text-center sm:text-right">
+                        {t("handover.done")}
+                      </small>
                     ) : (
-                      req.status === "accepted" && (
-                        <div className="flex flex-col items-stretch sm:items-end gap-2">
-                          <button
-                            type="button"
-                            className="button button-primary button-sm"
-                            onClick={() => {
-                              setSuccessMsg("");
-                              setHandoverReq(req);
-                            }}
-                          >
-                            <PackageCheck size={16} /> {t("handover.button")}
-                          </button>
-                        </div>
+                      req.status === "accepted" && !canViewEvidence && (
+                        <button
+                          type="button"
+                          className="button button-primary button-sm"
+                          onClick={() => {
+                            setSuccessMsg("");
+                            setHandoverReq(req);
+                          }}
+                        >
+                          <PackageCheck size={16} /> {t("handover.button")}
+                        </button>
                       )
                     )}
-                    {req.status === "change_requested" && (
-                      <div className="mt-1">
-                        <Link
-                          to={`/items/${req.itemId}`}
-                          className="button button-outline button-info-outline button-sm button-full"
-                        >
-                          {t("myBorrows.editRequest", { defaultValue: "แก้ไขคำขอยืม" })}
-                        </Link>
-                      </div>
+                    {canViewEvidence && (
+                      <button
+                        type="button"
+                        className="button button-outline button-sm"
+                        onClick={() => setEvidenceRequestId(req.id)}
+                      >
+                        <History size={15} /> {t("evidenceTimeline.button")}
+                      </button>
                     )}
-                  </>
+                    {req.status === "change_requested" && (
+                      <Link
+                        to={`/items/${req.itemId}`}
+                        className="button button-outline button-info-outline button-sm button-full mt-1"
+                      >
+                        {t("myBorrows.editRequest", { defaultValue: "แก้ไขคำขอยืม" })}
+                      </Link>
+                    )}
+                  </div>
                 }
               />
             );
@@ -123,6 +136,14 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
           request={handoverReq}
           onClose={() => setHandoverReq(null)}
           onSuccess={handleHandoverSuccess}
+        />
+      )}
+
+      {/* US-08.2: โมดอล Timeline ประวัติและหลักฐานการยืม-คืน */}
+      {evidenceRequestId && (
+        <LoanEvidenceTimelineModal
+          requestId={evidenceRequestId}
+          onClose={() => setEvidenceRequestId(null)}
         />
       )}
     </div>

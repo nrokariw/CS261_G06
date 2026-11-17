@@ -3,6 +3,7 @@ package com.example.demo.config;
 import com.example.demo.security.JwtAuthenticationFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -33,14 +34,17 @@ public class SecurityConfig {
     private final CorsProperties corsProperties;
     private final ExternalApiProperties externalApiProperties;
     private final ObjectMapper objectMapper;
+    private final String wantedPostsPath;
 
     public SecurityConfig(
             CorsProperties corsProperties,
             ExternalApiProperties externalApiProperties,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            @Value("${app.api.wanted-posts-path:/api/wanted-posts}") String wantedPostsPath) {
         this.corsProperties = corsProperties;
         this.externalApiProperties = externalApiProperties;
         this.objectMapper = objectMapper;
+        this.wantedPostsPath = wantedPostsPath;
     }
 
     @Bean
@@ -82,6 +86,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout", "/api/auth/demo-accounts").permitAll()
                 .requestMatchers("/uploads/products/**", "/uploads/evidence/**", "/actuator/**", "/error").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/items", "/api/items/all", "/api/items/*", "/api/categories", "/api/categories/*").permitAll()
+                .requestMatchers(HttpMethod.GET, wantedPostsPath + "/my").authenticated()
+                .requestMatchers(HttpMethod.GET, wantedPostsPath, wantedPostsPath + "/*").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

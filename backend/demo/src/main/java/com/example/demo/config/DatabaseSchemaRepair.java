@@ -168,6 +168,32 @@ public class DatabaseSchemaRepair implements CommandLineRunner {
                 "ALTER TABLE categories ALTER COLUMN name_en NVARCHAR(100) NOT NULL; " +
                 "END"
             );
+            // สร้างตาราง wanted_posts และ lend_offers (US-BRRQS) หากยังไม่มี
+            jdbcTemplate.execute(
+                "IF OBJECT_ID('wanted_posts', 'U') IS NULL CREATE TABLE wanted_posts (" +
+                "id VARCHAR(36) PRIMARY KEY, " +
+                "requester_id VARCHAR(50) NOT NULL, " +
+                "title NVARCHAR(255) NOT NULL, " +
+                "category NVARCHAR(100) NOT NULL, " +
+                "description NVARCHAR(MAX) NULL, " +
+                "needed_from DATETIME2 NULL, " +
+                "needed_until DATETIME2 NULL, " +
+                "status VARCHAR(50) NOT NULL DEFAULT 'OPEN', " +
+                "created_at DATETIME2 DEFAULT SYSUTCDATETIME(), " +
+                "updated_at DATETIME2 DEFAULT SYSUTCDATETIME(), " +
+                "deleted_at DATETIME2 NULL)"
+            );
+            jdbcTemplate.execute(
+                "IF OBJECT_ID('lend_offers', 'U') IS NULL CREATE TABLE lend_offers (" +
+                "id VARCHAR(36) PRIMARY KEY, " +
+                "wanted_post_id VARCHAR(36) NOT NULL, " +
+                "lender_id VARCHAR(50) NOT NULL, " +
+                "offered_item_id VARCHAR(36) NULL, " +
+                "message NVARCHAR(MAX) NULL, " +
+                "status VARCHAR(50) NOT NULL DEFAULT 'PENDING', " +
+                "created_at DATETIME2 DEFAULT SYSUTCDATETIME(), " +
+                "updated_at DATETIME2 DEFAULT SYSUTCDATETIME())"
+            );
             log.info("[DatabaseSchemaRepair] Database schema verification and NVARCHAR column alignment completed.");
         } catch (Exception ex) {
             log.error("[DatabaseSchemaRepair] Failed to verify or repair database schema: {}", ex.getMessage(), ex);

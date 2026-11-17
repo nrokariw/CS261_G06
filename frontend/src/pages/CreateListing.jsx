@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowLeft,
+  HandHeart,
 } from "lucide-react";
 import {
   getActiveCategoryCodes,
@@ -16,34 +17,69 @@ import { PageHeading, getLocalizedCategoryLabel } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { createItem, updateItem, normalizeItem } from "../api/itemsApi";
 import {
+  createWantedPost,
+  getWantedPost,
+  updateWantedPost,
+} from "../api/wantedPostsApi";
+import {
   ALLOWED_IMAGE_TYPES,
   ITEM_DETAIL_MAX_LENGTH,
   MAX_IMAGE_SIZE_BYTES,
   MAX_IMAGE_SIZE_MB,
   REDIRECT_DELAY_MS,
+  WANTED_TITLE_MAX_LENGTH,
 } from "../constants/config";
 
-export default function CreateListing({ items, setItems, categories: propCategories }) {
+function toLocalDateTimePayload(dateValue, isEndOfDay = false) {
+  if (!dateValue) return null;
+  return `${dateValue}T${isEndOfDay ? "23:59:59" : "00:00:00"}`;
+}
+
+function buildCategoryOptions(propCategories, currentCategory) {
+  const base = Array.isArray(propCategories)
+    ? propCategories
+    : getActiveCategoryCodes();
+  const editKey = normalizeCategoryKey(currentCategory);
+  if (editKey && !base.includes(editKey)) {
+    return [...base, editKey];
+  }
+  return base;
+}
+
+export default function CreateListing({
+  items = [],
+  setItems,
+  categories: propCategories,
+  initialTab = "items",
+}) {
   const { user, token } = useAuth();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const activeTab =
+    params.get("tab") === "wanted" || initialTab === "wanted"
+      ? "wanted"
+      : "items";
   const editId = params.get("edit");
-  const editingItem = items.find((i) => i.id === editId);
+  const editingItem = activeTab === "items" ? items.find((i) => i.id === editId) : null;
+
+  const handleTabChange = (nextTab) => {
+    const next = new URLSearchParams(params);
+    next.delete("edit");
+    if (nextTab === "wanted") next.set("tab", "wanted");
+    else next.delete("tab");
+    navigate(`/create${next.toString() ? `?${next.toString()}` : ""}`, {
+      replace: true,
+    });
+  };
   const [name, setName] = useState(editingItem?.name || "");
   const [category, setCategory] = useState(
     normalizeCategoryKey(editingItem?.category) || "",
   );
-  const categoryOptions = useMemo(() => {
-    const base = Array.isArray(propCategories)
-      ? propCategories
-      : getActiveCategoryCodes();
-    const editKey = normalizeCategoryKey(editingItem?.category);
-    if (editKey && !base.includes(editKey)) {
-      return [...base, editKey];
-    }
-    return base;
-  }, [propCategories, editingItem?.category]);
+  const categoryOptions = useMemo(
+    () => buildCategoryOptions(propCategories, editingItem?.category),
+    [propCategories, editingItem?.category],
+  );
   const [detail, setDetail] = useState(editingItem?.detail || "");
   const [availableFrom, setAvailableFrom] = useState(
     editingItem?.availableFrom ? String(editingItem.availableFrom).slice(0, 10) : "",
@@ -63,6 +99,63 @@ export default function CreateListing({ items, setItems, categories: propCategor
   const [success, setSuccess] = useState("");
   const [submitError, setSubmitError] = useState("");
   const fileRef = useRef(null);
+
+  const [wantedTitle, setWantedTitle] = useState("");
+  const [wantedCategory, setWantedCategory] = useState("");
+  const wantedCategoryOptions = useMemo(
+    () => buildCategoryOptions(propCategories, wantedCategory),
+    [propCategories, wantedCategory],
+  );
+  const [wantedDescription, setWantedDescription] = useState("");
+  const [neededFrom, setNeededFrom] = useState("");
+  const [neededUntil, setNeededUntil] = useState("");
+  const [wantedLoading, setWantedLoading] = useState(false);
+  const [wantedSubmitting, setWantedSubmitting] = useState(false);
+  const [wantedErrors, setWantedErrors] = useState({});
+  const [wantedSubmitError, setWantedSubmitError] = useState("");
+  const [wantedSuccess, setWantedSuccess] = useState("");
+
+  useEffect(() => {
+    const authToken = token || user?.token;
+    if (activeTab !== "wanted") return;
+    if (!editId) {
+      setWantedTitle("");
+      setWantedCategory("");
+      setWantedDescription("");
+      setNeededFrom("");
+      setNeededUntil("");
+      setWantedLoading(false);
+      return;
+    }
+    if (!authToken) return;
+
+    let cancelled = false;
+    setWantedLoading(true);
+    setWantedSubmitError("");
+    getWantedPost(editId, authToken)
+      .then((post) => {
+        if (cancelled) return;
+        setWantedTitle(post.title || "");
+        setWantedCategory(normalizeCategoryKey(post.category) || "");
+        setWantedDescription(post.description || "");
+        setNeededFrom(post.neededFrom ? String(post.neededFrom).slice(0, 10) : "");
+        setNeededUntil(
+          post.neededUntil ? String(post.neededUntil).slice(0, 10) : "",
+        );
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setWantedSubmitError(err.message || t("wanted.loadError"));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setWantedLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, editId, token, user?.token, t]);
 
   function validate() {
     const next = {};
@@ -198,22 +291,283 @@ export default function CreateListing({ items, setItems, categories: propCategor
     }
 }
 
+  async function submitWanted(e) {
+    e.preventDefault();
+    setWantedSuccess("");
+    setWantedSubmitError("");
+
+    const next = {};
+    if (!wantedTitle.trim()) {
+      next.title = t("wanted.titleRequired");
+    }
+    if (!wantedCategory) {
+      next.category = t("validation.categoryRequired");
+    }
+    if (neededFrom && neededUntil && neededUntil < neededFrom) {
+      next.neededUntil = t("wanted.dateRangeInvalid");
+    }
+    setWantedErrors(next);
+    if (Object.keys(next).length > 0) return;
+
+    const authToken = token || user?.token;
+    const payload = {
+      title: wantedTitle.trim(),
+      category: wantedCategory,
+      description: wantedDescription.trim() || null,
+      neededFrom: toLocalDateTimePayload(neededFrom, false),
+      neededUntil: toLocalDateTimePayload(neededUntil, true),
+    };
+
+    setWantedSubmitting(true);
+    try {
+      if (editId) {
+        await updateWantedPost(editId, payload, authToken);
+      } else {
+        await createWantedPost(payload, authToken);
+      }
+      setWantedSuccess(
+        editId ? t("wanted.updateSuccess") : t("wanted.createSuccess"),
+      );
+      window.setTimeout(
+        () => navigate("/my-listings?tab=wanted"),
+        REDIRECT_DELAY_MS,
+      );
+    } catch (err) {
+      setWantedSubmitError(err.message || t("wanted.saveError"));
+    } finally {
+      setWantedSubmitting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6 max-w-3xl mx-auto w-full">
       <button className="back-link" onClick={() => navigate(-1)}>
         <ArrowLeft size={16} /> {t("common.back")}
       </button>
       <PageHeading
-        eyebrow={editingItem ? t("createListing.eyebrowEdit") : t("createListing.eyebrowCreate")}
-        title={editingItem ? t("createListing.titleEdit") : t("createListing.titleCreate")}
-        subtitle={t("createListing.subtitle")}
-      />{" "}
-      {/* หัวประกาศ */}
-      <form
-        className="flex flex-col p-6 sm:p-8 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs"
-        onSubmit={submit}
-        noValidate
+        eyebrow={
+          activeTab === "wanted"
+            ? t("wanted.eyebrow")
+            : editingItem
+            ? t("createListing.eyebrowEdit")
+            : t("createListing.eyebrowCreate")
+        }
+        title={
+          activeTab === "wanted"
+            ? editId
+              ? t("wanted.editTitle")
+              : t("wanted.createTitle")
+            : editingItem
+            ? t("createListing.titleEdit")
+            : t("createListing.titleCreate")
+        }
+        subtitle={
+          activeTab === "wanted"
+            ? t("wanted.createSubtitle")
+            : t("createListing.subtitle")
+        }
+      />
+      <div
+        className="flex items-center gap-2 border-b border-[var(--border)] pb-3 overflow-x-auto"
+        role="tablist"
       >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "items"}
+          className={`inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-[13.5px] font-medium border cursor-pointer transition-colors ${
+            activeTab === "items"
+              ? "bg-[var(--primary)] border-[var(--primary)] text-white shadow-xs"
+              : "bg-[var(--surface)] border-[var(--border)] text-[var(--muted)] hover:border-[var(--primary)] hover:text-[var(--text)]"
+          }`}
+          onClick={() => handleTabChange("items")}
+        >
+          {t("wanted.tabLendItems")}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "wanted"}
+          className={`inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-[13.5px] font-medium border cursor-pointer transition-colors ${
+            activeTab === "wanted"
+              ? "bg-[var(--primary)] border-[var(--primary)] text-white shadow-xs"
+              : "bg-[var(--surface)] border-[var(--border)] text-[var(--muted)] hover:border-[var(--primary)] hover:text-[var(--text)]"
+          }`}
+          onClick={() => handleTabChange("wanted")}
+        >
+          <HandHeart size={16} /> {t("wanted.tabWantedPosts")}
+        </button>
+      </div>
+      {activeTab === "wanted" ? (
+        wantedLoading ? (
+          <div className="p-6 sm:p-8 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs text-sm text-[var(--muted)]">
+            {t("common.loading")}
+          </div>
+        ) : (
+          <form
+            className="flex flex-col p-6 sm:p-8 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs"
+            onSubmit={submitWanted}
+            noValidate
+          >
+            {wantedSuccess && (
+              <div className="alert alert-success mb-5">
+                <CheckCircle2 size={18} />
+                {wantedSuccess}
+              </div>
+            )}
+            <div className="flex items-start gap-3.5 mb-5 pb-4 border-b border-[var(--border)]">
+              <span className="w-8 h-8 rounded-lg bg-[var(--peach)] text-[var(--primary)] text-xs font-bold grid place-items-center shrink-0 mt-0.5">
+                01
+              </span>
+              <div>
+                <h2 className="m-0 text-base font-semibold text-[var(--text)]">
+                  {t("wanted.eyebrow")}
+                </h2>
+                <p className="m-0 mt-0.5 text-xs text-[var(--muted)]">
+                  {t("wanted.createSubtitle")}
+                </p>
+              </div>
+            </div>
+            <div className="field">
+              <label htmlFor="wanted-title">
+                {t("wanted.fieldTitle")} <span className="required">*</span>
+              </label>
+              <input
+                id="wanted-title"
+                maxLength={WANTED_TITLE_MAX_LENGTH}
+                value={wantedTitle}
+                onChange={(e) => setWantedTitle(e.target.value)}
+                placeholder={t("wanted.fieldTitlePlaceholder")}
+                aria-invalid={!!wantedErrors.title}
+              />
+              {wantedErrors.title && (
+                <small className="field-error">
+                  <AlertCircle size={13} />
+                  {wantedErrors.title}
+                </small>
+              )}
+            </div>
+            <div className="field">
+              <label htmlFor="wanted-category">
+                {t("wanted.fieldCategory")} <span className="required">*</span>
+              </label>
+              <select
+                id="wanted-category"
+                value={wantedCategory}
+                onChange={(e) => {
+                  setWantedCategory(e.target.value);
+                  if (wantedErrors.category) {
+                    setWantedErrors((prev) => ({ ...prev, category: "" }));
+                  }
+                }}
+                aria-invalid={!!wantedErrors.category}
+              >
+                <option value="">{t("createListing.categoryPlaceholder")}</option>
+                {wantedCategoryOptions.map((c) => (
+                  <option key={c} value={c}>
+                    {getLocalizedCategoryLabel(c, t, i18n.language)}
+                  </option>
+                ))}
+              </select>
+              {wantedErrors.category && (
+                <small className="field-error">
+                  <AlertCircle size={13} />
+                  {wantedErrors.category}
+                </small>
+              )}
+            </div>
+            <div className="field">
+              <div className="label-row">
+                <label htmlFor="wanted-description">
+                  {t("wanted.fieldDescription")}
+                </label>
+                <span className="character-count">
+                  {wantedDescription.length}/{ITEM_DETAIL_MAX_LENGTH}
+                </span>
+              </div>
+              <textarea
+                id="wanted-description"
+                maxLength={ITEM_DETAIL_MAX_LENGTH}
+                rows={4}
+                value={wantedDescription}
+                onChange={(e) => setWantedDescription(e.target.value)}
+                placeholder={t("wanted.fieldDescriptionPlaceholder")}
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="field">
+                <label htmlFor="wanted-from">{t("wanted.fieldNeededFrom")}</label>
+                <input
+                  id="wanted-from"
+                  type="date"
+                  value={neededFrom}
+                  onChange={(e) => {
+                    const nextFrom = e.target.value;
+                    setNeededFrom(nextFrom);
+                    if (neededUntil && nextFrom && neededUntil < nextFrom) {
+                      setNeededUntil(nextFrom);
+                    }
+                  }}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="wanted-until">{t("wanted.fieldNeededUntil")}</label>
+                <input
+                  id="wanted-until"
+                  type="date"
+                  min={neededFrom || undefined}
+                  value={neededUntil}
+                  onChange={(e) => {
+                    setNeededUntil(e.target.value);
+                    if (wantedErrors.neededUntil) {
+                      setWantedErrors((prev) => ({ ...prev, neededUntil: "" }));
+                    }
+                  }}
+                  aria-invalid={!!wantedErrors.neededUntil}
+                />
+                {wantedErrors.neededUntil && (
+                  <small className="field-error">
+                    <AlertCircle size={13} />
+                    {wantedErrors.neededUntil}
+                  </small>
+                )}
+              </div>
+            </div>
+            {wantedSubmitError && (
+              <div className="alert alert-error mb-4">
+                <AlertCircle size={18} />
+                <span>{wantedSubmitError}</span>
+              </div>
+            )}
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-5 border-t border-[var(--border)]">
+              <button
+                type="button"
+                className="button button-outline"
+                onClick={() => navigate(-1)}
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="submit"
+                className="button button-primary"
+                disabled={wantedSubmitting || Boolean(wantedSuccess)}
+              >
+                <CheckCircle2 size={17} />
+                {wantedSubmitting
+                  ? t("common.saving")
+                  : editId
+                  ? t("wanted.saveChanges")
+                  : t("wanted.submitCreate")}
+              </button>
+            </div>
+          </form>
+        )
+      ) : (
+        <form
+          className="flex flex-col p-6 sm:p-8 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs"
+          onSubmit={submit}
+          noValidate
+        >
         {success && (
           <div className="alert alert-success mb-5">
             <CheckCircle2 size={18} />
@@ -427,6 +781,7 @@ export default function CreateListing({ items, setItems, categories: propCategor
           </button>
         </div>
       </form>
+      )}
     </div>
   );
 }
