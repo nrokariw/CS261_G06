@@ -7,7 +7,9 @@ import com.example.demo.model.BorrowRequest;
 import com.example.demo.model.Item;
 import com.example.demo.model.User;
 import com.example.demo.repository.BorrowRequestRepository;
+import com.example.demo.repository.EvidenceProofRepository;
 import com.example.demo.repository.ItemRepository;
+import com.example.demo.repository.TransactionRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.service.JwtService;
 import com.example.demo.service.TuAuthClient;
@@ -15,6 +17,7 @@ import com.example.demo.service.TuAuthClient.TuUserProfile;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,6 +64,12 @@ class SecurityAndAuthorizationIntegrationTest {
     private BorrowRequestRepository borrowRequestRepository;
 
     @Autowired
+    private EvidenceProofRepository evidenceProofRepository;
+
+    @Autowired
+    private TransactionRepository transactionRepository;
+
+    @Autowired
     private JwtService jwtService;
 
     @Autowired
@@ -73,10 +82,21 @@ class SecurityAndAuthorizationIntegrationTest {
     private String tokenB;
     private String tokenC;
 
-    @BeforeEach
-    void setUp() {
+    private void cleanDatabase() {
+        evidenceProofRepository.deleteAll();
+        transactionRepository.deleteAll();
         borrowRequestRepository.deleteAll();
         itemRepository.deleteAll();
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanDatabase();
+    }
+
+    @BeforeEach
+    void setUp() {
+        cleanDatabase();
 
         User userA = userRepository.findById(USER_A).orElseThrow();
         User userB = userRepository.findById(USER_B).orElseThrow();

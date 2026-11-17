@@ -80,8 +80,17 @@ class ReturnEvidenceIntegrationTest {
     private String lenderToken;
     private String outsiderToken;
 
+    private void cleanDatabase() {
+        evidenceProofRepository.deleteAll();
+        transactionRepository.deleteAll();
+        borrowRequestRepository.deleteAll();
+        itemRepository.deleteAll();
+    }
+
     @BeforeEach
     void setUp() {
+        cleanDatabase();
+
         User lender = userRepository.findById(LENDER_ID).orElseThrow();
         User outsider = userRepository.findById(OUTSIDER_ID).orElseThrow();
         lenderToken = jwtService.generateAccessToken(lender);
@@ -125,10 +134,7 @@ class ReturnEvidenceIntegrationTest {
                 Files.deleteIfExists(Paths.get(evidenceUploadDir).resolve(filename));
             }
         }
-        evidenceProofRepository.deleteAll(proofs);
-        transactionRepository.deleteById(testTransaction.getId());
-        borrowRequestRepository.deleteById(testRequest.getId());
-        itemRepository.deleteById(testItem.getId());
+        cleanDatabase();
     }
 
     @Test

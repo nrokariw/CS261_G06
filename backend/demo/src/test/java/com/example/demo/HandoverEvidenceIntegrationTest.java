@@ -15,6 +15,7 @@ import com.example.demo.repository.UserRepository;
 import com.example.demo.service.JwtService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -74,12 +75,21 @@ class HandoverEvidenceIntegrationTest {
     private Item item;
     private BorrowRequest acceptedRequest;
 
-    @BeforeEach
-    void setUp() {
+    private void cleanDatabase() {
         evidenceProofRepository.deleteAll();
         transactionRepository.deleteAll();
         borrowRequestRepository.deleteAll();
         itemRepository.deleteAll();
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanDatabase();
+    }
+
+    @BeforeEach
+    void setUp() {
+        cleanDatabase();
 
         item = new Item();
         item.setId(UUID.randomUUID().toString());

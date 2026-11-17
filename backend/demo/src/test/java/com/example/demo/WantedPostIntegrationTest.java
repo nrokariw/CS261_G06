@@ -8,13 +8,16 @@ import com.example.demo.model.BorrowRequest;
 import com.example.demo.model.Item;
 import com.example.demo.model.User;
 import com.example.demo.repository.BorrowRequestRepository;
+import com.example.demo.repository.EvidenceProofRepository;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.LendOfferRepository;
+import com.example.demo.repository.TransactionRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.repository.WantedPostRepository;
 import com.example.demo.service.JwtService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -63,6 +66,12 @@ class WantedPostIntegrationTest {
     @Autowired
     private LendOfferRepository lendOfferRepository;
 
+    @Autowired
+    private EvidenceProofRepository evidenceProofRepository;
+
+    @Autowired
+    private TransactionRepository transactionRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private String requesterToken;
@@ -70,12 +79,23 @@ class WantedPostIntegrationTest {
     private String outsiderToken;
     private Item lenderItem;
 
-    @BeforeEach
-    void setUp() {
+    private void cleanDatabase() {
+        evidenceProofRepository.deleteAll();
+        transactionRepository.deleteAll();
         lendOfferRepository.deleteAll();
         wantedPostRepository.deleteAll();
         borrowRequestRepository.deleteAll();
         itemRepository.deleteAll();
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanDatabase();
+    }
+
+    @BeforeEach
+    void setUp() {
+        cleanDatabase();
 
         User requester = userRepository.findById(REQUESTER_ID).orElseThrow();
         User lender = userRepository.findById(LENDER_ID).orElseThrow();
