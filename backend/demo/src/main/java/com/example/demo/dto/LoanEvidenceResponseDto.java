@@ -1,12 +1,18 @@
 package com.example.demo.dto;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 public class LoanEvidenceResponseDto {
-    
-    // ข้อมูล Transaction
+
+    // ข้อมูล BorrowRequest และ Transaction
     private String requestId;
     private String requestStatus;
+    private String transactionId;
+    private String transactionStatus;
+    private LocalDateTime borrowedAt;
+    private LocalDateTime returnedAt;
     private String borrowerId;
     private String ownerId;
 
@@ -24,6 +30,71 @@ public class LoanEvidenceResponseDto {
     private String returnImageUrl;
     private String returnNote;
     private LocalDateTime returnTimestamp;
+
+    // รายการหลักฐานทั้งหมด (EvidenceProof)
+    private List<EvidenceItemDto> evidences = new ArrayList<>();
+
+    public static class EvidenceItemDto {
+        private String id;
+        private String uploaderId;
+        private String proofType;
+        private String imageUrl;
+        private String note;
+        private LocalDateTime capturedAt;
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getUploaderId() { return uploaderId; }
+        public void setUploaderId(String uploaderId) { this.uploaderId = uploaderId; }
+        public String getProofType() { return proofType; }
+        public void setProofType(String proofType) { this.proofType = proofType; }
+        public String getImageUrl() { return imageUrl; }
+        public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+        public String getNote() { return note; }
+        public void setNote(String note) { this.note = note; }
+        public LocalDateTime getCapturedAt() { return capturedAt; }
+        public void setCapturedAt(LocalDateTime capturedAt) { this.capturedAt = capturedAt; }
+    }
+
+    public String getTransactionId() {
+        return transactionId;
+    }
+
+    public void setTransactionId(String transactionId) {
+        this.transactionId = transactionId;
+    }
+
+    public String getTransactionStatus() {
+        return transactionStatus;
+    }
+
+    public void setTransactionStatus(String transactionStatus) {
+        this.transactionStatus = transactionStatus;
+    }
+
+    public LocalDateTime getBorrowedAt() {
+        return borrowedAt;
+    }
+
+    public void setBorrowedAt(LocalDateTime borrowedAt) {
+        this.borrowedAt = borrowedAt;
+    }
+
+    public LocalDateTime getReturnedAt() {
+        return returnedAt;
+    }
+
+    public void setReturnedAt(LocalDateTime returnedAt) {
+        this.returnedAt = returnedAt;
+    }
+
+    public List<EvidenceItemDto> getEvidences() {
+        return evidences;
+    }
+
+    public void setEvidences(List<EvidenceItemDto> evidences) {
+        this.evidences = evidences;
+    }
 
     public String getRequestId() {
         return requestId;

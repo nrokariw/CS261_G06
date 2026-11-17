@@ -14,11 +14,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController 
 @RequestMapping ("${app.api.transactions-path:/api/transactions}")
@@ -58,7 +55,13 @@ public class TransactionController {
 
     // 4. ดึงประวัติธุรกรรมของผู้ยืม
     @GetMapping("/borrower/{borrowerId}")
-    public List<Transaction> getTransactionsByBorrower(@PathVariable String borrowerId) {
+    public List<Transaction> getTransactionsByBorrower(
+            @PathVariable String borrowerId,
+            Authentication authentication) {
+        String currentUserId = requireAuthenticatedUserId(authentication);
+        if (!currentUserId.equals(borrowerId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Forbidden: You can only view your own transactions");
+        }
         return transactionService.getTransactionsByBorrower(borrowerId);
     }
 
@@ -77,20 +80,8 @@ public class TransactionController {
             Authentication authentication,
             @ModelAttribute HandoverRequestDto requestDto) {
 
-        // 1. ตรวจสอบการยืนยันตัวตนจาก Spring Security Context (401 Unauthorized ถ้ายังไม่ได้ Login)
-        if (authentication == null || !authentication.isAuthenticated()
-                || authentication.getName() == null || authentication.getName().isBlank()
-                || "anonymousUser".equals(authentication.getPrincipal())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: กรุณาเข้าสู่ระบบก่อนทำรายการ");
-        }
-
-        // ดึง User ID (Username หรือ Subject จาก JWT ที่ถูกเซ็ตไว้ใน SecurityContext)
-        String authenticatedStudentId = authentication.getName();
-
-        // 2. เรียกใช้ Service ดำเนินการ Business Logic และ Transaction
+        String authenticatedStudentId = requireAuthenticatedUserId(authentication);
         Transaction savedTransaction = transactionService.createHandoverEvidence(requestId, authenticatedStudentId, requestDto);
-
-        // 3. ตอบกลับ 201 Created เมื่อทำรายการสำเร็จ
         return ResponseEntity.status(HttpStatus.CREATED).body(savedTransaction);
     }
 
@@ -101,33 +92,28 @@ public class TransactionController {
             Authentication authentication,
             @ModelAttribute ReturnRequestDto requestDto) {
 
-        if (authentication == null || !authentication.isAuthenticated() || authentication.getName() == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
-        }
-
-        String authenticatedStudentId = authentication.getName();
+        String authenticatedStudentId = requireAuthenticatedUserId(authentication);
         Transaction updatedTransaction = transactionService.submitReturnEvidence(requestId, authenticatedStudentId, requestDto);
-
         return ResponseEntity.ok(updatedTransaction);
     }
 
-    // T-8.1: GET API สำหรับเรียกดูประวัติและหลักฐานการยืม-คืนสิ่งของ พร้อมจำกัดสิทธิ์เฉพาะคู่สัญญา
-    @GetMapping("/{requestId}/evidence")
-    public ResponseEntity<?> getLoanEvidence(
-            @PathVariable("requestId") String requestId,
-            Authentication authentication,
-            @ModelAttribute LoanEvidenceResponseDto requestDto) {
+    // T-8.1: GET API สำหรับเรียกดูประวัติและหลักฐานการยืม-คืนสิ่งของ พร้อมจำกัดสิทธิ์เฉพาะคู่สัญญา (รองรับทั้ง requestId และ transactionId)
+    @GetMapping("/{id}/evidence")
+    public ResponseEntity<LoanEvidenceResponseDto> getLoanEvidence(
+            @PathVariable("id") String id,
+            Authentication authentication) {
 
-        // 1. ตรวจสอบ Token: หากไม่มีหรือรูปแบบผิดพลาด ตอบกลับ 401 Unauthorized
+        String userId = requireAuthenticatedUserId(authentication);
+        LoanEvidenceResponseDto responseDto = transactionService.getLoanEvidenceDetail(id, userId);
+        return ResponseEntity.ok(responseDto);
+    }
+
+    private String requireAuthenticatedUserId(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()
                 || authentication.getName() == null || authentication.getName().isBlank()
                 || "anonymousUser".equals(authentication.getPrincipal())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized: Missing or invalid JWT Token");
         }
-
-        // 2 & 3. เรียก Service เพื่อดึงข้อมูล (ระบบจะเช็ค 404 Not Found และ 403 Forbidden ภายใน Service และดักจับผ่าน GlobalExceptionHandler อัตโนมัติ)
-        String userId = authentication.getName();
-        LoanEvidenceResponseDto responseDto = transactionService.getLoanEvidenceDetail(requestId, userId);
-        return ResponseEntity.ok(responseDto);
+        return authentication.getName();
     }
 }

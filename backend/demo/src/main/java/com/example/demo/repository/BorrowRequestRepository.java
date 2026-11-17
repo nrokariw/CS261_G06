@@ -3,10 +3,7 @@ package com.example.demo.repository;
 import com.example.demo.model.BorrowRequest;
 import com.example.demo.constant.RequestStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import java.util.List;
-import java.util.Optional;
 
 public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, String> {
     
@@ -24,9 +21,5 @@ public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, St
     
     // ค้นหาคำขอตามสถานะ (เช่น ดึงเฉพาะ PENDING ที่รอเจ้าของอนุมัติ)
     List<BorrowRequest> findByStatus(RequestStatus status);
-
-    // ค้นหาคำขอยืมและไอเท็มที่เกี่ยวข้อง (JOIN) โดยใช้ requestId
-    @Query("SELECT r, i FROM BorrowRequest r JOIN Item i ON r.itemId = i.id WHERE r.id = :requestId")
-    Optional<Object[]> findRequestAndItemById(@Param("requestId") String requestId);
 
 }
