@@ -49,6 +49,22 @@ public class BorrowRequest {
     @OneToOne(mappedBy = "borrowRequest", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Transaction transaction;
 
+    @Transient
+    private String ownerId;
+
+    @Transient
+    @JsonProperty("owner")
+    private String ownerName;
+
+    @Transient
+    private String itemName;
+
+    @Transient
+    private String itemImage;
+
+    @Transient
+    private String borrowerName;
+
     // สั่งให้สุ่มสร้าง UUID และกำหนดเวลาเป็น UTC+0 อัตโนมัติก่อนบันทึกลง Database
     @PrePersist
     protected void onCreate() {
@@ -132,6 +148,17 @@ public class BorrowRequest {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     public void setTransaction(Transaction transaction) { this.transaction = transaction; }
+
+    public String getOwnerId() { return ownerId; }
+    public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
+    public String getOwnerName() { return ownerName; }
+    public void setOwnerName(String ownerName) { this.ownerName = ownerName; }
+    public String getItemName() { return itemName; }
+    public void setItemName(String itemName) { this.itemName = itemName; }
+    public String getItemImage() { return itemImage; }
+    public void setItemImage(String itemImage) { this.itemImage = itemImage; }
+    public String getBorrowerName() { return borrowerName; }
+    public void setBorrowerName(String borrowerName) { this.borrowerName = borrowerName; }
 
     //define methods
     public void approve() {

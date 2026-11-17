@@ -14,6 +14,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class BorrowRequestService {
@@ -276,26 +280,81 @@ public class BorrowRequestService {
 
     // 5.1. ค้นหาคำขอทั้งหมดของผู้ยืม
     public List<BorrowRequest> getRequestsByBorrower(String borrowerId) {
-        return borrowRequestRepository.findByBorrowerId(borrowerId);
+        return populateMetadata(borrowRequestRepository.findByBorrowerId(borrowerId));
     }
 
     // 5.2. ค้นหาคำขอยืมที่เข้ามาสำหรับสิ่งของทั้งหมดของเจ้าของ (Owner)
     public List<BorrowRequest> getRequestsByOwner(String ownerId) {
         List<String> ownerItemIds = itemRepository.findByOwnerId(ownerId)
                 .stream()
-                .map(item -> item.getId())
+                .map(Item::getId)
                 .toList();
         if (ownerItemIds.isEmpty()) {
             return List.of();
         }
-        return borrowRequestRepository.findAll()
-                .stream()
-                .filter(req -> ownerItemIds.contains(req.getItemId()))
-                .toList();
+        return populateMetadata(
+                borrowRequestRepository.findAll()
+                        .stream()
+                        .filter(req -> ownerItemIds.contains(req.getItemId()))
+                        .toList()
+        );
     }
 
     // 5.3. ค้นหาคำขอทั้งหมดในระบบ
     public List<BorrowRequest> getAllRequests() {
-        return borrowRequestRepository.findAll();
+        return populateMetadata(borrowRequestRepository.findAll());
+    }
+
+    private List<BorrowRequest> populateMetadata(List<BorrowRequest> requests) {
+        if (requests == null || requests.isEmpty()) {
+            return requests;
+        }
+
+        Set<String> itemIds = requests.stream()
+                .map(BorrowRequest::getItemId)
+                .filter(Objects::nonNull)
+                .filter(id -> !id.isBlank())
+                .collect(Collectors.toSet());
+
+        Map<String, Item> itemMap = itemIds.isEmpty()
+                ? Map.of()
+                : itemRepository.findAllById(itemIds).stream()
+                        .collect(Collectors.toMap(Item::getId, item -> item, (a, b) -> a));
+
+        Set<String> userIds = new java.util.HashSet<>();
+        for (BorrowRequest req : requests) {
+            if (req.getBorrowerId() != null && !req.getBorrowerId().isBlank()) {
+                userIds.add(req.getBorrowerId());
+            }
+            Item item = itemMap.get(req.getItemId());
+            if (item != null && item.getOwnerId() != null && !item.getOwnerId().isBlank()) {
+                userIds.add(item.getOwnerId());
+            }
+        }
+
+        Map<String, String> userNameMap = userIds.isEmpty()
+                ? Map.of()
+                : userRepository.findAllById(userIds).stream()
+                        .collect(Collectors.toMap(
+                                User::getStudentId,
+                                user -> (user.getFullName() != null && !user.getFullName().isBlank())
+                                        ? user.getFullName()
+                                        : (user.getUsername() != null ? user.getUsername() : user.getStudentId()),
+                                (a, b) -> a
+                        ));
+
+        for (BorrowRequest req : requests) {
+            Item item = itemMap.get(req.getItemId());
+            if (item != null) {
+                req.setOwnerId(item.getOwnerId());
+                req.setItemName(item.getTitle());
+                req.setItemImage(item.getImageUrl());
+                req.setOwnerName(userNameMap.getOrDefault(item.getOwnerId(), item.getOwnerId()));
+            }
+            if (req.getBorrowerId() != null) {
+                req.setBorrowerName(userNameMap.getOrDefault(req.getBorrowerId(), req.getBorrowerId()));
+            }
+        }
+        return requests;
     }
 }
