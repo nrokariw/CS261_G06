@@ -1,19 +1,29 @@
 package com.example.demo.service;
 
 import com.example.demo.constant.ItemStatus;
+import com.example.demo.constant.LendOfferStatus;
 import com.example.demo.constant.RequestStatus;
+import com.example.demo.constant.WantedPostStatus;
 import com.example.demo.dto.BorrowRequestDto;
 import com.example.demo.model.BorrowRequest;
 import com.example.demo.model.Item;
+import com.example.demo.model.LendOffer;
 import com.example.demo.model.User;
 import com.example.demo.repository.BorrowRequestRepository;
 import com.example.demo.repository.ItemRepository;
+import com.example.demo.repository.LendOfferRepository;
 import com.example.demo.repository.UserRepository;
+import com.example.demo.repository.WantedPostRepository;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class BorrowRequestService {
@@ -22,14 +32,27 @@ public class BorrowRequestService {
     private final BorrowRequestRepository borrowRequestRepository;
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
+    private final LendOfferRepository lendOfferRepository;
+    private final WantedPostRepository wantedPostRepository;
 
     //define constructor
     public BorrowRequestService(BorrowRequestRepository borrowRequestRepository,
                                 ItemRepository itemRepository,
                                 UserRepository userRepository) {
+        this(borrowRequestRepository, itemRepository, userRepository, null, null);
+    }
+
+    @Autowired
+    public BorrowRequestService(BorrowRequestRepository borrowRequestRepository,
+                                ItemRepository itemRepository,
+                                UserRepository userRepository,
+                                LendOfferRepository lendOfferRepository,
+                                WantedPostRepository wantedPostRepository) {
         this.borrowRequestRepository = borrowRequestRepository;
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
+        this.lendOfferRepository = lendOfferRepository;
+        this.wantedPostRepository = wantedPostRepository;
     }
 
     // 1. ผู้ยืมสร้างคำขอยืม (Borrow Request)
@@ -147,7 +170,31 @@ public class BorrowRequestService {
         }
 
         itemRepository.save(item);
-        return borrowRequestRepository.save(request);
+        BorrowRequest savedRequest = borrowRequestRepository.save(request);
+
+        // Sync pending lend offers for this item + same requester: accept matching offer and fulfill post
+        if (lendOfferRepository != null && wantedPostRepository != null) {
+            for (LendOffer offer : lendOfferRepository.findByOfferedItemIdAndStatus(item.getId(), LendOfferStatus.PENDING)) {
+                wantedPostRepository.findById(offer.getWantedPostId()).ifPresent(post -> {
+                    if (post.getDeletedAt() == null && post.getRequesterId().equals(request.getBorrowerId())) {
+                        offer.setStatus(LendOfferStatus.ACCEPTED);
+                        lendOfferRepository.save(offer);
+                        if (post.getStatus() == WantedPostStatus.OPEN) {
+                            post.setStatus(WantedPostStatus.FULFILLED);
+                            wantedPostRepository.save(post);
+                        }
+                        for (LendOffer postOffer : lendOfferRepository.findByWantedPostIdOrderByCreatedAtDesc(post.getId())) {
+                            if (!postOffer.getId().equals(offer.getId()) && postOffer.getStatus() == LendOfferStatus.PENDING) {
+                                postOffer.setStatus(LendOfferStatus.REJECTED);
+                                lendOfferRepository.save(postOffer);
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        return savedRequest;
     }
 
     // 3.2. เจ้าของปฏิเสธคำขอ
@@ -203,7 +250,21 @@ public class BorrowRequestService {
         }
 
         itemRepository.save(item);
-        return borrowRequestRepository.save(request);
+        BorrowRequest savedRequest = borrowRequestRepository.save(request);
+
+        // Sync-reject any pending lend offer for the same item and requester when owner rejects
+        if ("reject".equals(normalized) && lendOfferRepository != null && wantedPostRepository != null) {
+            for (LendOffer offer : lendOfferRepository.findByOfferedItemIdAndStatus(item.getId(), LendOfferStatus.PENDING)) {
+                wantedPostRepository.findById(offer.getWantedPostId()).ifPresent(post -> {
+                    if (post.getDeletedAt() == null && post.getRequesterId().equals(request.getBorrowerId())) {
+                        offer.setStatus(LendOfferStatus.REJECTED);
+                        lendOfferRepository.save(offer);
+                    }
+                });
+            }
+        }
+
+        return savedRequest;
     }
 
     // 4.3 ผู้ยืมแก้ไขข้อมูลคำขอและส่งกลับมาให้เจ้าของพิจารณาใหม่
@@ -270,32 +331,106 @@ public class BorrowRequestService {
             item.setStatus(ItemStatus.AVAILABLE);
         }
 
+        if (lendOfferRepository != null && wantedPostRepository != null) {
+            List<LendOffer> acceptedOffers = lendOfferRepository.findByOfferedItemIdAndStatus(
+                    item.getId(),
+                    LendOfferStatus.ACCEPTED
+            );
+            for (LendOffer offer : acceptedOffers) {
+                wantedPostRepository.findById(offer.getWantedPostId()).ifPresent(post -> {
+                    if (post.getDeletedAt() == null && post.getRequesterId().equals(request.getBorrowerId())) {
+                        offer.setStatus(LendOfferStatus.PENDING);
+                        lendOfferRepository.save(offer);
+                        if (post.getStatus() == WantedPostStatus.FULFILLED) {
+                            post.setStatus(WantedPostStatus.OPEN);
+                            wantedPostRepository.save(post);
+                        }
+                    }
+                });
+            }
+        }
+
         itemRepository.save(item);
         return borrowRequestRepository.save(request);
     }
 
     // 5.1. ค้นหาคำขอทั้งหมดของผู้ยืม
     public List<BorrowRequest> getRequestsByBorrower(String borrowerId) {
-        return borrowRequestRepository.findByBorrowerId(borrowerId);
+        return populateMetadata(borrowRequestRepository.findByBorrowerId(borrowerId));
     }
 
     // 5.2. ค้นหาคำขอยืมที่เข้ามาสำหรับสิ่งของทั้งหมดของเจ้าของ (Owner)
     public List<BorrowRequest> getRequestsByOwner(String ownerId) {
         List<String> ownerItemIds = itemRepository.findByOwnerId(ownerId)
                 .stream()
-                .map(item -> item.getId())
+                .map(Item::getId)
                 .toList();
         if (ownerItemIds.isEmpty()) {
             return List.of();
         }
-        return borrowRequestRepository.findAll()
-                .stream()
-                .filter(req -> ownerItemIds.contains(req.getItemId()))
-                .toList();
+        return populateMetadata(
+                borrowRequestRepository.findAll()
+                        .stream()
+                        .filter(req -> ownerItemIds.contains(req.getItemId()))
+                        .toList()
+        );
     }
 
     // 5.3. ค้นหาคำขอทั้งหมดในระบบ
     public List<BorrowRequest> getAllRequests() {
-        return borrowRequestRepository.findAll();
+        return populateMetadata(borrowRequestRepository.findAll());
+    }
+
+    private List<BorrowRequest> populateMetadata(List<BorrowRequest> requests) {
+        if (requests == null || requests.isEmpty()) {
+            return requests;
+        }
+
+        Set<String> itemIds = requests.stream()
+                .map(BorrowRequest::getItemId)
+                .filter(Objects::nonNull)
+                .filter(id -> !id.isBlank())
+                .collect(Collectors.toSet());
+
+        Map<String, Item> itemMap = itemIds.isEmpty()
+                ? Map.of()
+                : itemRepository.findAllById(itemIds).stream()
+                        .collect(Collectors.toMap(Item::getId, item -> item, (a, b) -> a));
+
+        Set<String> userIds = new java.util.HashSet<>();
+        for (BorrowRequest req : requests) {
+            if (req.getBorrowerId() != null && !req.getBorrowerId().isBlank()) {
+                userIds.add(req.getBorrowerId());
+            }
+            Item item = itemMap.get(req.getItemId());
+            if (item != null && item.getOwnerId() != null && !item.getOwnerId().isBlank()) {
+                userIds.add(item.getOwnerId());
+            }
+        }
+
+        Map<String, String> userNameMap = userIds.isEmpty()
+                ? Map.of()
+                : userRepository.findAllById(userIds).stream()
+                        .collect(Collectors.toMap(
+                                User::getStudentId,
+                                user -> (user.getFullName() != null && !user.getFullName().isBlank())
+                                        ? user.getFullName()
+                                        : (user.getUsername() != null ? user.getUsername() : user.getStudentId()),
+                                (a, b) -> a
+                        ));
+
+        for (BorrowRequest req : requests) {
+            Item item = itemMap.get(req.getItemId());
+            if (item != null) {
+                req.setOwnerId(item.getOwnerId());
+                req.setItemName(item.getTitle());
+                req.setItemImage(item.getImageUrl());
+                req.setOwnerName(userNameMap.getOrDefault(item.getOwnerId(), item.getOwnerId()));
+            }
+            if (req.getBorrowerId() != null) {
+                req.setBorrowerName(userNameMap.getOrDefault(req.getBorrowerId(), req.getBorrowerId()));
+            }
+        }
+        return requests;
     }
 }

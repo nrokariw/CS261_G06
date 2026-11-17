@@ -226,4 +226,146 @@ class WantedPostIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + outsiderToken))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    @DisplayName("US-BRRQS (#124): resetting an offer-created borrow request to pending reverts offer to PENDING and post to OPEN")
+    void resettingOfferCreatedBorrowRequestRevertsOfferAndReopensPost() throws Exception {
+        MvcResult createRes = mockMvc.perform(post("/api/wanted-posts")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + requesterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "title", "เครื่องคิดเลขวิทยาศาสตร์",
+                                "category", "electronics"
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String postId = objectMapper.readTree(createRes.getResponse().getContentAsString()).get("id").asText();
+
+        MvcResult offerRes = mockMvc.perform(post("/api/wanted-posts/" + postId + "/offers")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + lenderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "offeredItemId", lenderItem.getId(),
+                                "message", "ให้ยืมได้ครับ"
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String offerId = objectMapper.readTree(offerRes.getResponse().getContentAsString()).get("id").asText();
+
+        MvcResult acceptRes = mockMvc.perform(post("/api/wanted-posts/" + postId + "/offers/" + offerId + "/accept")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + requesterToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String borrowRequestId = objectMapper.readTree(acceptRes.getResponse().getContentAsString())
+                .get("borrowRequestId").asText();
+
+        mockMvc.perform(post("/api/requests/" + borrowRequestId + "/reset")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + lenderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"));
+
+        assertThat(lendOfferRepository.findById(offerId).orElseThrow().getStatus())
+                .isEqualTo(LendOfferStatus.PENDING);
+        assertThat(wantedPostRepository.findById(postId).orElseThrow().getStatus())
+                .isEqualTo(WantedPostStatus.OPEN);
+        assertThat(itemRepository.findById(lenderItem.getId()).orElseThrow().getStatus())
+                .isEqualTo(ItemStatus.AVAILABLE);
+    }
+
+    @Test
+    @DisplayName("US-BRRQS (#124): rejecting an offer also rejects pending borrow request for the same item and requester")
+    void rejectingOfferSyncRejectsMatchingBorrowRequest() throws Exception {
+        BorrowRequest pendingReq = new BorrowRequest(
+                UUID.randomUUID().toString(),
+                lenderItem.getId(),
+                REQUESTER_ID,
+                LocalDateTime.now().plusDays(1),
+                LocalDateTime.now().plusDays(3),
+                "ขอยืมตรง",
+                RequestStatus.PENDING,
+                LocalDateTime.now()
+        );
+        borrowRequestRepository.save(pendingReq);
+
+        MvcResult createRes = mockMvc.perform(post("/api/wanted-posts")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + requesterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "title", "เครื่องคิดเลขวิทยาศาสตร์",
+                                "category", "electronics"
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String postId = objectMapper.readTree(createRes.getResponse().getContentAsString()).get("id").asText();
+
+        MvcResult offerRes = mockMvc.perform(post("/api/wanted-posts/" + postId + "/offers")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + lenderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "offeredItemId", lenderItem.getId(),
+                                "message", "ให้ยืมได้ครับ"
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String offerId = objectMapper.readTree(offerRes.getResponse().getContentAsString()).get("id").asText();
+
+        mockMvc.perform(post("/api/wanted-posts/" + postId + "/offers/" + offerId + "/reject")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + requesterToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("rejected"));
+
+        assertThat(borrowRequestRepository.findById(pendingReq.getId()).orElseThrow().getStatus())
+                .isEqualTo(RequestStatus.REJECTED);
+    }
+
+    @Test
+    @DisplayName("US-BRRQS (#124): rejecting a borrow request also rejects pending lend offer for the same item and requester")
+    void rejectingBorrowRequestSyncRejectsMatchingOffer() throws Exception {
+        BorrowRequest pendingReq = new BorrowRequest(
+                UUID.randomUUID().toString(),
+                lenderItem.getId(),
+                REQUESTER_ID,
+                LocalDateTime.now().plusDays(1),
+                LocalDateTime.now().plusDays(3),
+                "ขอยืมตรง",
+                RequestStatus.PENDING,
+                LocalDateTime.now()
+        );
+        borrowRequestRepository.save(pendingReq);
+
+        MvcResult createRes = mockMvc.perform(post("/api/wanted-posts")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + requesterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "title", "เครื่องคิดเลขวิทยาศาสตร์",
+                                "category", "electronics"
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String postId = objectMapper.readTree(createRes.getResponse().getContentAsString()).get("id").asText();
+
+        MvcResult offerRes = mockMvc.perform(post("/api/wanted-posts/" + postId + "/offers")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + lenderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "offeredItemId", lenderItem.getId(),
+                                "message", "ให้ยืมได้ครับ"
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String offerId = objectMapper.readTree(offerRes.getResponse().getContentAsString()).get("id").asText();
+
+        mockMvc.perform(post("/api/requests/" + pendingReq.getId() + "/reject")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + lenderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("reason", "ไม่สะดวกให้ยืม"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REJECTED"));
+
+        assertThat(lendOfferRepository.findById(offerId).orElseThrow().getStatus())
+                .isEqualTo(LendOfferStatus.REJECTED);
+    }
 }

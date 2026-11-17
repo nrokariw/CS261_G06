@@ -209,4 +209,35 @@ class LoanEvidenceIntegrationTest {
                 .andExpect(jsonPath("$.returnImageUrl").doesNotExist())
                 .andExpect(jsonPath("$.evidences", hasSize(1)));
     }
+
+    @Test
+    @DisplayName("US-08 Soft Delete (#123): owner still sees request history, item metadata, and loan evidence after item soft delete")
+    void ownerRetainsRequestHistoryAndEvidenceAfterItemSoftDelete() throws Exception {
+        Item item = itemRepository.findById(testRequest.getItemId()).orElseThrow();
+        item.delete();
+        itemRepository.save(item);
+
+        mockMvc.perform(get("/api/requests")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + lenderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(testRequest.getId()))
+                .andExpect(jsonPath("$[0].ownerId").value(LENDER_ID))
+                .andExpect(jsonPath("$[0].itemName").value("Casio fx-991EX"));
+
+        mockMvc.perform(get("/api/requests/owner/" + LENDER_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + lenderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(testRequest.getId()))
+                .andExpect(jsonPath("$[0].ownerId").value(LENDER_ID))
+                .andExpect(jsonPath("$[0].itemName").value("Casio fx-991EX"));
+
+        mockMvc.perform(get("/api/transactions/" + testRequest.getId() + "/evidence")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + lenderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.requestId").value(testRequest.getId()))
+                .andExpect(jsonPath("$.itemTitle").value("Casio fx-991EX"))
+                .andExpect(jsonPath("$.evidences", hasSize(2)));
+    }
 }
