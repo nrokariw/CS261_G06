@@ -336,8 +336,8 @@ class TuAuthSyncIntegrationTest {
     }
 
     @Test
-    @DisplayName("US-09.1 Quota Protection: IP rate limiter blocks 6th attempt within window with 429")
-    void ipRateLimiterBlocksSixthFailedAttemptWithinWindowWith429() throws Exception {
+    @DisplayName("US-09.1 Quota Protection: Ban by username (5 failures/15m) and by real client IP (20 failures/5m)")
+    void ipAndUsernameRateLimiterEnforcesSeparateLimitsWithRealClientIp() throws Exception {
         handlerRef.set((u, p) -> new MockTuResponse(400, """
                 {
                   "status": false,
@@ -345,13 +345,19 @@ class TuAuthSyncIntegrationTest {
                 }
                 """));
 
-        int previousMaxAttempts = loginRateLimiter.getMaxAttempts();
-        loginRateLimiter.setMaxAttempts(5);
+        int previousIpMaxAttempts = loginRateLimiter.getMaxAttempts();
+        int previousUsernameMaxAttempts = loginRateLimiter.getUsernameMaxAttempts();
+        loginRateLimiter.setMaxAttempts(20);
+        loginRateLimiter.setUsernameMaxAttempts(5);
         try {
-            String clientIp = "203.0.113.10";
+            // Even if Nginx sets X-Real-IP to a shared proxy IP, CF-Connecting-IP identifies the real client
+            String proxyIp = "192.168.65.1";
+            String clientIpA = "203.0.113.10";
             for (int i = 1; i <= 5; i++) {
                 mockMvc.perform(post("/api/auth/login")
-                                .header("X-Real-IP", clientIp)
+                                .header("CF-Connecting-IP", clientIpA)
+                                .header("X-Forwarded-For", clientIpA + ", " + proxyIp)
+                                .header("X-Real-IP", proxyIp)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(Map.of("username", "6809990004", "password", "wrong" + i))))
                         .andExpect(status().isUnauthorized());
@@ -359,25 +365,49 @@ class TuAuthSyncIntegrationTest {
 
             assertThat(tuApiCallCount.get()).isEqualTo(5);
 
-            // 6th attempt from the same IP must be rejected with 429 before calling TU API
+            // 6th attempt for the same username must be rejected with 429 before calling TU API
             mockMvc.perform(post("/api/auth/login")
-                            .header("X-Real-IP", clientIp)
+                            .header("CF-Connecting-IP", "203.0.113.11")
+                            .header("X-Real-IP", proxyIp)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(Map.of("username", "6809990004", "password", "wrong6"))))
-                    .andExpect(status().isTooManyRequests());
+                    .andExpect(status().isTooManyRequests())
+                    .andExpect(jsonPath("$.message").value("Too many login attempts. Please try again later."));
 
             assertThat(tuApiCallCount.get()).isEqualTo(5);
 
-            // A different client IP is still allowed to attempt login
+            // Another user behind the same proxy X-Real-IP (different CF-Connecting-IP & username) is still allowed
             mockMvc.perform(post("/api/auth/login")
-                            .header("X-Real-IP", "203.0.113.11")
+                            .header("CF-Connecting-IP", "203.0.113.11")
+                            .header("X-Real-IP", proxyIp)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(Map.of("username", "6809990004", "password", "wrong1"))))
+                            .content(objectMapper.writeValueAsString(Map.of("username", "6809990005", "password", "wrong1"))))
                     .andExpect(status().isUnauthorized());
 
             assertThat(tuApiCallCount.get()).isEqualTo(6);
+
+            // Exhaust IP limit (20 attempts) from a dedicated IP using different usernames
+            String spamIp = "203.0.113.50";
+            for (int i = 1; i <= 20; i++) {
+                mockMvc.perform(post("/api/auth/login")
+                                .header("X-Forwarded-For", spamIp + ", " + proxyIp)
+                                .header("X-Real-IP", proxyIp)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(Map.of("username", "68099910" + i, "password", "wrong"))))
+                        .andExpect(status().isUnauthorized());
+            }
+
+            // 21st attempt from spamIp must be rejected with 429 ("There are too many traffic")
+            mockMvc.perform(post("/api/auth/login")
+                            .header("X-Forwarded-For", spamIp + ", " + proxyIp)
+                            .header("X-Real-IP", proxyIp)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("username", "6809999999", "password", "wrong"))))
+                    .andExpect(status().isTooManyRequests())
+                    .andExpect(jsonPath("$.message").value("There are too many traffic"));
         } finally {
-            loginRateLimiter.setMaxAttempts(previousMaxAttempts);
+            loginRateLimiter.setMaxAttempts(previousIpMaxAttempts);
+            loginRateLimiter.setUsernameMaxAttempts(previousUsernameMaxAttempts);
             loginRateLimiter.reset();
         }
     }
