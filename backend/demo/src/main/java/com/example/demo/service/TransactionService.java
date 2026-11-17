@@ -2,12 +2,11 @@ package com.example.demo.service;
 
 import com.example.demo.constant.ItemStatus;
 import com.example.demo.constant.ProofType;
-import com.example.demo.constant.ItemStatus;
-import com.example.demo.constant.ProofType;
 import com.example.demo.constant.RequestStatus;
 import com.example.demo.constant.TransactionStatus;
 import com.example.demo.dto.HandoverRequestDto;
 import com.example.demo.dto.ReturnRequestDto;
+import com.example.demo.dto.LoanEvidenceResponseDto;
 import com.example.demo.model.BorrowRequest;
 import com.example.demo.model.EvidenceProof;
 import com.example.demo.model.Item;
@@ -25,6 +24,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class TransactionService {
@@ -241,4 +241,81 @@ public class TransactionService {
 
         return savedTransaction;
     }
+
+    // T-8.1: ดึงรายละเอียดหลักฐานการยืม-คืน (รองรับทั้ง requestId และ transactionId)
+    @Transactional(readOnly = true)
+    public LoanEvidenceResponseDto getLoanEvidenceDetail(String requestOrTransactionId, String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
+
+        // 1. ค้นหาจาก requestId ก่อน หากไม่พบให้ลองค้นหาจาก transactionId
+        Optional<Transaction> matchedTxOpt = Optional.empty();
+        BorrowRequest request = borrowRequestRepository.findById(requestOrTransactionId).orElse(null);
+        if (request == null) {
+            Transaction txById = transactionRepository.findById(requestOrTransactionId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบข้อมูลรายการยืมนี้ในระบบ"));
+            matchedTxOpt = Optional.of(txById);
+            request = borrowRequestRepository.findById(txById.getRequestId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบข้อมูลรายการยืมนี้ในระบบ"));
+        }
+
+        Item item = itemRepository.findById(request.getItemId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบข้อมูลสิ่งของในระบบ"));
+
+        // 2. ตรวจสอบสิทธิ์แบบ null-safe: อนุญาตเฉพาะผู้ยืม (Borrower) หรือเจ้าของไอเท็ม (Owner/Lender)
+        boolean isBorrower = userId.equals(request.getBorrowerId());
+        boolean isLender = userId.equals(item.getOwnerId());
+        if (!isBorrower && !isLender) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "บุคคลภายนอกไม่ได้รับอนุญาตให้เข้าถึงข้อมูลประวัตินี้");
+        }
+
+        // 3. Mapping ข้อมูลพื้นฐานใส่ DTO
+        LoanEvidenceResponseDto responseDto = new LoanEvidenceResponseDto();
+        responseDto.setRequestId(request.getId());
+        responseDto.setRequestStatus(request.getStatus() != null ? request.getStatus().name() : null);
+        responseDto.setBorrowerId(request.getBorrowerId());
+        responseDto.setOwnerId(item.getOwnerId());
+        responseDto.setItemId(item.getId());
+        responseDto.setItemTitle(item.getTitle());
+        responseDto.setItemCategory(item.getCategory());
+
+        // 4. ค้นหา Transaction และรายการ EvidenceProof ทั้งหมด
+        Optional<Transaction> transactionOpt = matchedTxOpt.isPresent()
+                ? matchedTxOpt
+                : transactionRepository.findByRequestId(request.getId());
+
+        if (transactionOpt.isPresent()) {
+            Transaction tx = transactionOpt.get();
+            responseDto.setTransactionId(tx.getId());
+            responseDto.setTransactionStatus(tx.getStatus() != null ? tx.getStatus().name() : null);
+            responseDto.setBorrowedAt(tx.getBorrowedAt());
+            responseDto.setReturnedAt(tx.getReturnedAt());
+
+            List<EvidenceProof> proofs = evidenceProofRepository.findByTransactionId(tx.getId());
+            for (EvidenceProof proof : proofs) {
+                LoanEvidenceResponseDto.EvidenceItemDto proofDto = new LoanEvidenceResponseDto.EvidenceItemDto();
+                proofDto.setId(proof.getId());
+                proofDto.setUploaderId(proof.getUploaderId());
+                proofDto.setProofType(proof.getProofType() != null ? proof.getProofType().name() : null);
+                proofDto.setImageUrl(proof.getImageUrl());
+                proofDto.setNote(proof.getNote());
+                proofDto.setCapturedAt(proof.getCapturedAt());
+                responseDto.getEvidences().add(proofDto);
+
+                if (proof.getProofType() == ProofType.HANDOVER) {
+                    responseDto.setHandoverImageUrl(proof.getImageUrl());
+                    responseDto.setHandoverNote(proof.getNote());
+                    responseDto.setHandoverTimestamp(proof.getCapturedAt());
+                } else if (proof.getProofType() == ProofType.RETURN) {
+                    responseDto.setReturnImageUrl(proof.getImageUrl());
+                    responseDto.setReturnNote(proof.getNote());
+                    responseDto.setReturnTimestamp(proof.getCapturedAt());
+                }
+            }
+        }
+
+        return responseDto;
+    }
+
 }
