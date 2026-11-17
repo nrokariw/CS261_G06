@@ -125,10 +125,8 @@ export function ItemCard({ item }) {
             {item.name}
           </Link>
           <div className="mt-2 flex items-center gap-1.5 text-xs text-[var(--muted)]">
-            <span className="w-5 h-5 rounded-full bg-[var(--peach)] text-[var(--brown)] grid place-items-center shrink-0">
-              <UserRound size={12} />
-            </span>
-            <span className="truncate">{item.owner}</span>
+            <Avatar name={item.owner} size="xs" />
+            <span className="truncate" title={item.owner}>{item.owner}</span>
           </div>
         </div>
         <div className="mt-3.5 pt-3 border-t border-[var(--border)] flex items-center justify-between gap-2.5">
@@ -157,6 +155,7 @@ export function EmptyState({ title, description }) {
 }
 
 const AVATAR_SIZE_CLASSES = {
+  xs: "w-5 h-5 text-[10px]",
   sm: "w-7 h-7 text-xs",
   md: "w-9 h-9 text-sm",
   lg: "w-11 h-11 text-base",

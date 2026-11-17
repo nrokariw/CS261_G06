@@ -45,6 +45,9 @@ export default defineConfig(({ mode }) => {
           rootEnv.API_CATEGORIES_PATH ||
           "/api/categories",
       ),
+      "import.meta.env.VITE_ITEMS_PER_PAGE": JSON.stringify(
+        rootEnv.VITE_ITEMS_PER_PAGE || rootEnv.ITEMS_PER_PAGE || "9",
+      ),
     },
     server: {
       port: Number(rootEnv.FRONTEND_PORT || 3000),

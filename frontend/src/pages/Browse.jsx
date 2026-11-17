@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Search, Plus, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
+import { Search, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { getActiveCategoryCodes, normalizeCategoryKey } from "../data";
 import { ItemCard, PageHeading, EmptyState, getLocalizedCategoryLabel } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvailableItems } from "../api/itemsApi";
+import { ITEMS_PER_PAGE } from "../constants/config";
 
 export default function Browse({
   items: propItems,
@@ -21,9 +22,14 @@ export default function Browse({
   const { t, i18n } = useTranslation();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
   const activeCategories = Array.isArray(propCategories)
     ? propCategories
     : getActiveCategoryCodes();
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, category]);
 
   // เพิ่ม useEffect เพื่อดึงข้อมูลจาก API หากไม่ได้ส่ง items ผ่าน props
   useEffect(() => {
@@ -92,6 +98,13 @@ export default function Browse({
     [rawItems, requests, user, query, category, t, i18n.language],
   );
 
+  const totalPages = Math.max(1, Math.ceil(availableItems.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedItems = useMemo(() => {
+    const start = (safePage - 1) * ITEMS_PER_PAGE;
+    return availableItems.slice(start, start + ITEMS_PER_PAGE);
+  }, [availableItems, safePage]);
+
   if (isLoading) return <div className="flex flex-col gap-6 text-sm text-[var(--muted)]">{t("common.loading", { defaultValue: "กำลังโหลดข้อมูล..." })}</div>;
   if (error) return <div className="flex flex-col gap-6"><EmptyState title={t("common.error", { defaultValue: "เกิดข้อผิดพลาด" })} description={error} /></div>;
 
@@ -150,11 +163,68 @@ export default function Browse({
         ))}
       </div>
       {availableItems.length ? (
-        <section className="grid grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-3 gap-5">
-          {availableItems.map((item) => (
-            <ItemCard key={item.id} item={item} />
-          ))}
-        </section>
+        <>
+          <section className="grid grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-3 gap-5">
+            {paginatedItems.map((item) => (
+              <ItemCard key={item.id} item={item} />
+            ))}
+          </section>
+          {totalPages > 1 && (
+            <nav
+              className="flex flex-wrap items-center justify-between gap-3 pt-2"
+              aria-label={t("browse.paginationLabel", { defaultValue: "เปลี่ยนหน้า" })}
+            >
+              <span className="text-xs text-[var(--muted)]">
+                {t("browse.pageInfo", {
+                  page: safePage,
+                  total: totalPages,
+                  defaultValue: `หน้า ${safePage} จาก ${totalPages}`,
+                })}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  className="button button-outline button-sm"
+                  disabled={safePage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  aria-label={t("browse.prevPage", { defaultValue: "ก่อนหน้า" })}
+                >
+                  <ChevronLeft size={15} />
+                  <span className="hidden sm:inline">
+                    {t("browse.prevPage", { defaultValue: "ก่อนหน้า" })}
+                  </span>
+                </button>
+                {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((pageNum) => (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => setCurrentPage(pageNum)}
+                    aria-current={pageNum === safePage ? "page" : undefined}
+                    className={`w-8 h-8 rounded-lg text-xs font-semibold border cursor-pointer transition-colors ${
+                      pageNum === safePage
+                        ? "bg-[var(--primary)] border-[var(--primary)] text-white shadow-xs"
+                        : "bg-[var(--surface)] border-[var(--border)] text-[var(--text)] hover:border-[var(--primary)]"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="button button-outline button-sm"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  aria-label={t("browse.nextPage", { defaultValue: "ถัดไป" })}
+                >
+                  <span className="hidden sm:inline">
+                    {t("browse.nextPage", { defaultValue: "ถัดไป" })}
+                  </span>
+                  <ChevronRight size={15} />
+                </button>
+              </div>
+            </nav>
+          )}
+        </>
       ) : (
         <EmptyState
           title={t("browse.emptyTitle")}

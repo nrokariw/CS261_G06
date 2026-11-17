@@ -12,7 +12,7 @@ import {
   Send,
   LogIn,
 } from "lucide-react";
-import { PageHeading, StatusBadge, CategoryBadge } from "../components/UI";
+import { PageHeading, StatusBadge, CategoryBadge, Avatar } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { BORROW_REASON_MAX_LENGTH } from "../constants/config";
 import { createBorrowRequest, normalizeBorrowRequest, resubmitBorrowRequest } from "../api/requestsApi";
@@ -223,9 +223,7 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
               {item.name}
             </h1>
             <div className="mt-5 flex flex-wrap items-center gap-3 p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border)]">
-              <span className="w-10 h-10 rounded-full bg-[var(--peach)] text-[var(--primary)] grid place-items-center shrink-0">
-                <UserRound size={20} />
-              </span>
+              <Avatar name={item.owner} size="md" />
               <div className="min-w-0 flex-1 flex flex-col">
                 <strong className="text-sm font-semibold text-[var(--text)] truncate">
                   {item.owner}
