@@ -1,15 +1,21 @@
 package com.example.demo.service;
 
 import com.example.demo.constant.ItemStatus;
+import com.example.demo.constant.LendOfferStatus;
 import com.example.demo.constant.RequestStatus;
+import com.example.demo.constant.WantedPostStatus;
 import com.example.demo.dto.BorrowRequestDto;
 import com.example.demo.model.BorrowRequest;
 import com.example.demo.model.Item;
+import com.example.demo.model.LendOffer;
 import com.example.demo.model.User;
 import com.example.demo.repository.BorrowRequestRepository;
 import com.example.demo.repository.ItemRepository;
+import com.example.demo.repository.LendOfferRepository;
 import com.example.demo.repository.UserRepository;
+import com.example.demo.repository.WantedPostRepository;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,14 +28,27 @@ public class BorrowRequestService {
     private final BorrowRequestRepository borrowRequestRepository;
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
+    private final LendOfferRepository lendOfferRepository;
+    private final WantedPostRepository wantedPostRepository;
 
     //define constructor
     public BorrowRequestService(BorrowRequestRepository borrowRequestRepository,
                                 ItemRepository itemRepository,
                                 UserRepository userRepository) {
+        this(borrowRequestRepository, itemRepository, userRepository, null, null);
+    }
+
+    @Autowired
+    public BorrowRequestService(BorrowRequestRepository borrowRequestRepository,
+                                ItemRepository itemRepository,
+                                UserRepository userRepository,
+                                LendOfferRepository lendOfferRepository,
+                                WantedPostRepository wantedPostRepository) {
         this.borrowRequestRepository = borrowRequestRepository;
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
+        this.lendOfferRepository = lendOfferRepository;
+        this.wantedPostRepository = wantedPostRepository;
     }
 
     // 1. ผู้ยืมสร้างคำขอยืม (Borrow Request)
@@ -268,6 +287,25 @@ public class BorrowRequestService {
 
         if (!hasOtherAccepted && item.getStatus() == ItemStatus.RESERVED) {
             item.setStatus(ItemStatus.AVAILABLE);
+        }
+
+        if (lendOfferRepository != null && wantedPostRepository != null) {
+            List<LendOffer> acceptedOffers = lendOfferRepository.findByOfferedItemIdAndStatus(
+                    item.getId(),
+                    LendOfferStatus.ACCEPTED
+            );
+            for (LendOffer offer : acceptedOffers) {
+                wantedPostRepository.findById(offer.getWantedPostId()).ifPresent(post -> {
+                    if (post.getDeletedAt() == null && post.getRequesterId().equals(request.getBorrowerId())) {
+                        offer.setStatus(LendOfferStatus.PENDING);
+                        lendOfferRepository.save(offer);
+                        if (post.getStatus() == WantedPostStatus.FULFILLED) {
+                            post.setStatus(WantedPostStatus.OPEN);
+                            wantedPostRepository.save(post);
+                        }
+                    }
+                });
+            }
         }
 
         itemRepository.save(item);

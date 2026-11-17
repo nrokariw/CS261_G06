@@ -226,4 +226,52 @@ class WantedPostIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + outsiderToken))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    @DisplayName("US-BRRQS (#124): resetting an offer-created borrow request to pending reverts offer to PENDING and post to OPEN")
+    void resettingOfferCreatedBorrowRequestRevertsOfferAndReopensPost() throws Exception {
+        MvcResult createRes = mockMvc.perform(post("/api/wanted-posts")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + requesterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "title", "เครื่องคิดเลขวิทยาศาสตร์",
+                                "category", "electronics"
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String postId = objectMapper.readTree(createRes.getResponse().getContentAsString()).get("id").asText();
+
+        MvcResult offerRes = mockMvc.perform(post("/api/wanted-posts/" + postId + "/offers")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + lenderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "offeredItemId", lenderItem.getId(),
+                                "message", "ให้ยืมได้ครับ"
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String offerId = objectMapper.readTree(offerRes.getResponse().getContentAsString()).get("id").asText();
+
+        MvcResult acceptRes = mockMvc.perform(post("/api/wanted-posts/" + postId + "/offers/" + offerId + "/accept")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + requesterToken))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String borrowRequestId = objectMapper.readTree(acceptRes.getResponse().getContentAsString())
+                .get("borrowRequestId").asText();
+
+        mockMvc.perform(post("/api/requests/" + borrowRequestId + "/reset")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + lenderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"));
+
+        assertThat(lendOfferRepository.findById(offerId).orElseThrow().getStatus())
+                .isEqualTo(LendOfferStatus.PENDING);
+        assertThat(wantedPostRepository.findById(postId).orElseThrow().getStatus())
+                .isEqualTo(WantedPostStatus.OPEN);
+        assertThat(itemRepository.findById(lenderItem.getId()).orElseThrow().getStatus())
+                .isEqualTo(ItemStatus.AVAILABLE);
+    }
 }

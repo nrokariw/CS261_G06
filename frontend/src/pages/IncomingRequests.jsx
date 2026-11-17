@@ -278,6 +278,12 @@ export default function IncomingRequests({
           ),
         );
       }
+      if (status === "pending" && typeof setMyWantedPosts === "function") {
+        const updatedPosts = await getMyWantedPosts(authToken).catch(() => null);
+        if (Array.isArray(updatedPosts)) {
+          setMyWantedPosts(updatedPosts);
+        }
+      }
     } catch (err) {
       setActionError(err.message || t("validation.submitFailed"));
     }
