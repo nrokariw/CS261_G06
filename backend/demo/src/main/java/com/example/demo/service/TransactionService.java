@@ -1,20 +1,30 @@
 package com.example.demo.service;
 
 import com.example.demo.constant.ItemStatus;
+import com.example.demo.constant.ProofType;
+import com.example.demo.constant.RequestStatus;
 import com.example.demo.constant.TransactionStatus;
+import com.example.demo.dto.HandoverRequestDto;
+import com.example.demo.dto.ReturnRequestDto;
+import com.example.demo.dto.LoanEvidenceResponseDto;
 import com.example.demo.model.BorrowRequest;
+import com.example.demo.model.EvidenceProof;
 import com.example.demo.model.Item;
 import com.example.demo.model.Transaction;
 import com.example.demo.repository.BorrowRequestRepository;
+import com.example.demo.repository.EvidenceProofRepository;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.TransactionRepository;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class TransactionService {
@@ -23,14 +33,23 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final BorrowRequestRepository borrowRequestRepository;
     private final ItemRepository itemRepository;
+    private final EvidenceProofRepository evidenceProofRepository;
+    private final FileStorageService fileStorageService;
+    private final EvidenceProofService evidenceProofService;
 
     //define constructor
     public TransactionService(TransactionRepository transactionRepository,
                               BorrowRequestRepository borrowRequestRepository,
-                              ItemRepository itemRepository) {
+                              ItemRepository itemRepository,
+                              EvidenceProofRepository evidenceProofRepository,
+                              FileStorageService fileStorageService,
+                              EvidenceProofService evidenceProofService) {
         this.transactionRepository = transactionRepository;
         this.borrowRequestRepository = borrowRequestRepository;
         this.itemRepository = itemRepository;
+        this.evidenceProofRepository = evidenceProofRepository;
+        this.fileStorageService = fileStorageService;
+        this.evidenceProofService = evidenceProofService;
     }
 
     // 1. อนุมัติคำขอและสร้าง Transaction เริ่มต้นการยืม
@@ -58,7 +77,7 @@ public class TransactionService {
         // สร้าง Transaction ใหม่โดยใช้ค่าที่ได้จาก TransactionStatus และกำหนดเวลาเป็น UTC+0
         Transaction transaction = new Transaction();
         transaction.setId(java.util.UUID.randomUUID().toString());
-        transaction.setRequestId(request.getId()); // ผูกกับ Request ID
+        transaction.setBorrowRequest(request); // ใช้เซ็ตออบเจ็กต์แทนการเซ็ต String ID ตรงๆ (ผูกกับ Request ID)
         transaction.setItemId(request.getItemId());
         transaction.setBorrowerId(request.getBorrowerId());
         transaction.setLenderId(item.getOwnerId()); // ดึงรหัสเจ้าของไอเท็มมาเป็น lenderId
@@ -100,6 +119,203 @@ public class TransactionService {
     // 3.2. ค้นหาประวัติธุรกรรมของไอเท็มชิ้นนั้นๆ
     public List<Transaction> getTransactionsByItem(String itemId) {
         return transactionRepository.findByItemId(itemId);
+    }
+
+    /**
+     * T-6.2: บันทึกหลักฐานการส่งมอบสิ่งของ (Handover Evidence) พร้อมอัปโหลดรูปภาพ
+     */
+    @Transactional
+    public Transaction createHandoverEvidence(String requestId, String currentUserId, HandoverRequestDto dto) {
+        // 1. ตรวจสอบว่ามีการแนบรูปภาพมาหรือไม่ (400 Bad Request)
+        if (dto.getImageFile() == null || dto.getImageFile().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "กรุณาแนบรูปภาพสภาพสิ่งของ");
+        }
+
+        // 2. ค้นหาข้อมูลคำขอยืมและไอเท็ม
+        BorrowRequest request = borrowRequestRepository.findById(requestId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบข้อมูลคำขอยืม"));
+
+        Item item = itemRepository.findById(request.getItemId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบข้อมูลสิ่งของ"));
+
+        // 3. ตรวจสอบสิทธิ์คู่กรณี: User ต้องเป็น Borrower หรือ Owner (Lender) ของไอเท็มเท่านั้น (403 Forbidden)
+        boolean isBorrower = request.getBorrowerId().equals(currentUserId);
+        boolean isLender = item.getOwnerId().equals(currentUserId);
+        if (!isBorrower && !isLender) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ผู้ใช้งานไม่มีสิทธิ์บันทึกหลักฐานในรายการยืมนี้");
+        }
+
+        // 4. ตรวจสอบสถานะคำขอต้องเป็น ACCEPTED และยังไม่เคยส่งมอบมาก่อน (409 Conflict)
+        if (request.getStatus() != RequestStatus.ACCEPTED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "สถานะรายการไม่ถูกต้อง (ต้องเป็น Accepted เท่านั้น)");
+        }
+        if (transactionRepository.existsByRequestId(requestId)
+                || (item.getStatus() != ItemStatus.AVAILABLE && item.getStatus() != ItemStatus.RESERVED)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "รายการนี้ถูกส่งมอบหรือสิ่งของถูกยืมไปแล้ว");
+        }
+
+        // 5. อัปโหลดไฟล์รูปภาพหลักฐานผ่าน FileStorageService (บันทึกลง uploads/evidence และตรวจ Mime-type/Size)
+        String imageUrl = fileStorageService.storeEvidenceFile(dto.getImageFile());
+
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+
+        // 6. สร้างและบันทึกข้อมูลลงตาราง borrowing_transaction
+        Transaction transaction = new Transaction();
+        transaction.setId(java.util.UUID.randomUUID().toString());
+        transaction.setBorrowRequest(request);
+        transaction.setItemId(request.getItemId());
+        transaction.setBorrowerId(request.getBorrowerId());
+        transaction.setLenderId(item.getOwnerId());
+        transaction.setStatus(TransactionStatus.ACTIVE);
+        transaction.setBorrowedAt(now);
+        transaction.setReturnedAt(null);
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        // 7. บันทึกหลักฐานรูปลงตาราง evidence_proof (ProofType.HANDOVER)
+        EvidenceProof proof = new EvidenceProof();
+        proof.setId(java.util.UUID.randomUUID().toString());
+        proof.setTransaction(savedTransaction);
+        proof.setUploaderId(currentUserId);
+        proof.setProofType(ProofType.HANDOVER);
+        proof.setImageUrl(imageUrl);
+        proof.setNote(dto.getEffectiveNote());
+        proof.setCapturedAt(now);
+        evidenceProofRepository.save(proof);
+
+        // 8. อัปเดตสถานะของสิ่งของเป็น BORROWED
+        item.setStatus(ItemStatus.BORROWED);
+        itemRepository.save(item);
+
+        return savedTransaction;
+    }
+
+    // T-7.1: บันทึกหลักฐานการส่งคืนสิ่งของและอัปเดตสถานะ
+    @Transactional
+    public Transaction submitReturnEvidence(String requestId, String currentUserId, ReturnRequestDto dto) {
+        // 1. ตรวจสอบไฟล์รูปภาพ
+        if (dto == null || dto.getImageFile() == null || dto.getImageFile().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "กรุณาแนบรูปภาพหลักฐานสภาพสิ่งของตอนส่งคืน");
+        }
+
+        // 2. ค้นหา Transaction
+        Transaction transaction = transactionRepository.findByRequestId(requestId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบประวัติธุรกรรมการยืมสำหรับคำขอนี้"));
+
+        // 3. ตรวจสอบสิทธิ์คู่กรณี
+        boolean isBorrower = transaction.getBorrowerId().equals(currentUserId);
+        boolean isLender = transaction.getLenderId().equals(currentUserId);
+        if (!isBorrower && !isLender) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ผู้ใช้งานไม่มีสิทธิ์บันทึกการส่งคืนในรายการนี้");
+        }
+
+        // 4. ตรวจสอบสถานะรายการยืมต้องเป็น ACTIVE
+        if (transaction.getStatus() != TransactionStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "สถานะรายการไม่ถูกต้องสำหรับการส่งคืน (รายการไม่ได้อยู่ในสถานะกำลังยืม)");
+        }
+
+        // 5. อัปโหลดไฟล์รูปภาพหลักฐานลง storage/evidence
+        String imageUrl = fileStorageService.storeEvidenceFile(dto.getImageFile());
+
+        // 6. ปิดรอบ Transaction และคืนสถานะ Item เป็น AVAILABLE ก่อน เพื่อให้ ProofType เป็น RETURN
+        Item item = itemRepository.findById(transaction.getItemId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบข้อมูลสิ่งของ"));
+
+        transaction.completeTransaction();
+        ItemStatus nextItemStatus = transaction.getStatus().getItemStatus();
+        if (nextItemStatus != null) {
+            item.setStatus(nextItemStatus);
+        }
+        itemRepository.save(item);
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        // 7. บันทึกหลักฐานการส่งคืน (ProofType.RETURN)
+        EvidenceProof proof = new EvidenceProof();
+        proof.setTransaction(savedTransaction);
+        proof.setUploaderId(currentUserId);
+        proof.setProofType(ProofType.RETURN);
+        proof.setImageUrl(imageUrl);
+        proof.setNote(dto.getNote());
+        proof.setCapturedAt(LocalDateTime.now(ZoneOffset.UTC));
+
+        evidenceProofService.addEvidenceProof(savedTransaction.getId(), proof);
+
+        return savedTransaction;
+    }
+
+    // T-8.1: ดึงรายละเอียดหลักฐานการยืม-คืน (รองรับทั้ง requestId และ transactionId)
+    @Transactional(readOnly = true)
+    public LoanEvidenceResponseDto getLoanEvidenceDetail(String requestOrTransactionId, String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
+
+        // 1. ค้นหาจาก requestId ก่อน หากไม่พบให้ลองค้นหาจาก transactionId
+        Optional<Transaction> matchedTxOpt = Optional.empty();
+        BorrowRequest request = borrowRequestRepository.findById(requestOrTransactionId).orElse(null);
+        if (request == null) {
+            Transaction txById = transactionRepository.findById(requestOrTransactionId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบข้อมูลรายการยืมนี้ในระบบ"));
+            matchedTxOpt = Optional.of(txById);
+            request = borrowRequestRepository.findById(txById.getRequestId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบข้อมูลรายการยืมนี้ในระบบ"));
+        }
+
+        Item item = itemRepository.findById(request.getItemId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "ไม่พบข้อมูลสิ่งของในระบบ"));
+
+        // 2. ตรวจสอบสิทธิ์แบบ null-safe: อนุญาตเฉพาะผู้ยืม (Borrower) หรือเจ้าของไอเท็ม (Owner/Lender)
+        boolean isBorrower = userId.equals(request.getBorrowerId());
+        boolean isLender = userId.equals(item.getOwnerId());
+        if (!isBorrower && !isLender) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "บุคคลภายนอกไม่ได้รับอนุญาตให้เข้าถึงข้อมูลประวัตินี้");
+        }
+
+        // 3. Mapping ข้อมูลพื้นฐานใส่ DTO
+        LoanEvidenceResponseDto responseDto = new LoanEvidenceResponseDto();
+        responseDto.setRequestId(request.getId());
+        responseDto.setRequestStatus(request.getStatus() != null ? request.getStatus().name() : null);
+        responseDto.setBorrowerId(request.getBorrowerId());
+        responseDto.setOwnerId(item.getOwnerId());
+        responseDto.setItemId(item.getId());
+        responseDto.setItemTitle(item.getTitle());
+        responseDto.setItemCategory(item.getCategory());
+
+        // 4. ค้นหา Transaction และรายการ EvidenceProof ทั้งหมด
+        Optional<Transaction> transactionOpt = matchedTxOpt.isPresent()
+                ? matchedTxOpt
+                : transactionRepository.findByRequestId(request.getId());
+
+        if (transactionOpt.isPresent()) {
+            Transaction tx = transactionOpt.get();
+            responseDto.setTransactionId(tx.getId());
+            responseDto.setTransactionStatus(tx.getStatus() != null ? tx.getStatus().name() : null);
+            responseDto.setBorrowedAt(tx.getBorrowedAt());
+            responseDto.setReturnedAt(tx.getReturnedAt());
+
+            List<EvidenceProof> proofs = evidenceProofRepository.findByTransactionId(tx.getId());
+            for (EvidenceProof proof : proofs) {
+                LoanEvidenceResponseDto.EvidenceItemDto proofDto = new LoanEvidenceResponseDto.EvidenceItemDto();
+                proofDto.setId(proof.getId());
+                proofDto.setUploaderId(proof.getUploaderId());
+                proofDto.setProofType(proof.getProofType() != null ? proof.getProofType().name() : null);
+                proofDto.setImageUrl(proof.getImageUrl());
+                proofDto.setNote(proof.getNote());
+                proofDto.setCapturedAt(proof.getCapturedAt());
+                responseDto.getEvidences().add(proofDto);
+
+                if (proof.getProofType() == ProofType.HANDOVER) {
+                    responseDto.setHandoverImageUrl(proof.getImageUrl());
+                    responseDto.setHandoverNote(proof.getNote());
+                    responseDto.setHandoverTimestamp(proof.getCapturedAt());
+                } else if (proof.getProofType() == ProofType.RETURN) {
+                    responseDto.setReturnImageUrl(proof.getImageUrl());
+                    responseDto.setReturnNote(proof.getNote());
+                    responseDto.setReturnTimestamp(proof.getCapturedAt());
+                }
+            }
+        }
+
+        return responseDto;
     }
 
 }

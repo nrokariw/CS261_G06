@@ -1,0 +1,13 @@
+@startuml
+title US-02 Activity: Browse Available Items
+
+start
+:Open Browse page;
+:GET /api/items?status=AVAILABLE;
+if (Items found?) then (Yes)
+  :Render available item cards;
+else (No)
+  :Show empty state message;
+endif
+stop
+@enduml

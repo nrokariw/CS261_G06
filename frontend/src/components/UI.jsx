@@ -92,6 +92,7 @@ export function Avatar({ name, size = "md" }) {
 export function RequestCard({
   request,
   role = "owner",
+  status,
   subtitle,
   actions,
 }) {
@@ -128,7 +129,7 @@ export function RequestCard({
             <h3>{request.itemName}</h3>
             <p>{subtitle !== undefined ? subtitle : defaultSubtitle}</p>
           </div>
-          <StatusBadge status={request.status} />
+          <StatusBadge status={status || request.status} />
         </div>
 
         <p className="request-reason">

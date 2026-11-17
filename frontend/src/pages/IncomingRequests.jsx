@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { Check, X, AlertCircle, MessageSquare } from "lucide-react";
+import { Check, X, AlertCircle, PackageCheck, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeading, EmptyState, RequestCard, AlertBanner } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
+import HandoverModal, { isHandedOver } from "../components/HandoverModal";
 import {
   updateBorrowRequestStatus,
   cancelBorrowRequest,
@@ -11,8 +12,11 @@ import {
 
 export default function IncomingRequests({ requests = [], setRequests, setItems, items = [] }) {
   const { user, token } = useAuth();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [actionError, setActionError] = useState("");
+  // T-6.3: คำขอที่กำลังเปิดโมดอลบันทึกหลักฐานการส่งมอบ + ข้อความแจ้งผลสำเร็จ
+  const [handoverReq, setHandoverReq] = useState(null);
+  const [successMsg, setSuccessMsg] = useState("");
   const [activeResponseReq, setActiveResponseReq] = useState(null);
   const [responseReason, setResponseReason] = useState("");
   const [modalError, setModalError] = useState("");
@@ -73,6 +77,22 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
     } catch (err) {
       setActionError(err.message || t("validation.submitFailed"));
     }
+  }
+
+  // T-6.3: บันทึกหลักฐานสำเร็จ 
+  function handleHandoverSuccess(handover) {
+    const target = handoverReq;
+    setRequests((prev) =>
+      prev.map((r) => (r.id === target.id ? { ...r, handover } : r)),
+    );
+    if (setItems) {
+      setItems((prev) =>
+        prev.map((i) => (i.id === target.itemId ? { ...i, status: "borrowed" } : i)),
+      );
+    }
+    setHandoverReq(null);
+    setActionError("");
+    setSuccessMsg(t("handover.success", { name: target.itemName }));
   }
 
   function openResponseModal(req) {
@@ -140,58 +160,103 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
 
       <AlertBanner message={actionError} onClose={() => setActionError("")} />
 
+      {successMsg && (
+        <div className="alert alert-success" role="status">
+          {successMsg}
+          <button onClick={() => setSuccessMsg("")} className="alert-close">
+            {t("myListings.closeAlert")}
+          </button>
+        </div>
+      )}
+
       {myIncomingRequests.length ? (
         <div className="requests-list requests-list-updated">
-          {myIncomingRequests.map((req) => (
-            <RequestCard
-              key={req.id}
-              request={req}
-              role="owner"
-              actions={
-                checkIsItemOwner(req) && (
-                  req.status === "pending" ? (
-                    <div className="request-actions request-owner-actions">
-                      <div className="request-btn-group">
-                        <button
-                          className="button button-primary"
-                          disabled={isItemReservedByOther(req)}
-                          title={isItemReservedByOther(req) ? t("incomingRequests.itemAlreadyReserved") : ""}
-                          onClick={() => updateStatus(req.id, "accepted")}
-                        >
-                          <Check size={16} /> {t("incomingRequests.accept")}
-                        </button>
-                        <button
-                          className="button button-danger-outline"
-                          onClick={() => openResponseModal(req)}
-                        >
-                          <MessageSquare size={16} /> {t("incomingRequests.respond")}
-                        </button>
+          {myIncomingRequests.map((req) => {
+            // T-6.3: ส่งมอบแล้ว แสดงสถานะ "กำลังยืม"
+            const handedOver = isHandedOver(
+              req,
+              items.find((i) => String(i.id) === String(req.itemId)),
+            );
+            return (
+              <RequestCard
+                key={req.id}
+                request={req}
+                role="owner"
+                status={handedOver ? "borrowed" : req.status}
+                actions={
+                  checkIsItemOwner(req) && (
+                    req.status === "pending" ? (
+                      <div className="request-actions request-owner-actions">
+                        <div className="request-btn-group">
+                          <button
+                            className="button button-primary"
+                            disabled={isItemReservedByOther(req)}
+                            title={isItemReservedByOther(req) ? t("incomingRequests.itemAlreadyReserved") : ""}
+                            onClick={() => updateStatus(req.id, "accepted")}
+                          >
+                            <Check size={16} /> {t("incomingRequests.accept")}
+                          </button>
+                          <button
+                            className="button button-danger-outline"
+                            onClick={() => openResponseModal(req)}
+                          >
+                            <MessageSquare size={16} /> {t("incomingRequests.respond")}
+                          </button>
+                        </div>
+                        {isItemReservedByOther(req) && (
+                          <small className="reserved-by-other-notice">
+                            {t("incomingRequests.itemAlreadyReserved")}
+                          </small>
+                        )}
                       </div>
-                      {isItemReservedByOther(req) && (
-                        <small className="reserved-by-other-notice">
-                          {t("incomingRequests.itemAlreadyReserved")}
-                        </small>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="request-status-updated">
-                      <button
-                        className="text-button"
-                        onClick={() => updateStatus(req.id, "pending")}
-                      >
-                        {t("incomingRequests.resetToPending")}
-                      </button>
-                    </div>
+                    ) : (
+                      <div className="request-status-updated">
+                        {handedOver ? (
+                          <small className="status-hint">{t("handover.done")}</small>
+                        ) : (
+                          <>
+                            {/* T-6.3: ปุ่มบันทึกหลักฐานการส่งมอบ เฉพาะคำขอ accepted ที่ยังไม่ส่งมอบ */}
+                            {req.status === "accepted" && (
+                              <button
+                                type="button"
+                                className="button button-primary button-sm"
+                                onClick={() => {
+                                  setSuccessMsg("");
+                                  setHandoverReq(req);
+                                }}
+                              >
+                                <PackageCheck size={16} /> {t("handover.button")}
+                              </button>
+                            )}
+                            <button
+                              className="text-button"
+                              onClick={() => updateStatus(req.id, "pending")}
+                            >
+                              {t("incomingRequests.resetToPending")}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )
                   )
-                )
-              }
-            />
-          ))}
+                }
+              />
+            );
+          })}
         </div>
       ) : (
         <EmptyState
           title={t("incomingRequests.emptyTitle")}
           description={t("incomingRequests.emptyDesc")}
+        />
+      )}
+
+      {/* T-6.3: โมดอลบันทึกหลักฐานการส่งมอบ */}
+      {handoverReq && (
+        <HandoverModal
+          request={handoverReq}
+          onClose={() => setHandoverReq(null)}
+          onSuccess={handleHandoverSuccess}
         />
       )}
 

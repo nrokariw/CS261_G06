@@ -1,0 +1,17 @@
+@startuml
+title US-03 DFD: Submit Borrow Request
+left to right direction
+skinparam roundcorner 12
+
+rectangle "Borrower" as User
+usecase "3.1\nVerify Item &\nOwnership" as P1
+usecase "3.2\nCreate Borrow\nRequest" as P2
+database "D2: Items" as D2
+database "D3: BorrowRequests" as D3
+
+User --> P1 : itemId, dates, reason
+D2 --> P1 : ownerId, status
+P1 --> P2 : Eligible (not owner, AVAILABLE)
+P2 --> D3 : Insert Request (PENDING)
+P2 --> User : 201 Created / Error
+@enduml

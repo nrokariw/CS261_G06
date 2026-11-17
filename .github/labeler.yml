@@ -1,0 +1,36 @@
+backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "backend/**"
+
+frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "frontend/**"
+
+database:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "database/**"
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "**/*.md"
+
+test:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/src/test/**"
+          - "**/*Test.java"
+          - "**/*UAT*.md"
+
+infra:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docker-compose.yml"
+          - "**/Dockerfile"
+          - "Makefile"
+          - ".env.example"
+          - ".github/**"

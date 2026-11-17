@@ -13,6 +13,9 @@ import {
 import { PageHeading } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 
+const USERNAME_PATTERN = /^[A-Za-z0-9._-]{3,50}$/;
+const MAX_PASSWORD_LENGTH = 128;
+
 export default function Login() {
   const { login, demoAccounts, demoEnabled, user } = useAuth();
   const { t, i18n } = useTranslation();
@@ -28,10 +31,37 @@ export default function Login() {
     ? `${location.state.from.pathname}${location.state.from.search || ""}`
     : "/";
 
+  function resolveLoginError(err) {
+    if (err?.status === 401) {
+      return t("auth.invalidCredentials", {
+        defaultValue:
+          "รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง",
+      });
+    }
+    if (err?.status === 403) {
+      return t("auth.accountInactive", {
+        defaultValue:
+          "บัญชีผู้ใช้ไม่อยู่ในสถานะพร้อมใช้งาน (พ้นสภาพ/พักการศึกษา/ลาออก) กรุณาติดต่อผู้ดูแลระบบ",
+      });
+    }
+    if (err?.status === 429) {
+      return t("auth.rateLimited", {
+        defaultValue:
+          "คุณพยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่อีกครั้ง",
+      });
+    }
+    return (
+      err?.data?.message ||
+      err?.message ||
+      t("auth.loginFailed", { defaultValue: "เข้าสู่ระบบไม่สำเร็จ" })
+    );
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    if (!username.trim() || !password) {
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername || !password) {
       setError(
         t("auth.missingCredentials", {
           defaultValue: "กรุณากรอกรหัสนักศึกษาและรหัสผ่านให้ครบถ้วน",
@@ -39,26 +69,30 @@ export default function Login() {
       );
       return;
     }
+    if (!USERNAME_PATTERN.test(trimmedUsername)) {
+      setError(
+        t("auth.invalidUsernameFormat", {
+          defaultValue:
+            "รูปแบบรหัสนักศึกษา/ชื่อผู้ใช้ไม่ถูกต้อง (ต้องยาว 3–50 ตัวอักษร ใช้ได้เฉพาะตัวอักษร ตัวเลข . _ -)",
+        }),
+      );
+      return;
+    }
+    if (password.length > MAX_PASSWORD_LENGTH) {
+      setError(
+        t("auth.passwordTooLong", {
+          defaultValue: "รหัสผ่านยาวเกิน 128 ตัวอักษร",
+        }),
+      );
+      return;
+    }
 
     setSubmitting(true);
     try {
-      await login(username.trim(), password);
+      await login(trimmedUsername, password);
       navigate(redirectPath, { replace: true });
     } catch (err) {
-      if (err?.status === 401) {
-        setError(
-          t("auth.invalidCredentials", {
-            defaultValue:
-              "รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง",
-          }),
-        );
-      } else {
-        setError(
-          err?.data?.message ||
-            err?.message ||
-            t("auth.loginFailed", { defaultValue: "เข้าสู่ระบบไม่สำเร็จ" }),
-        );
-      }
+      setError(resolveLoginError(err));
     } finally {
       setSubmitting(false);
     }
@@ -73,11 +107,7 @@ export default function Login() {
       await login(account.studentId, account.password);
       navigate(redirectPath, { replace: true });
     } catch (err) {
-      setError(
-        err?.data?.message ||
-          err?.message ||
-          t("auth.loginFailed", { defaultValue: "เข้าสู่ระบบไม่สำเร็จ" }),
-      );
+      setError(resolveLoginError(err));
     } finally {
       setSubmitting(false);
     }

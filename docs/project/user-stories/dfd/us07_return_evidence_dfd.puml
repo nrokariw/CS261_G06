@@ -1,0 +1,24 @@
+@startuml
+title US-07 DFD: Record Return Evidence
+left to right direction
+skinparam roundcorner 12
+
+rectangle "Lender / Borrower" as User
+usecase "7.1\nVerify Participant\n& ACTIVE Tx" as P1
+usecase "7.2\nStore Return\nPhoto" as P2
+usecase "7.3\nComplete Tx &\nRelease Item" as P3
+database "D4: Transactions" as D4
+database "D5: Evidence & Storage" as D5
+database "D2: Items" as D2
+
+User --> P1 : transactionId, photo, note
+D4 --> P1 : Participant & ACTIVE
+P1 --> P2 : Validated image
+P2 --> D5 : Save photo + RETURN proof
+D5 --> P2 : imageUrl
+P1 --> P3 : Authorized
+P2 --> P3 : imageUrl
+P3 --> D4 : Update Tx -> COMPLETED
+P3 --> D2 : Update Item -> AVAILABLE
+P3 --> User : 200 OK / 400 / 403
+@enduml

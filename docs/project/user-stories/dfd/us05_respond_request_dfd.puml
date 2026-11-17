@@ -1,0 +1,19 @@
+@startuml
+title US-05 DFD: Approve or Reject Request
+left to right direction
+skinparam roundcorner 12
+
+rectangle "Lender" as User
+usecase "5.1\nVerify Owner &\nPending State" as P1
+usecase "5.2\nUpdate Request &\nItem Status" as P2
+database "D3: BorrowRequests" as D3
+database "D2: Items" as D2
+
+User --> P1 : Approve / Reject action
+D3 --> P1 : Request (PENDING)
+D2 --> P1 : ownerId
+P1 --> P2 : Valid transition
+P2 --> D3 : ACCEPTED or REJECTED
+P2 --> D2 : RESERVED or AVAILABLE
+P2 --> User : 200 OK / Error
+@enduml
