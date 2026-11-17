@@ -20,6 +20,18 @@ export async function submitHandoverEvidence(requestId, formData, token) {
   );
 }
 
+export async function submitReturnEvidence(requestId, formData, token) {
+  const { transactions } = getApiPaths();
+  return apiRequest(
+    `${transactions}/request/${encodeURIComponent(requestId)}/return-evidence`,
+    {
+      method: "POST",
+      body: formData,
+      token,
+    },
+  );
+}
+
 export async function completeTransaction(transactionId, token) {
   const { transactions } = getApiPaths();
   return apiRequest(
