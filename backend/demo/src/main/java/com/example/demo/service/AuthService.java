@@ -108,8 +108,8 @@ public class AuthService {
             if (cachedProfile.isPresent()) {
                 authenticatedUser = upsertTuUser(cachedProfile.get(), password);
             } else {
-                loginRateLimiter.checkAllowed(clientIp);
-                loginRateLimiter.recordAttempt(clientIp);
+                loginRateLimiter.checkAllowed(clientIp, identifier);
+                loginRateLimiter.recordAttempt(clientIp, identifier);
                 recordedAttempt = true;
 
                 Optional<TuUserProfile> tuProfile = tuAuthClient.verifyWithTuApi(identifier, password);
@@ -122,8 +122,8 @@ public class AuthService {
 
         if (authenticatedUser == null) {
             if (!recordedAttempt) {
-                loginRateLimiter.checkAllowed(clientIp);
-                loginRateLimiter.recordAttempt(clientIp);
+                loginRateLimiter.checkAllowed(clientIp, identifier);
+                loginRateLimiter.recordAttempt(clientIp, identifier);
             }
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid student ID/username or password");
         }
