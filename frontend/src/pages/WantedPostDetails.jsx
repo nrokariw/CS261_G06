@@ -28,6 +28,7 @@ import {
   acceptLendOffer,
   cancelWantedPost,
   createLendOffer,
+  getMyWantedPosts,
   getWantedPost,
   rejectLendOffer,
 } from "../api/wantedPostsApi";
@@ -49,6 +50,7 @@ export default function WantedPostDetails({
   items = [],
   setItems,
   setRequests,
+  setMyWantedPosts,
 }) {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -155,6 +157,33 @@ export default function WantedPostDetails({
     }
   };
 
+  const syncMyWantedPosts = async (action) => {
+    if (typeof setMyWantedPosts !== "function" || !post) return;
+    setMyWantedPosts((prev) =>
+      (prev || [])
+        .map((p) => {
+          if (String(p.id) !== String(post.id)) return p;
+          if (action === "accept") {
+            return { ...p, status: "fulfilled", pendingOfferCount: 0 };
+          }
+          if (action === "reject") {
+            return {
+              ...p,
+              pendingOfferCount: Math.max(0, Number(p.pendingOfferCount || 0) - 1),
+            };
+          }
+          if (action === "cancel") {
+            return { ...p, status: "cancelled", pendingOfferCount: 0 };
+          }
+          return p;
+        }),
+    );
+    const updated = await getMyWantedPosts(authToken).catch(() => null);
+    if (Array.isArray(updated)) {
+      setMyWantedPosts(updated);
+    }
+  };
+
   const handleAcceptOffer = async (offerId) => {
     setError(null);
     setActionMsg(null);
@@ -207,6 +236,7 @@ export default function WantedPostDetails({
         }
       }
 
+      await syncMyWantedPosts("accept");
       setActionMsg(t("wanted.offerAccepted"));
       await loadPost();
     } catch (err) {
@@ -222,6 +252,7 @@ export default function WantedPostDetails({
     setProcessingOfferId(offerId);
     try {
       await rejectLendOffer(post.id, offerId, authToken);
+      await syncMyWantedPosts("reject");
       setActionMsg(t("wanted.offerRejected"));
       await loadPost();
     } catch (err) {
@@ -236,6 +267,7 @@ export default function WantedPostDetails({
     setCancelling(true);
     try {
       await cancelWantedPost(post.id, authToken);
+      await syncMyWantedPosts("cancel");
       navigate("/my-listings?tab=wanted");
     } catch (err) {
       setError(err.message || t("wanted.cancelError"));

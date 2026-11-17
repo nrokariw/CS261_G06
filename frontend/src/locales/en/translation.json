@@ -190,6 +190,7 @@
     "totalRequests": "Total Requests",
     "pendingRequests": "Pending Requests",
     "acceptedRequests": "Accepted",
+    "awaitingHandover": "To Handover",
     "pendingOffers": "Pending Offers",
     "requestedBy": "Requested by",
     "offeredBy": "Offered by",

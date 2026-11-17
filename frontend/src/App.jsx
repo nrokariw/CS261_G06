@@ -46,6 +46,7 @@ import { getBorrowRequests } from "./api/requestsApi";
 import { getCategories } from "./api/categoriesApi";
 import { getMyWantedPosts } from "./api/wantedPostsApi";
 import { getActiveCategoryCodes, setRuntimeCategories } from "./data";
+import { isHandedOver, isReturned } from "./components/HandoverModal";
 
 function BrandMark() {
   return (
@@ -141,15 +142,17 @@ export default function App() {
 
   const pendingCount = user
     ? requests.filter((r) => {
-        if (r.status !== "pending") return false;
         const matchedItem = items.find((i) => String(i.id) === String(r.itemId));
         const ownerId = r.ownerId || matchedItem?.ownerId;
         const ownerName = r.owner || matchedItem?.owner;
-        return Boolean(
+        const isOwner = Boolean(
           (user?.studentId && String(ownerId) === String(user.studentId)) ||
           (user?.id && String(ownerId) === String(user.id)) ||
           (user?.name && ownerName === user.name)
         );
+        if (!isOwner) return false;
+        if (r.status === "pending") return true;
+        return r.status === "accepted" && !isHandedOver(r, matchedItem) && !isReturned(r);
       }).length
     : 0;
   const pendingOffersCount = user
@@ -627,6 +630,7 @@ export default function App() {
                   items={items}
                   setItems={setItems}
                   setRequests={setRequests}
+                  setMyWantedPosts={setMyWantedPosts}
                 />
               }
             />

@@ -190,6 +190,7 @@
     "totalRequests": "คำขอทั้งหมด",
     "pendingRequests": "คำขอรอพิจารณา",
     "acceptedRequests": "ยอมรับแล้ว",
+    "awaitingHandover": "รอส่งมอบ",
     "pendingOffers": "ข้อเสนอรอพิจารณา",
     "requestedBy": "ขอยืมโดย",
     "offeredBy": "เสนอให้ยืมโดย",

@@ -29,6 +29,7 @@ import {
   cancelBorrowRequest,
   respondToBorrowRequest,
 } from "../api/requestsApi";
+import { normalizeBorrowRequest } from "../api/requestsApi";
 import {
   acceptLendOffer,
   getMyWantedPosts,
@@ -133,7 +134,7 @@ export default function IncomingRequests({
     return () => {
       cancelled = true;
     };
-  }, [activeTab, token, user?.token, myWantedPosts, setMyWantedPosts, t]);
+  }, [activeTab, token, user?.token, setMyWantedPosts, t]);
 
   async function handleOfferDecision(offer, decision) {
     const authToken = token || user?.token;
@@ -141,13 +142,52 @@ export default function IncomingRequests({
     setSuccessMsg("");
     setBusyOfferId(offer.id);
     try {
+      let res = null;
       if (decision === "accept") {
-        await acceptLendOffer(offer.postId, offer.id, authToken);
+        res = await acceptLendOffer(offer.postId, offer.id, authToken);
       } else {
-        await rejectLendOffer(offer.postId, offer.id, authToken);
+        res = await rejectLendOffer(offer.postId, offer.id, authToken);
       }
+
+      if (typeof setMyWantedPosts === "function") {
+        setMyWantedPosts((prev) =>
+          (prev || []).map((p) => {
+            if (String(p.id) !== String(offer.postId)) return p;
+            if (decision === "accept") {
+              return { ...p, status: "fulfilled", pendingOfferCount: 0 };
+            }
+            return {
+              ...p,
+              pendingOfferCount: Math.max(0, Number(p.pendingOfferCount || 0) - 1),
+            };
+          }),
+        );
+      }
+
+      if (decision === "accept") {
+        const acceptedItemId = res?.acceptedOffer?.offeredItemId;
+        if (acceptedItemId && typeof setItems === "function") {
+          setItems((prev) =>
+            (prev || []).map((it) =>
+              String(it.id) === String(acceptedItemId)
+                ? { ...it, status: "reserved" }
+                : it,
+            ),
+          );
+        }
+        if (res?.borrowRequest && typeof setRequests === "function") {
+          const normalized = normalizeBorrowRequest(res.borrowRequest, items);
+          if (normalized) {
+            setRequests((prev) => [
+              normalized,
+              ...(prev || []).filter((r) => String(r.id) !== String(normalized.id)),
+            ]);
+          }
+        }
+      }
+
       const updatedPosts = await getMyWantedPosts(authToken).catch(() => null);
-      if (Array.isArray(updatedPosts) && setMyWantedPosts) {
+      if (Array.isArray(updatedPosts) && typeof setMyWantedPosts === "function") {
         setMyWantedPosts(updatedPosts);
       }
       setOfferItems((prev) =>
@@ -203,6 +243,11 @@ export default function IncomingRequests({
   const myIncomingRequests = requests.filter((r) => checkIsItemOwner(r));
   const pending = myIncomingRequests.filter((r) => r.status === "pending").length;
   const accepted = myIncomingRequests.filter((r) => r.status === "accepted").length;
+  const needsHandover = myIncomingRequests.filter((r) => {
+    const matchedItem = items.find((i) => String(i.id) === String(r.itemId));
+    return r.status === "accepted" && !isHandedOver(r, matchedItem) && !isReturned(r);
+  }).length;
+  const borrowTabBadgeCount = pending + needsHandover;
 
   async function updateStatus(id, status) {
     setActionError("");
@@ -329,6 +374,10 @@ export default function IncomingRequests({
               <small className="text-[11px] text-[#247A4B] dark:text-[#4ADE80]">{t("incomingRequests.acceptedRequests")}</small>
               <strong className="text-base font-bold text-[#247A4B] dark:text-[#4ADE80]">{accepted}</strong>
             </div>
+            <div className="px-3.5 py-2 rounded-xl bg-[#E0F2FE]/80 dark:bg-[#172E48] border border-[#BAE6FD] dark:border-[#1E3A5F] flex flex-col min-w-[82px]">
+              <small className="text-[11px] text-[#0369A1] dark:text-[#7DD3FC]">{t("incomingRequests.awaitingHandover")}</small>
+              <strong className="text-base font-bold text-[#0369A1] dark:text-[#7DD3FC]">{needsHandover}</strong>
+            </div>
             <div className="px-3.5 py-2 rounded-xl bg-[var(--surface-tint)] border border-[var(--border)] flex flex-col min-w-[82px]">
               <small className="text-[11px] text-[var(--primary)]">{t("incomingRequests.pendingOffers")}</small>
               <strong className="text-base font-bold text-[var(--primary)]">{pendingOffersCount}</strong>
@@ -353,7 +402,7 @@ export default function IncomingRequests({
           onClick={() => handleTabChange("requests")}
         >
           <span>{t("incomingRequests.tabBorrowRequests")}</span>
-          {pending > 0 && (
+          {borrowTabBadgeCount > 0 && (
             <span
               className={`min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold grid place-items-center ${
                 activeTab === "requests"
@@ -361,7 +410,7 @@ export default function IncomingRequests({
                   : "bg-[var(--primary)] text-white"
               }`}
             >
-              {pending}
+              {borrowTabBadgeCount}
             </span>
           )}
         </button>
