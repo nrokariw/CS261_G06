@@ -105,3 +105,14 @@ export async function getTransactionProof(transactionId, token) {
     },
   );
 }
+
+export async function getLoanEvidence(requestId, token) {
+  const { transactions } = getApiPaths();
+  return apiRequest(
+    `${transactions}/${encodeURIComponent(requestId)}/evidence`,
+    {
+      method: "GET",
+      token,
+    },
+  );
+}

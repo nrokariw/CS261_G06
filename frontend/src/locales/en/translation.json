@@ -326,6 +326,22 @@
     "pendingOffersCount": "{{count}} pending offer(s)",
     "myWantedEmpty": "You have not posted any borrow requests yet.",
     "viewDetails": "View Details"
+  "evidenceTimeline": {
+    "eyebrow": "LOAN EVIDENCE TIMELINE",
+    "button": "View Evidence",
+    "title": "Loan & Return Evidence Timeline",
+    "subtitle": "Inspect condition photos, notes, and timestamps for handover and return",
+    "openFullPage": "Full Page",
+    "borrowedAt": "Handed over",
+    "returnedAt": "Returned",
+    "handoverTitle": "Step 1: Handover Evidence",
+    "returnTitle": "Step 2: Return Evidence",
+    "noteLabel": "Condition note",
+    "noNote": "No condition note provided",
+    "pendingHandoverDesc": "No handover evidence recorded yet",
+    "pendingReturnDesc": "Currently borrowed (return evidence not recorded yet)",
+    "forbiddenTitle": "Access Denied (403 Forbidden)",
+    "forbiddenDesc": "Only the borrower or item owner can view this loan's evidence."
   },
   "returnEvidence": {
     "button": "Record return evidence",
