@@ -326,6 +326,7 @@
     "pendingOffersCount": "{{count}} pending offer(s)",
     "myWantedEmpty": "You have not posted any borrow requests yet.",
     "viewDetails": "View Details"
+  },
   "evidenceTimeline": {
     "eyebrow": "LOAN EVIDENCE TIMELINE",
     "button": "View Evidence",

@@ -3659,6 +3659,166 @@ textarea:focus-visible {
 }
 
 .wanted-offer-message {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+}
+
+.wanted-offer-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.wanted-no-items-callout {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    background: var(--surface-subtle);
+    border: 1px dashed var(--border);
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.wanted-alert-error {
+    background: #FCE8E4;
+    color: #B9382B;
+    border: 1px solid rgba(185, 56, 43, 0.25);
+}
+
+.wanted-alert-success {
+    flex-wrap: wrap;
+}
+
+.wanted-alert-action {
+    margin-left: auto;
+}
+
+.wanted-panel-stack {
+    display: grid;
+    gap: 14px;
+}
+
+.borrow-note-flush {
+    margin: 0;
+}
+
+[data-theme="dark"] .wanted-alert-error {
+    background: rgba(185, 56, 43, 0.16);
+    color: #FCA5A5;
+    border-color: rgba(248, 113, 113, 0.35);
+}
+
+/* Comprehensive Responsive Breakpoints */
+@media (max-width: 1180px) {
+    .item-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 960px) {
+    .detail-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .borrow-panel {
+        position: static;
+    }
+
+    .item-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .item-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .tab-btn {
+        padding: 8px 14px;
+        font-size: 12.5px;
+    }
+
+    .listing-row-no-thumb .listing-details {
+        width: 100%;
+    }
+
+    .listing-actions {
+        width: 100%;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .listing-actions .button {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    .wanted-offers-section {
+        padding: 16px 18px 20px;
+    }
+
+    .wanted-offer-actions .button {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    .wanted-owner-actions .button {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    .page-heading {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .heading-action,
+    .heading-action .button {
+        width: 100%;
+    }
+
+    .filter-panel {
+        flex-direction: column;
+    }
+
+    .select-box {
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+    }
+
+    .bottom-cta {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .bottom-cta .button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 420px) {
+    .item-card-bottom {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}
+
 /* US-08.2: Loan Evidence Timeline Modal & Page */
 .modal-wide {
     max-width: 680px;
@@ -3823,159 +3983,6 @@ textarea:focus-visible {
     font-size: 13px;
     line-height: 1.6;
     color: var(--text);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 9px 12px;
-}
-
-.wanted-offer-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.wanted-no-items-callout {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: 8px;
-    padding: 10px 12px;
-    border-radius: 9px;
-    background: var(--surface-subtle);
-    border: 1px dashed var(--border);
-    font-size: 12px;
-    color: var(--muted);
-}
-
-.wanted-alert-error {
-    background: #FCE8E4;
-    color: #B9382B;
-    border: 1px solid rgba(185, 56, 43, 0.25);
-}
-
-.wanted-alert-success {
-    flex-wrap: wrap;
-}
-
-.wanted-alert-action {
-    margin-left: auto;
-}
-
-.wanted-panel-stack {
-    display: grid;
-    gap: 14px;
-}
-
-.borrow-note-flush {
-    margin: 0;
-}
-
-[data-theme="dark"] .wanted-alert-error {
-    background: rgba(185, 56, 43, 0.16);
-    color: #FCA5A5;
-    border-color: rgba(248, 113, 113, 0.35);
-}
-
-/* Comprehensive Responsive Breakpoints */
-@media (max-width: 1180px) {
-    .item-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-}
-
-@media (max-width: 960px) {
-    .detail-layout {
-        grid-template-columns: 1fr;
-    }
-
-    .borrow-panel {
-        position: static;
-    }
-
-    .item-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
-@media (max-width: 640px) {
-    .item-grid {
-        grid-template-columns: 1fr;
-        gap: 12px;
-    }
-
-    .tab-btn {
-        padding: 8px 14px;
-        font-size: 12.5px;
-    }
-
-    .listing-row-no-thumb .listing-details {
-        width: 100%;
-    }
-
-    .listing-actions {
-        width: 100%;
-        flex-wrap: wrap;
-        justify-content: flex-start;
-    }
-
-    .listing-actions .button {
-        flex: 1 1 auto;
-        justify-content: center;
-    }
-
-    .wanted-offers-section {
-        padding: 16px 18px 20px;
-    }
-
-    .wanted-offer-actions .button {
-        flex: 1 1 auto;
-        justify-content: center;
-    }
-
-    .wanted-owner-actions .button {
-        flex: 1 1 auto;
-        justify-content: center;
-    }
-
-    .page-heading {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .heading-action,
-    .heading-action .button {
-        width: 100%;
-    }
-
-    .filter-panel {
-        flex-direction: column;
-    }
-
-    .select-box {
-        width: 100%;
-        min-width: 0;
-        min-height: 44px;
-    }
-
-    .bottom-cta {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .bottom-cta .button {
-        width: 100%;
-    }
-}
-
-@media (max-width: 420px) {
-    .item-card-bottom {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
     background: var(--surface-subtle);
     padding: 9px 12px;
     border-radius: 8px;

@@ -326,6 +326,7 @@
     "pendingOffersCount": "{{count}} ข้อเสนอที่รอตอบรับ",
     "myWantedEmpty": "คุณยังไม่มีประกาศขอยืมสิ่งของ",
     "viewDetails": "ดูรายละเอียด"
+  },
   "evidenceTimeline": {
     "eyebrow": "LOAN EVIDENCE TIMELINE",
     "button": "ดูหลักฐานการยืม-คืน",

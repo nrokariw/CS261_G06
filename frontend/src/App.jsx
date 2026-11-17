@@ -506,6 +506,7 @@ export default function App() {
                 />
               }
             />
+            <Route
               path="/transactions/:requestId/evidence"
               element={
                 <ProtectedRoute>
