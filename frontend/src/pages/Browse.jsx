@@ -84,31 +84,35 @@ export default function Browse({ items: propItems, requests = [], loading: propL
     [rawItems, requests, user, query, category],
   );
 
-  if (isLoading) return <div className="page-stack">{t("common.loading", { defaultValue: "กำลังโหลดข้อมูล..." })}</div>;
-  if (error) return <div className="page-stack"><EmptyState title={t("common.error", { defaultValue: "เกิดข้อผิดพลาด" })} description={error} /></div>;
+  if (isLoading) return <div className="flex flex-col gap-6 text-sm text-[var(--muted)]">{t("common.loading", { defaultValue: "กำลังโหลดข้อมูล..." })}</div>;
+  if (error) return <div className="flex flex-col gap-6"><EmptyState title={t("common.error", { defaultValue: "เกิดข้อผิดพลาด" })} description={error} /></div>;
 
   return (
-    <div className="page-stack">
+    <div className="flex flex-col gap-6">
       <PageHeading
         eyebrow={t("browse.eyebrow")}
         title={t("browse.title")}
         subtitle={t("browse.subtitle")}
         action={
-          <span className="result-count">{t("browse.resultCount", { count: availableItems.length })}</span>
+          <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-[var(--surface-tint)] border border-[var(--border)] text-xs font-semibold text-[var(--text)]">
+            {t("browse.resultCount", { count: availableItems.length })}
+          </span>
         }
       />
-      <section className="filter-panel">
-        <label className="search-box">
-          <Search size={19} />
+      <section className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-3 p-4 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs">
+        <label className="flex items-center gap-2.5 px-3.5 h-11 rounded-[10px] border border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--muted)] focus-within:border-[var(--primary)] focus-within:bg-[var(--surface)] focus-within:ring-2 focus-within:ring-[var(--primary)]/15 transition-colors">
+          <Search size={18} className="shrink-0" />
           <input
+            className="w-full min-w-0 bg-transparent border-0 outline-none focus:outline-none text-[13px] text-[var(--text)] placeholder:text-[var(--muted)]"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("browse.searchPlaceholder")}
           />
         </label>
-        <label className="select-box">
-          <span>{t("browse.categoryLabel")}</span>
+        <label className="flex items-center justify-between gap-2.5 px-3.5 h-11 rounded-[10px] border border-[var(--border)] bg-[var(--surface-subtle)] text-xs font-medium text-[var(--muted)] focus-within:border-[var(--primary)] focus-within:bg-[var(--surface)] focus-within:ring-2 focus-within:ring-[var(--primary)]/15 transition-colors">
+          <span className="shrink-0">{t("browse.categoryLabel")}</span>
           <select
+            className="min-w-0 flex-1 bg-transparent border-0 outline-none focus:outline-none text-[13px] font-medium text-[var(--text)] cursor-pointer"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
@@ -122,19 +126,23 @@ export default function Browse({ items: propItems, requests = [], loading: propL
         </label>
       </section>
 
-      <div className="category-chips">
+      <div className="flex flex-wrap gap-2">
         {["ALL", ...CATEGORIES].map((c) => (
           <button
             key={c}
             onClick={() => setCategory(c)}
-            className={`chip ${category === c ? "chip-active" : ""}`}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-medium border cursor-pointer transition-colors ${
+              category === c
+                ? "bg-[var(--primary)] border-[var(--primary)] text-white shadow-xs"
+                : "bg-[var(--surface)] border-[var(--border)] text-[var(--muted)] hover:border-[var(--primary)] hover:text-[var(--text)]"
+            }`}
           >
             {getLocalizedCategoryLabel(c, t)}
           </button>
         ))}
       </div>
       {availableItems.length ? (
-        <section className="item-grid">
+        <section className="grid grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-3 gap-5">
           {availableItems.map((item) => (
             <ItemCard key={item.id} item={item} />
           ))}
@@ -145,12 +153,16 @@ export default function Browse({ items: propItems, requests = [], loading: propL
           description={t("browse.emptyDesc")}
         />
       )}
-      <div className="bottom-cta">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 bg-[var(--surface-tint)] border border-[var(--border)] rounded-[14px]">
         <div>
-          <strong>{t("browse.ctaTitle")}</strong>
-          <p>{t("browse.ctaDesc")}</p>
+          <strong className="block text-base font-semibold text-[var(--text)]">
+            {t("browse.ctaTitle")}
+          </strong>
+          <p className="m-0 mt-1 text-[13px] text-[var(--muted)]">
+            {t("browse.ctaDesc")}
+          </p>
         </div>
-        <Link to="/create" className="button button-primary">
+        <Link to="/create" className="button button-primary shrink-0">
           <Plus size={17} /> {t("browse.ctaButton")}
         </Link>
       </div>

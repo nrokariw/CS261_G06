@@ -240,7 +240,7 @@ export default function HandoverModal({ request, onClose, onSuccess }) {
               {preview && (
                 <button
                   type="button"
-                  className="button button-danger-outline button-sm"
+                  className="button button-danger-outline button-sm mt-2 self-start"
                   onClick={removeImage}
                   disabled={submitting}
                 >

@@ -39,7 +39,7 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
   }
 
   return (
-    <div className="page-stack">
+    <div className="flex flex-col gap-6">
       <PageHeading
         eyebrow={t("myBorrows.eyebrow", { defaultValue: "MY BORROWS" })}
         title={t("myBorrows.title", { defaultValue: "การยืมของฉัน" })}
@@ -56,7 +56,7 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
       )}
 
       {myBorrows.length ? (
-        <div className="requests-list requests-list-updated">
+        <div className="flex flex-col gap-4">
           {myBorrows.map((req) => {
             // T-6.3: ส่งมอบแล้ว แสดงสถานะ "กำลังยืม"
             const handedOver = isHandedOver(
@@ -73,12 +73,14 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
                   <>
                     {/* T-6.3: ปุ่มบันทึกหลักฐานการส่งมอบ เฉพาะคำขอ accepted ที่ยังไม่ส่งมอบ */}
                     {handedOver ? (
-                      <div className="request-status-updated">
-                        <small className="status-hint">{t("handover.done")}</small>
+                      <div className="flex flex-col items-stretch sm:items-end gap-2">
+                        <small className="text-[13px] text-[var(--muted)] text-center sm:text-right">
+                          {t("handover.done")}
+                        </small>
                       </div>
                     ) : (
                       req.status === "accepted" && (
-                        <div className="request-status-updated">
+                        <div className="flex flex-col items-stretch sm:items-end gap-2">
                           <button
                             type="button"
                             className="button button-primary button-sm"
@@ -93,7 +95,7 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
                       )
                     )}
                     {req.status === "change_requested" && (
-                      <div className="request-edit-wrap">
+                      <div className="mt-1">
                         <Link
                           to={`/items/${req.itemId}`}
                           className="button button-outline button-info-outline button-sm button-full"

@@ -190,7 +190,7 @@ export default function CreateListing({ items, setItems }) {
 }
 
   return (
-    <div className="page-stack narrow-page">
+    <div className="flex flex-col gap-6 max-w-3xl mx-auto w-full">
       <button className="back-link" onClick={() => navigate(-1)}>
         <ArrowLeft size={16} /> {t("common.back")}
       </button>
@@ -200,18 +200,28 @@ export default function CreateListing({ items, setItems }) {
         subtitle={t("createListing.subtitle")}
       />{" "}
       {/* หัวประกาศ */}
-      <form className="form-card" onSubmit={submit} noValidate>
+      <form
+        className="flex flex-col p-6 sm:p-8 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs"
+        onSubmit={submit}
+        noValidate
+      >
         {success && (
-          <div className="alert alert-success">
+          <div className="alert alert-success mb-5">
             <CheckCircle2 size={18} />
             {success}
           </div>
         )}
-        <div className="form-section-title">
-          <span className="section-number">01</span>
+        <div className="flex items-start gap-3.5 mb-5 pb-4 border-b border-[var(--border)]">
+          <span className="w-8 h-8 rounded-lg bg-[var(--peach)] text-[var(--primary)] text-xs font-bold grid place-items-center shrink-0 mt-0.5">
+            01
+          </span>
           <div>
-            <h2>{t("createListing.section1Title")}</h2>
-            <p>{t("createListing.section1Desc")}</p>
+            <h2 className="m-0 text-base font-semibold text-[var(--text)]">
+              {t("createListing.section1Title")}
+            </h2>
+            <p className="m-0 mt-0.5 text-xs text-[var(--muted)]">
+              {t("createListing.section1Desc")}
+            </p>
           </div>
         </div>
         <div className="field">
@@ -279,7 +289,7 @@ export default function CreateListing({ items, setItems }) {
             </small>
           )}
         </div>
-        <div className="field-group two-col-responsive">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="field">
             <label htmlFor="availableFrom">
               {t("createListing.availableFromLabel")}
@@ -333,11 +343,17 @@ export default function CreateListing({ items, setItems }) {
             )}
           </div>
         </div>
-        <div className="form-section-title section-spaced">
-          <span className="section-number">02</span>
+        <div className="flex items-start gap-3.5 mt-4 mb-5 pb-4 border-b border-[var(--border)]">
+          <span className="w-8 h-8 rounded-lg bg-[var(--peach)] text-[var(--primary)] text-xs font-bold grid place-items-center shrink-0 mt-0.5">
+            02
+          </span>
           <div>
-            <h2>{t("createListing.section2Title")}</h2>
-            <p>{t("createListing.section2Desc")}</p>
+            <h2 className="m-0 text-base font-semibold text-[var(--text)]">
+              {t("createListing.section2Title")}
+            </h2>
+            <p className="m-0 mt-0.5 text-xs text-[var(--muted)]">
+              {t("createListing.section2Desc")}
+            </p>
           </div>
         </div>
         <input
@@ -374,21 +390,21 @@ export default function CreateListing({ items, setItems }) {
             </span>
           )}
         </button>
-        {errors.image && <small className="field-error">{errors.image}</small>}
-        <div className="form-note">
-          <AlertCircle size={16} />
+        {errors.image && <small className="field-error mt-2">{errors.image}</small>}
+        <div className="my-5 flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border)] text-xs text-[var(--muted)]">
+          <AlertCircle size={16} className="shrink-0 text-[var(--primary)]" />
           <span>
-            {t("createListing.requiredNotePrefix")} <b>*</b> {t("createListing.requiredNoteSuffix")}
+            {t("createListing.requiredNotePrefix")} <b className="text-[#B9382B] dark:text-[#F87171]">*</b> {t("createListing.requiredNoteSuffix")}
           </span>
         </div>
         {/* Inline Alert สำหรับแสดง Error ตอนกดบันทึก */}
         {submitError && (
-          <div className="alert alert-error" style={{ marginBottom: '16px' }}>
+          <div className="alert alert-error mb-4">
             <AlertCircle size={18} />
             <span>{submitError}</span>
           </div>
         )}
-        <div className="form-actions">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-5 border-t border-[var(--border)]">
           <button
             type="button"
             className="button button-outline"

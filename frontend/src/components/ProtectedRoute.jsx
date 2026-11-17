@@ -10,7 +10,7 @@ export default function ProtectedRoute({ children }) {
 
   if (authLoading) {
     return (
-      <div className="page-stack">
+      <div className="flex flex-col gap-6 py-8 text-sm text-[var(--muted)]">
         <p>{t("auth.checkingSession", { defaultValue: "กำลังตรวจสอบสถานะการเข้าสู่ระบบ..." })}</p>
       </div>
     );

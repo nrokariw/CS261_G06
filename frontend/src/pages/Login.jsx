@@ -116,7 +116,7 @@ export default function Login() {
   const isEn = i18n.language?.startsWith("en");
 
   return (
-    <div className="page-stack narrow-page">
+    <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
       <PageHeading
         eyebrow={t("auth.eyebrow", { defaultValue: "เข้าสู่ระบบ CAMPUSSHARE" })}
         title={t("auth.loginTitle", { defaultValue: "เข้าสู่ระบบ CampusShare" })}
@@ -133,19 +133,27 @@ export default function Login() {
         }
       />
 
-      <div className="login-grid">
-        <form className="form-card" onSubmit={handleSubmit} noValidate>
-          <div className="form-section-title">
-            <span className="section-number">
+      <div
+        className={`grid grid-cols-1 gap-6 items-start ${
+          demoEnabled && demoAccounts.length > 0 ? "lg:grid-cols-2" : "max-w-lg w-full mx-auto"
+        }`}
+      >
+        <form
+          className="flex flex-col p-6 sm:p-8 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs"
+          onSubmit={handleSubmit}
+          noValidate
+        >
+          <div className="flex items-start gap-3.5 mb-5 pb-4 border-b border-[var(--border)]">
+            <span className="w-8 h-8 rounded-lg bg-[var(--peach)] text-[var(--primary)] grid place-items-center shrink-0 mt-0.5">
               <KeyRound size={16} />
             </span>
             <div>
-              <h2>
+              <h2 className="m-0 text-base font-semibold text-[var(--text)]">
                 {t("auth.credentialsHeading", {
                   defaultValue: "ยืนยันตัวตนด้วยบัญชีนักศึกษา",
                 })}
               </h2>
-              <p>
+              <p className="m-0 mt-0.5 text-xs text-[var(--muted)]">
                 {t("auth.credentialsSubheading", {
                   defaultValue:
                     "เข้าสู่ระบบด้วยรหัสนักศึกษาและรหัสผ่านของมหาวิทยาลัยธรรมศาสตร์",
@@ -155,14 +163,8 @@ export default function Login() {
           </div>
 
           {error && (
-            <div
-              className="alert alert-error"
-              role="alert"
-              style={{
-                marginBottom: "16px",
-              }}
-            >
-              <AlertCircle size={17} />
+            <div className="alert alert-error mb-4" role="alert">
+              <AlertCircle size={17} className="shrink-0" />
               <span>{error}</span>
             </div>
           )}
@@ -205,8 +207,8 @@ export default function Login() {
             />
           </div>
 
-          <div className="borrow-note" style={{ marginBottom: "16px" }}>
-            <ShieldCheck size={17} />
+          <div className="mb-4 flex items-start gap-2.5 p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border)] text-xs leading-relaxed text-[var(--muted)]">
+            <ShieldCheck size={17} className="shrink-0 mt-0.5 text-[var(--primary)]" />
             <span>
               {t("auth.securityNote", {
                 defaultValue:
@@ -228,18 +230,18 @@ export default function Login() {
         </form>
 
         {demoEnabled && demoAccounts.length > 0 && (
-          <section className="form-card demo-switcher-card">
-            <div className="form-section-title">
-              <span className="section-number">
+          <section className="flex flex-col p-6 sm:p-8 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs">
+            <div className="flex items-start gap-3.5 mb-5 pb-4 border-b border-[var(--border)]">
+              <span className="w-8 h-8 rounded-lg bg-[var(--peach)] text-[var(--primary)] grid place-items-center shrink-0 mt-0.5">
                 <Sparkles size={16} />
               </span>
               <div>
-                <h2>
+                <h2 className="m-0 text-base font-semibold text-[var(--text)]">
                   {t("auth.demoSwitcherTitle", {
                     defaultValue: "สลับบัญชีทดสอบด่วน (Quick Demo Accounts)",
                   })}
                 </h2>
-                <p>
+                <p className="m-0 mt-0.5 text-xs text-[var(--muted)]">
                   {t("auth.demoSwitcherDesc", {
                     defaultValue:
                       "คลิกเพื่อเข้าสู่ระบบทันทีสำหรับทดสอบบทบาทผู้ให้ยืม (Owner) และผู้ขอยืม (Borrower)",
@@ -248,35 +250,37 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="demo-accounts-grid">
+            <div className="flex flex-col gap-2.5">
               {demoAccounts.map((acc) => {
                 const isCurrent = user?.studentId === acc.studentId;
                 return (
                   <button
                     key={acc.studentId}
                     type="button"
-                    className={`button demo-account-btn ${
+                    className={`w-full flex flex-col items-start gap-1 p-3.5 rounded-xl border text-left transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                       isCurrent
-                        ? "button-primary is-active"
-                        : "button-outline"
+                        ? "bg-[var(--primary)] border-[var(--primary)] text-white shadow-xs"
+                        : "bg-[var(--surface-subtle)] border-[var(--border)] text-[var(--text)] hover:border-[var(--primary)] hover:bg-[var(--surface-tint)]"
                     }`}
                     onClick={() => handleQuickDemoLogin(acc)}
                     disabled={submitting}
                   >
-                    <div className="demo-account-header">
-                      <strong>
+                    <div className="w-full flex items-center justify-between gap-2">
+                      <strong className="text-[13.5px] font-semibold">
                         {acc.name} ({acc.studentId})
                       </strong>
                       {isCurrent ? (
-                        <UserCheck size={16} />
+                        <UserCheck size={16} className="shrink-0" />
                       ) : (
-                        <UserRound size={16} />
+                        <UserRound size={16} className="shrink-0 opacity-75" />
                       )}
                     </div>
-                    <small className="demo-account-role">
+                    <small className={`text-xs ${isCurrent ? "text-white/90" : "text-[var(--muted)]"}`}>
                       {isEn ? acc.roleLabelEn : acc.roleLabelTh}
                     </small>
-                    <small className="demo-account-faculty">{acc.faculty}</small>
+                    <small className={`text-[11px] ${isCurrent ? "text-white/80" : "text-[var(--muted)]"}`}>
+                      {acc.faculty}
+                    </small>
                   </button>
                 );
               })}

@@ -46,10 +46,22 @@ const STATUS_CONFIG = {
 };
 
 export function PageHeading({ eyebrow, title, subtitle, action }) {
-  return <div className="page-heading">
-    <div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1>{subtitle && <p>{subtitle}</p>}</div>
-    {action && <div className="heading-action">{action}</div>}
-  </div>;
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-[var(--border)]">
+      <div className="min-w-0">
+        <div className="eyebrow">{eyebrow}</div>
+        <h1 className="mt-1.5 mb-0 text-[26px] sm:text-[28px] font-bold leading-tight tracking-tight text-[var(--text)]">
+          {title}
+        </h1>
+        {subtitle && (
+          <p className="mt-1.5 mb-0 text-[13px] text-[var(--muted)] leading-relaxed">
+            {subtitle}
+          </p>
+        )}
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
+  );
 }
 
 export function StatusBadge({ status }) {
@@ -66,27 +78,85 @@ export function ItemCard({ item }) {
     String(item.status || "").toLowerCase() === "accepted"
       ? "reserved"
       : item.status;
-  return <article className="item-card">
-    <Link to={`/items/${item.id}`} className="item-image-wrap">
-      {item.image ? <img src={item.image} alt={item.name} className="item-image" /> : <div className="image-placeholder"><PackageOpen size={42} /></div>}
-      <span className="image-arrow"><ArrowUpRight size={16} /></span>
-    </Link>
-    <div className="item-card-body">
-      <CategoryBadge category={item.category} />
-      <Link to={`/items/${item.id}`} className="item-title">{item.name}</Link>
-      <div className="item-owner"><span className="mini-avatar"><UserRound size={13} /></span>{item.owner}</div>
-      <div className="item-card-bottom"><StatusBadge status={displayStatus} /><Link to={`/items/${item.id}`} className="text-link">{t("common.viewDetails")} <ArrowUpRight size={14} /></Link></div>
-    </div>
-  </article>;
+  return (
+    <article className="group flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-[14px] overflow-hidden shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-[var(--primary)]/40 transition-all duration-200">
+      <Link
+        to={`/items/${item.id}`}
+        className="relative block aspect-[16/10] bg-[var(--surface-subtle)] overflow-hidden"
+      >
+        {item.image ? (
+          <img
+            src={item.image}
+            alt={item.name}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          />
+        ) : (
+          <div className="w-full h-full grid place-items-center text-[var(--muted)] bg-[var(--surface-subtle)]">
+            <PackageOpen size={42} />
+          </div>
+        )}
+        <span className="absolute top-3 right-3 w-8 h-8 rounded-full bg-[var(--surface)]/90 backdrop-blur-xs border border-[var(--border)] grid place-items-center text-[var(--text)] opacity-0 group-hover:opacity-100 group-hover:bg-[var(--primary)] group-hover:text-white group-hover:border-[var(--primary)] transition-all duration-150 shadow-xs">
+          <ArrowUpRight size={16} />
+        </span>
+      </Link>
+      <div className="flex flex-col flex-1 p-4">
+        <div className="flex-1 flex flex-col">
+          <CategoryBadge category={item.category} />
+          <Link
+            to={`/items/${item.id}`}
+            className="mt-2 text-[15px] font-semibold text-[var(--text)] hover:text-[var(--primary)] no-underline leading-snug line-clamp-2 transition-colors"
+          >
+            {item.name}
+          </Link>
+          <div className="mt-2 flex items-center gap-1.5 text-xs text-[var(--muted)]">
+            <span className="w-5 h-5 rounded-full bg-[var(--peach)] text-[var(--brown)] grid place-items-center shrink-0">
+              <UserRound size={12} />
+            </span>
+            <span className="truncate">{item.owner}</span>
+          </div>
+        </div>
+        <div className="mt-3.5 pt-3 border-t border-[var(--border)] flex items-center justify-between gap-2.5">
+          <StatusBadge status={displayStatus} />
+          <Link to={`/items/${item.id}`} className="text-link">
+            {t("common.viewDetails")} <ArrowUpRight size={14} />
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
 }
 
 export function EmptyState({ title, description }) {
-  return <div className="empty-state"><span className="empty-icon"><PackageOpen size={28} /></span><h3>{title}</h3><p>{description}</p></div>;
+  return (
+    <div className="flex flex-col items-center justify-center text-center p-10 bg-[var(--surface)] border border-dashed border-[var(--border)] rounded-[14px]">
+      <span className="w-14 h-14 rounded-2xl bg-[var(--surface-tint)] text-[var(--primary)] grid place-items-center mb-3.5">
+        <PackageOpen size={28} />
+      </span>
+      <h3 className="m-0 text-base font-semibold text-[var(--text)]">{title}</h3>
+      <p className="mt-1.5 mb-0 text-[13px] text-[var(--muted)] max-w-md leading-relaxed">
+        {description}
+      </p>
+    </div>
+  );
 }
+
+const AVATAR_SIZE_CLASSES = {
+  sm: "w-7 h-7 text-xs",
+  md: "w-9 h-9 text-sm",
+  lg: "w-11 h-11 text-base",
+};
 
 export function Avatar({ name, size = "md" }) {
   const letter = (name || "?").trim().charAt(0).toUpperCase();
-  return <span className={`avatar avatar-${size}`} aria-hidden="true">{letter}</span>;
+  const sizeClass = AVATAR_SIZE_CLASSES[size] || AVATAR_SIZE_CLASSES.md;
+  return (
+    <span
+      className={`inline-grid place-items-center rounded-full font-bold bg-[var(--peach)] text-[var(--primary)] border border-[var(--border)] shrink-0 select-none ${sizeClass}`}
+      aria-hidden="true"
+    >
+      {letter}
+    </span>
+  );
 }
 
 export function RequestCard({
@@ -121,52 +191,64 @@ export function RequestCard({
   );
 
   return (
-    <article className="request-card request-card-updated">
-      <div className="request-main">
-        <div className="request-card-top">
+    <article className="flex flex-col md:flex-row justify-between gap-5 p-5 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start gap-3">
           <Avatar name={avatarName} />
-          <div className="request-title">
-            <h3>{request.itemName}</h3>
-            <p>{subtitle !== undefined ? subtitle : defaultSubtitle}</p>
+          <div className="min-w-0 flex-1">
+            <h3 className="m-0 text-base font-semibold text-[var(--text)] truncate">
+              {request.itemName}
+            </h3>
+            <p className="m-0 mt-0.5 text-xs text-[var(--muted)]">
+              {subtitle !== undefined ? subtitle : defaultSubtitle}
+            </p>
           </div>
           <StatusBadge status={status || request.status} />
         </div>
 
-        <p className="request-reason">
+        <p className="mt-3 mb-0 text-[13px] leading-relaxed text-[var(--text)] break-words">
           {!isOwner && t("myBorrows.reasonPrefix", { defaultValue: "เหตุผล: " })}
           {request.reason}
         </p>
 
         {request.responseReason && (
           isOwner ? (
-            <p className="request-response-note">
-              <strong>{t("incomingRequests.ownerFeedbackLabel", { defaultValue: "ข้อความตอบกลับของคุณ" })}</strong>
+            <p className="mt-2.5 mb-0 px-3 py-2 rounded-lg text-[13px] text-[var(--muted)] bg-[var(--surface-subtle)] border-l-[3px] border-[#0284c7] dark:border-[#38bdf8]">
+              <strong className="text-[var(--text)] mr-1">
+                {t("incomingRequests.ownerFeedbackLabel", { defaultValue: "ข้อความตอบกลับของคุณ:" })}
+              </strong>
               {request.responseReason}
             </p>
           ) : (
             <p
-              className={`request-feedback ${
+              className={`mt-2.5 mb-0 px-3 py-2 rounded-lg text-[13px] border-l-[3px] ${
                 request.status === "rejected"
-                  ? "request-feedback-rejected"
-                  : "request-feedback-info"
+                  ? "bg-[#FCE8E4] text-[#B9382B] border-[#B9382B] dark:bg-[#3B1C18] dark:text-[#FCA5A5] dark:border-[#F87171]"
+                  : "bg-[#E0F2FE] text-[#0369A1] border-[#0284c7] dark:bg-[#172E48] dark:text-[#7DD3FC] dark:border-[#38bdf8]"
               }`}
             >
-              <strong>{t("myBorrows.ownerFeedback", { defaultValue: "ข้อความจากเจ้าของ: " })}</strong>
+              <strong className="mr-1">
+                {t("myBorrows.ownerFeedback", { defaultValue: "ข้อความจากเจ้าของ: " })}
+              </strong>
               {request.responseReason}
             </p>
           )
         )}
       </div>
 
-      <div className="request-side">
-        <dl className="request-dates">
+      <div className="md:w-72 lg:w-80 shrink-0 flex flex-col justify-between gap-3.5 pt-4 border-t border-[var(--border)] md:pt-0 md:border-t-0 md:border-l md:pl-5">
+        <dl className="grid grid-cols-2 gap-3 m-0">
           <div>
-            <dt>{borrowDateLabel}</dt>
-            <dd>{formatDate(request.borrowDate, i18n.language)}</dd>
+            <dt className="text-[11px] font-medium text-[var(--muted)]">{borrowDateLabel}</dt>
+            <dd className="m-0 mt-0.5 text-[13px] font-semibold text-[var(--text)]">
+              {formatDate(request.borrowDate, i18n.language)}
+            </dd>
           </div>
           <div>
-            <dt>{returnDateLabel}</dt>
-            <dd>{formatDate(request.returnDate, i18n.language)}</dd>
+            <dt className="text-[11px] font-medium text-[var(--muted)]">{returnDateLabel}</dt>
+            <dd className="m-0 mt-0.5 text-[13px] font-semibold text-[var(--text)]">
+              {formatDate(request.returnDate, i18n.language)}
+            </dd>
           </div>
         </dl>
         {actions}

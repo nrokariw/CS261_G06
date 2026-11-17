@@ -158,12 +158,14 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
     }
   }
 
-  if (loading) return <div className="page-stack">กำลังโหลดข้อมูล...</div>;
+  if (loading) return <div className="flex flex-col gap-6 text-sm text-[var(--muted)]">กำลังโหลดข้อมูล...</div>;
 
   if (errorMsg || !item)
     return (
-      <div className="not-found">
-        <h1>{t("itemDetails.notFoundTitle")}</h1>
+      <div className="flex flex-col items-center justify-center text-center py-16 px-6 gap-4 max-w-lg mx-auto">
+        <h1 className="m-0 text-2xl font-bold text-[var(--text)]">
+          {t("itemDetails.notFoundTitle")}
+        </h1>
         <Link className="button button-primary" to="/">
           {t("itemDetails.backToHome")}
         </Link>
@@ -182,61 +184,80 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
   const isAvailable = String(item.status || "").toLowerCase() === "available";
 
   return (
-    <div className="page-stack">
-      <div className="detail-page-heading">
+    <div className="flex flex-col gap-5">
+      <div>
         <div className="eyebrow">{t("itemDetails.eyebrow")}</div>
       </div>
       <button className="back-link" onClick={() => navigate(-1)}>
         <ArrowLeft size={16} /> {t("itemDetails.backToSearch")}
       </button>
-      <div className="detail-layout">
-        <section className="detail-main">
-          <div className="detail-image">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.85fr)] gap-7 items-start">
+        <section className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-xs">
+          <div className="aspect-[16/10] bg-[var(--surface-subtle)] overflow-hidden">
             {item.image ? (
-              <img src={item.image} alt={item.name} />
+              <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
             ) : (
-              <div className="image-placeholder">
+              <div className="w-full h-full grid place-items-center text-[var(--muted)] bg-[var(--surface-subtle)]">
                 <CalendarDays size={48} />
               </div>
             )}
           </div>
           {Array.isArray(item.images) && item.images.length > 1 && (
-            <div className="detail-thumbnails">
+            <div className="flex gap-2.5 px-6 pt-4 overflow-x-auto">
               {item.images.map((imgSrc, idx) => (
-                <img key={idx} src={imgSrc} alt={`${item.name} ${idx + 1}`} />
+                <img
+                  key={idx}
+                  src={imgSrc}
+                  alt={`${item.name} ${idx + 1}`}
+                  className="w-16 h-16 rounded-lg object-cover border border-[var(--border)] shrink-0"
+                />
               ))}
             </div>
           )}
-          <div className="detail-info">
-            <StatusBadge status={effectiveStatus} />
-            <CategoryBadge category={item.category} />
-            <h1>{item.name}</h1>
-            <div className="owner-row">
-              <span className="owner-avatar">
+          <div className="p-6 sm:p-7 flex flex-col">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge status={effectiveStatus} />
+              <CategoryBadge category={item.category} />
+            </div>
+            <h1 className="mt-3 mb-0 text-2xl sm:text-[26px] font-bold leading-snug text-[var(--text)]">
+              {item.name}
+            </h1>
+            <div className="mt-5 flex flex-wrap items-center gap-3 p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border)]">
+              <span className="w-10 h-10 rounded-full bg-[var(--peach)] text-[var(--primary)] grid place-items-center shrink-0">
                 <UserRound size={20} />
               </span>
-              <div>
-                <strong>{item.owner}</strong>
-                <small>{t("itemDetails.ownerRole")}</small>
+              <div className="min-w-0 flex-1 flex flex-col">
+                <strong className="text-sm font-semibold text-[var(--text)] truncate">
+                  {item.owner}
+                </strong>
+                <small className="text-[11px] text-[var(--muted)]">
+                  {t("itemDetails.ownerRole")}
+                </small>
               </div>
-              <span className="verified">
-                <ShieldCheck size={15} /> {t("itemDetails.verifiedMember")}
+              <span className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#E4F3E8] text-[#247A4B] dark:bg-[#1B3526] dark:text-[#4ADE80] text-[11px] font-semibold shrink-0">
+                <ShieldCheck size={14} /> {t("itemDetails.verifiedMember")}
               </span>
             </div>
-            <hr />
-            <h2>{t("itemDetails.detailHeading")}</h2>
-            <p>{item.detail}</p>
-            <div className="detail-meta">
-              <span>
-                <MapPin size={16} /> {t("itemDetails.pickupLocation")}
+            <hr className="my-5 border-0 border-t border-[var(--border)]" />
+            <h2 className="m-0 text-[15px] font-semibold text-[var(--text)]">
+              {t("itemDetails.detailHeading")}
+            </h2>
+            <p className="mt-2 mb-0 text-[13.5px] leading-relaxed text-[var(--muted)] whitespace-pre-line">
+              {item.detail}
+            </p>
+            <div className="mt-5 flex flex-wrap gap-4 text-xs text-[var(--muted)]">
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin size={15} className="text-[var(--primary)] shrink-0" />{" "}
+                {t("itemDetails.pickupLocation")}
               </span>
-              <span>
-                <ShieldCheck size={16} /> {t("itemDetails.careNotice")}
+              <span className="inline-flex items-center gap-1.5">
+                <ShieldCheck size={15} className="text-[var(--primary)] shrink-0" />{" "}
+                {t("itemDetails.careNotice")}
               </span>
             </div>
             {availFromStr && (
-              <div className="detail-availability">
-                <CalendarDays size={16} />
+              <div className="mt-4 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--surface-tint)] border border-[var(--border)] text-xs font-medium text-[var(--text)] w-fit">
+                <CalendarDays size={15} className="text-[var(--primary)] shrink-0" />
                 <span>
                   {t("itemDetails.availablePeriod", {
                     from: availFromStr,
@@ -247,20 +268,24 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
             )}
           </div>
         </section>
-        <aside className="borrow-panel">
-          <div className="borrow-panel-heading">
-            <span className="panel-icon">
+        <aside className="lg:sticky lg:top-24 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-xs flex flex-col gap-4">
+          <div className="flex items-start gap-3">
+            <span className="w-10 h-10 rounded-xl bg-[var(--peach)] text-[var(--primary)] grid place-items-center shrink-0">
               <CalendarDays size={20} />
             </span>
             <div>
-              <h2>{t("itemDetails.borrowHeading")}</h2>
-              <p>{t("itemDetails.borrowSubtitle")}</p>
+              <h2 className="m-0 text-base font-semibold text-[var(--text)]">
+                {t("itemDetails.borrowHeading")}
+              </h2>
+              <p className="m-0 mt-0.5 text-xs text-[var(--muted)] leading-snug">
+                {t("itemDetails.borrowSubtitle")}
+              </p>
             </div>
           </div>
           {!user ? (
-            <div style={{ marginTop: "15px", display: "grid", gap: "12px" }}>
-              <div className="borrow-note">
-                <ShieldCheck size={17} />
+            <div className="mt-2 grid gap-3">
+              <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border)] text-xs leading-relaxed text-[var(--muted)]">
+                <ShieldCheck size={17} className="shrink-0 mt-0.5 text-[var(--primary)]" />
                 <span>
                   {t("auth.loginRequiredToBorrow", {
                     defaultValue:
@@ -278,62 +303,66 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
               </Link>
             </div>
           ) : success ? (
-            <div className="request-success">
-              <span>
-                <CheckCircle2 size={28} />
+            <div className="flex flex-col items-center text-center gap-2.5 p-5 rounded-xl bg-[#E4F3E8]/60 dark:bg-[#1B3526]/70 border border-[#C3E6CB] dark:border-[#275238]">
+              <span className="w-12 h-12 rounded-full bg-[#E4F3E8] text-[#247A4B] dark:bg-[#275238] dark:text-[#4ADE80] grid place-items-center">
+                <CheckCircle2 size={26} />
               </span>
-              <h3>{t("itemDetails.requestSentTitle", { defaultValue: "ส่งคำขอเรียบร้อยแล้ว!" })}</h3>
-              <p>{t("itemDetails.requestSentDesc", { defaultValue: "เจ้าของสิ่งของจะตรวจสอบคำขอของคุณ" })}</p>
+              <h3 className="m-0 text-base font-semibold text-[var(--text)]">
+                {t("itemDetails.requestSentTitle", { defaultValue: "ส่งคำขอเรียบร้อยแล้ว!" })}
+              </h3>
+              <p className="m-0 text-xs text-[var(--muted)]">
+                {t("itemDetails.requestSentDesc", { defaultValue: "เจ้าของสิ่งของจะตรวจสอบคำขอของคุณ" })}
+              </p>
               <button
-                className="button button-primary button-full"
+                className="button button-primary button-full mt-2"
                 onClick={() => navigate("/my-borrows")}
               >
                 {t("itemDetails.viewMyBorrows", { defaultValue: "ดูรายการยืมของฉัน" })}
               </button>
             </div>
           ) : isOwner ? (
-            <div className="borrow-note borrow-note-info">
-              <ShieldCheck size={17} />
+            <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#E0F2FE] text-[#0369A1] border border-[#BAE6FD] dark:bg-[#172E48] dark:text-[#7DD3FC] dark:border-[#1E466F] text-xs leading-relaxed">
+              <ShieldCheck size={17} className="shrink-0 mt-0.5" />
               <span>{t("itemDetails.cannotBorrowOwnItem", { defaultValue: "คุณเป็นเจ้าของสิ่งของชิ้นนี้ ไม่สามารถยืมของตัวเองได้" })}</span>
             </div>
           ) : myRequest?.status === "rejected" ? (
-            <div className="borrow-note borrow-note-rejected">
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "bold" }}>
-                <AlertCircle size={18} />
+            <div className="flex flex-col gap-2.5 p-4 rounded-xl bg-[#FCE8E4] text-[#B9382B] border border-[#F5C2B8] dark:bg-[#3B1C18] dark:text-[#FCA5A5] dark:border-[#5C2720] text-xs leading-relaxed">
+              <div className="flex items-center gap-2 font-bold">
+                <AlertCircle size={18} className="shrink-0" />
                 <span>{t("itemDetails.borrowBlockedTitle")}</span>
               </div>
-              <p className="borrow-note-desc">
+              <p className="m-0 opacity-90">
                 {t("itemDetails.borrowBlockedDesc")}
               </p>
               {myRequest.responseReason && (
-                <div className="borrow-note-reason">
+                <div className="px-3 py-2 rounded-lg bg-[var(--surface)]/80 border border-[var(--border)] text-[var(--text)]">
                   {t("itemDetails.ownerNotePrefix")} {myRequest.responseReason}
                 </div>
               )}
               <button
                 type="button"
-                className="button button-outline button-full"
+                className="button button-outline button-full mt-1"
                 onClick={() => navigate("/my-borrows")}
               >
                 {t("itemDetails.viewMyBorrows")}
               </button>
             </div>
           ) : myRequest && (myRequest.status === "pending" || myRequest.status === "accepted") ? (
-            <div className="request-success" style={{ marginTop: "15px" }}>
-              <span>
-                <CheckCircle2 size={28} />
+            <div className="mt-2 flex flex-col items-center text-center gap-2.5 p-5 rounded-xl bg-[#E4F3E8]/60 dark:bg-[#1B3526]/70 border border-[#C3E6CB] dark:border-[#275238]">
+              <span className="w-12 h-12 rounded-full bg-[#E4F3E8] text-[#247A4B] dark:bg-[#275238] dark:text-[#4ADE80] grid place-items-center">
+                <CheckCircle2 size={26} />
               </span>
-              <h3>
+              <h3 className="m-0 text-base font-semibold text-[var(--text)]">
                 {myRequest.status === "accepted"
                   ? t("itemDetails.requestAcceptedTitle", { defaultValue: "คำขอของคุณได้รับการอนุมัติแล้ว" })
                   : t("itemDetails.requestPendingTitle", { defaultValue: "คุณได้ส่งคำขอยืมสิ่งของนี้แล้ว" })}
               </h3>
-              <p>
+              <p className="m-0 text-xs text-[var(--muted)]">
                 {myRequest.status === "accepted"
                   ? t("itemDetails.requestAcceptedDesc", { defaultValue: "กรุณานัดหมายเพื่อรับสิ่งของตามกำหนด" })
                   : t("itemDetails.requestPendingDesc", { defaultValue: "คำขอของคุณอยู่ระหว่างรอเจ้าของสิ่งของตรวจสอบ" })}
               </p>
-              <div style={{ margin: "10px 0" }}>
+              <div className="my-2">
                 <StatusBadge status={myRequest.status} />
               </div>
               <button
@@ -345,18 +374,18 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
               </button>
             </div>
           ) : !isAvailable ? (
-            <div className="borrow-note borrow-note-danger">
-              <AlertCircle size={17} />
+            <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[#FCE8E4] text-[#B9382B] border border-[#F5C2B8] dark:bg-[#3B1C18] dark:text-[#F87171] dark:border-[#5C2720] text-xs leading-relaxed">
+              <AlertCircle size={17} className="shrink-0 mt-0.5" />
               <span>{t("itemDetails.itemNotAvailable", { defaultValue: "สิ่งของชิ้นนี้ไม่อยู่ในสถานะพร้อมให้ยืม (อาจถูกจองหรือยืมไปแล้ว)" })}</span>
             </div>
           ) : (
             <form onSubmit={submit} noValidate>
               {myRequest?.status === "change_requested" && (
-                <div className="borrow-note-change">
+                <div className="mb-4 flex flex-col gap-1.5 p-3.5 rounded-xl bg-[#E0F2FE] text-[#0369A1] border border-[#BAE6FD] dark:bg-[#172E48] dark:text-[#7DD3FC] dark:border-[#1E466F] text-xs leading-relaxed">
                   <strong>{t("itemDetails.requestChangeTitle")}</strong>
-                  <p>{t("itemDetails.requestChangeDesc")}</p>
+                  <p className="m-0">{t("itemDetails.requestChangeDesc")}</p>
                   {myRequest.responseReason && (
-                    <div className="borrow-note-reason">
+                    <div className="mt-1 px-3 py-2 rounded-lg bg-[var(--surface)]/80 border border-[var(--border)] text-[var(--text)]">
                       {t("itemDetails.ownerNotePrefix")} {myRequest.responseReason}
                     </div>
                   )}
@@ -416,12 +445,12 @@ export default function ItemDetails({ items, requests = [], setRequests }) {
                   {t("itemDetails.charCount", { count: reason.length, max: BORROW_REASON_MAX_LENGTH })}
                 </small>
               </div>
-              <div className="borrow-note">
-                <ShieldCheck size={17} />
+              <div className="mb-4 flex items-start gap-2.5 p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border)] text-xs leading-relaxed text-[var(--muted)]">
+                <ShieldCheck size={17} className="shrink-0 mt-0.5 text-[var(--primary)]" />
                 <span>{t("itemDetails.borrowNote")}</span>
               </div>
               {submitError && (
-                <div className="alert alert-error" style={{ marginBottom: "12px" }}>
+                <div className="alert alert-error mb-3">
                   <AlertCircle size={16} />
                   <span>{submitError}</span>
                 </div>
