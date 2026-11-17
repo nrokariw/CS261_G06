@@ -22,13 +22,12 @@ import {
   updateWantedPost,
 } from "../api/wantedPostsApi";
 import {
-  ALLOWED_IMAGE_TYPES,
   ITEM_DETAIL_MAX_LENGTH,
-  MAX_IMAGE_SIZE_BYTES,
   MAX_IMAGE_SIZE_MB,
   REDIRECT_DELAY_MS,
   WANTED_TITLE_MAX_LENGTH,
 } from "../constants/config";
+import { prepareImageForUpload } from "../utils/imageCompression";
 
 function toLocalDateTimePayload(dateValue, isEndOfDay = false) {
   if (!dateValue) return null;
@@ -180,37 +179,29 @@ export default function CreateListing({
     return Object.keys(next).length === 0;
   }
 
-  function chooseImage(e) {
+  async function chooseImage(e) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 1. ตรวจสอบนามสกุลไฟล์ก่อนถึง backend (JPG, PNG, WEBP)
-    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      setErrors((prev) => ({ 
-        ...prev, 
-        image: t("validation.invalidImageType") 
+    try {
+      const compressed = await prepareImageForUpload(file);
+      setImageFile(compressed);
+      setImageFileName(compressed.name);
+
+      const reader = new FileReader();
+      reader.onload = () => setImagePreview(String(reader.result));
+      reader.readAsDataURL(compressed);
+      setErrors((prev) => ({ ...prev, image: "" }));
+    } catch (err) {
+      e.target.value = "";
+      setErrors((prev) => ({
+        ...prev,
+        image:
+          err?.code === "IMAGE_TOO_LARGE"
+            ? t("validation.imageTooLarge", { max: MAX_IMAGE_SIZE_MB })
+            : t("validation.invalidImageType"),
       }));
-      return;
     }
-
-    // 2. ตรวจสอบขนาดไม่ให้เกินขีดจำกัดก่อนถึง backend 
-    if (file.size > MAX_IMAGE_SIZE_BYTES) {
-      setErrors((prev) => ({ 
-        ...prev, 
-        image: t("validation.imageTooLarge", { max: MAX_IMAGE_SIZE_MB }) 
-      }));
-      return;
-    }
-
-    // เก็บ File Object จริงไว้เตรียมส่ง FormData
-    setImageFile(file);
-    setImageFileName(file.name);
-
-    // สร้าง Preview สำหรับแสดงผลชั่วคราวบนหน้าจอ
-    const reader = new FileReader();
-    reader.onload = () => setImagePreview(String(reader.result));
-    reader.readAsDataURL(file);
-    setErrors((prev) => ({ ...prev, image: "" }));
   }
 
   async function submit(e) {
