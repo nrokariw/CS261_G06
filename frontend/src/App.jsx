@@ -34,6 +34,7 @@ import ItemDetails from "./pages/ItemDetails";
 import MyListings from "./pages/MyListings";
 import IncomingRequests from "./pages/IncomingRequests";
 import MyBorrows from "./pages/MyBorrows";
+import WantedPostDetails from "./pages/WantedPostDetails";
 import LoanEvidenceTimelineModal from "./components/LoanEvidenceTimelineModal";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -145,6 +146,7 @@ export default function App() {
   if (pathname === "/create" && search.includes("edit="))
     currentLabel = t("nav.editListing");
   if (pathname.startsWith("/items/")) currentLabel = t("nav.itemDetails");
+  if (pathname.startsWith("/wanted")) currentLabel = t("wanted.eyebrow");
   if (pathname.startsWith("/transactions/"))
     currentLabel = t("evidenceTimeline.title");
   if (pathname === "/login")
@@ -473,6 +475,35 @@ export default function App() {
                     setRequests={setRequests}
                   />
                 </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wanted"
+              element={
+                <Browse
+                  items={items}
+                  requests={requests}
+                  loading={itemsLoading}
+                  initialTab="wanted"
+                />
+              }
+            />
+            <Route
+              path="/wanted/create"
+              element={
+                <ProtectedRoute>
+                  <CreateListing items={items} setItems={setItems} initialTab="wanted" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/wanted/:id"
+              element={
+                <WantedPostDetails
+                  items={items}
+                  setItems={setItems}
+                  setRequests={setRequests}
+                />
               }
             />
             <Route
