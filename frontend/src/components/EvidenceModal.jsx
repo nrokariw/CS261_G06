@@ -8,11 +8,8 @@ import {
   PackageCheck,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import {
-  ALLOWED_IMAGE_TYPES,
-  MAX_IMAGE_SIZE_BYTES,
-  MAX_IMAGE_SIZE_MB,
-} from "../constants/config";
+import { MAX_IMAGE_SIZE_MB } from "../constants/config";
+import { prepareImageForUpload } from "../utils/imageCompression";
 
 const NOTE_MAX = 300;
 const FOCUSABLE =
@@ -90,22 +87,22 @@ export default function EvidenceModal({
     };
   }, [preview]);
 
-  function chooseImage(e) {
+  async function chooseImage(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      setImageError(t("validation.invalidImageType"));
+    try {
+      const compressed = await prepareImageForUpload(file);
+      setImageFile(compressed);
+      setPreview(URL.createObjectURL(compressed));
+      setImageError("");
+    } catch (err) {
       e.target.value = "";
-      return;
+      if (err?.code === "IMAGE_TOO_LARGE") {
+        setImageError(t("validation.imageTooLarge", { max: MAX_IMAGE_SIZE_MB }));
+      } else {
+        setImageError(t("validation.invalidImageType"));
+      }
     }
-    if (file.size > MAX_IMAGE_SIZE_BYTES) {
-      setImageError(t("validation.imageTooLarge", { max: MAX_IMAGE_SIZE_MB }));
-      e.target.value = "";
-      return;
-    }
-    setImageFile(file);
-    setPreview(URL.createObjectURL(file));
-    setImageError("");
   }
 
   function removeImage() {
