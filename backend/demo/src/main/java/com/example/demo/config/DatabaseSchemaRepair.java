@@ -162,6 +162,12 @@ public class DatabaseSchemaRepair implements CommandLineRunner {
                 "ALTER TABLE evidence_proof ALTER COLUMN image_url VARCHAR(500) NOT NULL; " +
                 "END"
             );
+            jdbcTemplate.execute(
+                "IF OBJECT_ID('categories', 'U') IS NOT NULL BEGIN " +
+                "ALTER TABLE categories ALTER COLUMN name_th NVARCHAR(100) NOT NULL; " +
+                "ALTER TABLE categories ALTER COLUMN name_en NVARCHAR(100) NOT NULL; " +
+                "END"
+            );
             log.info("[DatabaseSchemaRepair] Database schema verification and NVARCHAR column alignment completed.");
         } catch (Exception ex) {
             log.error("[DatabaseSchemaRepair] Failed to verify or repair database schema: {}", ex.getMessage(), ex);

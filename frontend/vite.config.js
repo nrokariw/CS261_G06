@@ -40,6 +40,11 @@ export default defineConfig(({ mode }) => {
           rootEnv.API_EVIDENCE_PATH ||
           "/api/evidence",
       ),
+      "import.meta.env.VITE_API_CATEGORIES_PATH": JSON.stringify(
+        rootEnv.VITE_API_CATEGORIES_PATH ||
+          rootEnv.API_CATEGORIES_PATH ||
+          "/api/categories",
+      ),
     },
     server: {
       port: Number(rootEnv.FRONTEND_PORT || 3000),

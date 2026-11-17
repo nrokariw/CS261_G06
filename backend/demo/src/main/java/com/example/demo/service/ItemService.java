@@ -7,6 +7,7 @@ import com.example.demo.model.User;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.UserRepository;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -26,14 +27,24 @@ public class ItemService {
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService; // เพิ่ม Service สำหรับจัดการไฟล์รูปภาพ
+    private final CategoryService categoryService;
 
     //define constructor
-    public ItemService(ItemRepository itemRepository, 
-                       UserRepository userRepository, 
+    public ItemService(ItemRepository itemRepository,
+                       UserRepository userRepository,
                        FileStorageService fileStorageService) {
+        this(itemRepository, userRepository, fileStorageService, null);
+    }
+
+    @Autowired
+    public ItemService(ItemRepository itemRepository,
+                       UserRepository userRepository,
+                       FileStorageService fileStorageService,
+                       CategoryService categoryService) {
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
         this.fileStorageService = fileStorageService;
+        this.categoryService = categoryService;
     }
 
     // 1. สร้างไอเท็มใหม่จาก User Model พร้อมรองรับการอัปโหลดรูปภาพ 
@@ -50,10 +61,13 @@ public class ItemService {
         }
 
         // สร้าง item และกำหนด ownerId
+        String resolvedCategory = categoryService != null
+                ? categoryService.validateAndNormalizeCategory(itemCreateDto.getCategory())
+                : itemCreateDto.getCategory();
         Item item = new Item();
         item.setOwnerId(studentId);
         item.setTitle(itemCreateDto.getTitle());
-        item.setCategory(itemCreateDto.getCategory());
+        item.setCategory(resolvedCategory);
         item.setDescription(itemCreateDto.getDescription());
         item.setImageUrl(imageUrl);
 
@@ -120,7 +134,10 @@ public class ItemService {
             item.setTitle(requestDto.getTitle().trim());
         }
         if (requestDto.getCategory() != null && !requestDto.getCategory().trim().isEmpty()) {
-            item.setCategory(requestDto.getCategory().trim());
+            String resolvedCategory = categoryService != null
+                    ? categoryService.validateAndNormalizeCategory(requestDto.getCategory())
+                    : requestDto.getCategory().trim();
+            item.setCategory(resolvedCategory);
         }
         if (requestDto.getDescription() != null) {
             item.setDescription(requestDto.getDescription().trim());

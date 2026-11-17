@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -9,11 +9,10 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import {
-  CATEGORIES,
-  getCategoryLabel,
+  getActiveCategoryCodes,
   normalizeCategoryKey,
 } from "../data";
-import { PageHeading } from "../components/UI";
+import { PageHeading, getLocalizedCategoryLabel } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { createItem, updateItem, normalizeItem } from "../api/itemsApi";
 import {
@@ -24,9 +23,9 @@ import {
   REDIRECT_DELAY_MS,
 } from "../constants/config";
 
-export default function CreateListing({ items, setItems }) {
+export default function CreateListing({ items, setItems, categories: propCategories }) {
   const { user, token } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const editId = params.get("edit");
@@ -35,6 +34,16 @@ export default function CreateListing({ items, setItems }) {
   const [category, setCategory] = useState(
     normalizeCategoryKey(editingItem?.category) || "",
   );
+  const categoryOptions = useMemo(() => {
+    const base = Array.isArray(propCategories)
+      ? propCategories
+      : getActiveCategoryCodes();
+    const editKey = normalizeCategoryKey(editingItem?.category);
+    if (editKey && !base.includes(editKey)) {
+      return [...base, editKey];
+    }
+    return base;
+  }, [propCategories, editingItem?.category]);
   const [detail, setDetail] = useState(editingItem?.detail || "");
   const [availableFrom, setAvailableFrom] = useState(
     editingItem?.availableFrom ? String(editingItem.availableFrom).slice(0, 10) : "",
@@ -253,9 +262,9 @@ export default function CreateListing({ items, setItems }) {
             aria-invalid={!!errors.category}
           >
             <option value="">{t("createListing.categoryPlaceholder")}</option>
-            {CATEGORIES.map((c) => (
+            {categoryOptions.map((c) => (
               <option key={c} value={c}>
-                {t(`categories.${c}`, { defaultValue: getCategoryLabel(c) })}
+                {getLocalizedCategoryLabel(c, t, i18n.language)}
               </option>
             ))}
           </select>

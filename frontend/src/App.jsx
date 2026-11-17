@@ -41,6 +41,8 @@ import { useTheme } from "./contexts/ThemeContext";
 import { loadRuntimeConfig } from "./api/client";
 import { getAllItems, getAvailableItems } from "./api/itemsApi";
 import { getBorrowRequests } from "./api/requestsApi";
+import { getCategories } from "./api/categoriesApi";
+import { getActiveCategoryCodes, setRuntimeCategories } from "./data";
 
 function BrandMark() {
   return (
@@ -57,6 +59,7 @@ export default function App() {
   const { t, i18n } = useTranslation();
   const [items, setItems] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [categories, setCategories] = useState(() => getActiveCategoryCodes());
   const [itemsLoading, setItemsLoading] = useState(true);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -70,6 +73,15 @@ export default function App() {
     async function fetchInitialData() {
       setItemsLoading(true);
       await loadRuntimeConfig();
+
+      try {
+        const loadedCategories = await getCategories({ includeInactive: true, token });
+        if (!active) return;
+        setRuntimeCategories(loadedCategories);
+        setCategories(getActiveCategoryCodes());
+      } catch {
+        // Keep built-in defaults if category endpoint is unavailable
+      }
 
       const loadedItems = await getAllItems(token)
         .catch(() => getAvailableItems("AVAILABLE", token))
@@ -500,6 +512,7 @@ export default function App() {
                 <Browse
                   items={items}
                   requests={requests}
+                  categories={categories}
                   loading={itemsLoading}
                 />
               }
@@ -509,7 +522,11 @@ export default function App() {
               path="/create"
               element={
                 <ProtectedRoute>
-                  <CreateListing items={items} setItems={setItems} />
+                  <CreateListing
+                    items={items}
+                    setItems={setItems}
+                    categories={categories}
+                  />
                 </ProtectedRoute>
               }
             />

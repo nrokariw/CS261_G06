@@ -2,18 +2,34 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { ArrowUpRight, UserRound, PackageOpen, AlertCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { getCategoryLabel, normalizeCategoryKey } from "../data";
+import {
+  CATEGORY_LABELS,
+  getCategoryDefinition,
+  getCategoryLabel,
+  normalizeCategoryKey,
+} from "../data";
 import { formatDate } from "../utils/date";
 
-export function getLocalizedCategoryLabel(category, t) {
+export function getLocalizedCategoryLabel(category, t, language) {
   if (!category) return "";
   const key = normalizeCategoryKey(category);
-  return t ? t(`categories.${key}`, { defaultValue: getCategoryLabel(category) }) : getCategoryLabel(category);
+  if (key === "ALL") {
+    return t ? t("categories.ALL", { defaultValue: CATEGORY_LABELS.ALL }) : CATEGORY_LABELS.ALL;
+  }
+  const lang = language || t?.i18n?.language || "th";
+  const def = getCategoryDefinition(key);
+  if (def && (def.nameTh || def.nameEn)) {
+    const isEn = String(lang).toLowerCase().startsWith("en");
+    return isEn ? def.nameEn || def.nameTh : def.nameTh || def.nameEn;
+  }
+  return t
+    ? t(`categories.${key}`, { defaultValue: getCategoryLabel(category, lang) })
+    : getCategoryLabel(category, lang);
 }
 
 export function CategoryBadge({ category, className = "" }) {
-  const { t } = useTranslation();
-  const label = getLocalizedCategoryLabel(category, t);
+  const { t, i18n } = useTranslation();
+  const label = getLocalizedCategoryLabel(category, t, i18n.language);
   if (!label) return null;
   return <span className={`category-label ${className}`.trim()}>{label}</span>;
 }

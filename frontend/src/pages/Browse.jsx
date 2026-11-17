@@ -2,20 +2,28 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Search, Plus, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
-import { CATEGORIES, getCategoryLabel, normalizeCategoryKey } from "../data";
+import { getActiveCategoryCodes, normalizeCategoryKey } from "../data";
 import { ItemCard, PageHeading, EmptyState, getLocalizedCategoryLabel } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvailableItems } from "../api/itemsApi";
 
-export default function Browse({ items: propItems, requests = [], loading: propLoading }) {
+export default function Browse({
+  items: propItems,
+  requests = [],
+  categories: propCategories,
+  loading: propLoading,
+}) {
   const { user, token } = useAuth();
   const [localItems, setLocalItems] = useState([]);
   const [localLoading, setLocalLoading] = useState(propItems === undefined);
   const [error, setError] = useState(null);
 
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("ALL");
+  const activeCategories = Array.isArray(propCategories)
+    ? propCategories
+    : getActiveCategoryCodes();
 
   // เพิ่ม useEffect เพื่อดึงข้อมูลจาก API หากไม่ได้ส่ง items ผ่าน props
   useEffect(() => {
@@ -64,7 +72,7 @@ export default function Browse({ items: propItems, requests = [], loading: propL
         })
         .filter((item) => {
           const itemCategoryKey = normalizeCategoryKey(item.category);
-          const categoryText = getLocalizedCategoryLabel(item.category, t);
+          const categoryText = getLocalizedCategoryLabel(item.category, t, i18n.language);
           const text =
             `${item.name || ""} ${categoryText} ${item.owner || ""}`.toLowerCase();
           const itemStatus = String(item.status || "").toLowerCase();
@@ -81,7 +89,7 @@ export default function Browse({ items: propItems, requests = [], loading: propL
             (category === "ALL" || !category || itemCategoryKey === category)
           );
         }),
-    [rawItems, requests, user, query, category],
+    [rawItems, requests, user, query, category, t, i18n.language],
   );
 
   if (isLoading) return <div className="flex flex-col gap-6 text-sm text-[var(--muted)]">{t("common.loading", { defaultValue: "กำลังโหลดข้อมูล..." })}</div>;
@@ -116,10 +124,10 @@ export default function Browse({ items: propItems, requests = [], loading: propL
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
-            <option value="ALL">{getLocalizedCategoryLabel("ALL", t)}</option>
-            {CATEGORIES.map((c) => (
+            <option value="ALL">{getLocalizedCategoryLabel("ALL", t, i18n.language)}</option>
+            {activeCategories.map((c) => (
               <option key={c} value={c}>
-                {getLocalizedCategoryLabel(c, t)}
+                {getLocalizedCategoryLabel(c, t, i18n.language)}
               </option>
             ))}
           </select>
@@ -127,7 +135,7 @@ export default function Browse({ items: propItems, requests = [], loading: propL
       </section>
 
       <div className="flex flex-wrap gap-2">
-        {["ALL", ...CATEGORIES].map((c) => (
+        {["ALL", ...activeCategories].map((c) => (
           <button
             key={c}
             onClick={() => setCategory(c)}
@@ -137,7 +145,7 @@ export default function Browse({ items: propItems, requests = [], loading: propL
                 : "bg-[var(--surface)] border-[var(--border)] text-[var(--muted)] hover:border-[var(--primary)] hover:text-[var(--text)]"
             }`}
           >
-            {getLocalizedCategoryLabel(c, t)}
+            {getLocalizedCategoryLabel(c, t, i18n.language)}
           </button>
         ))}
       </div>
