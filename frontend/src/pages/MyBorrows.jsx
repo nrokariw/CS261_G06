@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PageHeading, StatusBadge, EmptyState, Avatar } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
-import HandoverModal, { isHandedOver } from "../components/HandoverModal";
+import HandoverModal, { isHandedOver, isReturned } from "../components/HandoverModal";
 
 function formatDate(date, locale = "th-TH") {
   if (!date) return "—";
@@ -71,7 +71,8 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
       {myBorrows.length ? (
         <div className="requests-list">
           {myBorrows.map((req) => {
-            // T-6.3: ส่งมอบแล้ว  แสดงสถานะ "กำลังยืม"
+            // T-6.3 / US-07.3: ส่งมอบแล้วแสดง "กำลังยืม" / คืนแล้วแสดง "คืนแล้ว" (คงประวัติการยืมไว้)
+            const returned = isReturned(req);
             const handedOver = isHandedOver(
               req,
               items.find((i) => i.id === req.itemId),
@@ -90,7 +91,7 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
                       })}
                     </p>
                   </div>
-                  <StatusBadge status={handedOver ? "borrowed" : req.status} />
+                  <StatusBadge status={returned ? "returned" : handedOver ? "borrowed" : req.status} />
                 </div>
                 <p className="request-reason">
                   {t("myBorrows.reasonPrefix", { defaultValue: "เหตุผล: " })}{req.reason}
@@ -125,8 +126,12 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
                     <dd>{formatDate(req.returnDate, dateLocale)}</dd>
                   </div>
                 </dl>
-                {/* T-6.3: ปุ่มบันทึกหลักฐานการส่งมอบ เฉพาะคำขอ accepted ที่ยังไม่ส่งมอบ */}
-                {handedOver ? (
+                {/* T-6.3 / US-07.3: ปุ่มบันทึกหลักฐานการส่งมอบ เฉพาะคำขอ accepted ที่ยังไม่ส่งมอบและยังไม่คืน */}
+                {returned ? (
+                  <div className="request-status-updated">
+                    <small className="status-hint">{t("returnEvidence.done")}</small>
+                  </div>
+                ) : handedOver ? (
                   <div className="request-status-updated">
                     <small className="status-hint">{t("handover.done")}</small>
                   </div>

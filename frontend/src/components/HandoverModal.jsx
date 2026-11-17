@@ -7,7 +7,10 @@ import { submitHandoverEvidence } from "../api/transactionsApi";
 import EvidenceModal from "./EvidenceModal";
 
 export function isReturned(req) {
-  return Boolean(req?.returned);
+  return Boolean(
+    req?.returned ||
+      String(req?.transactionStatus || "").toLowerCase() === "completed",
+  );
 }
 
 export function isHandedOver(req, item) {
