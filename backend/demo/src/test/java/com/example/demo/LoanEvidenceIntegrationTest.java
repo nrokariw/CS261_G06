@@ -15,6 +15,7 @@ import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.TransactionRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.service.JwtService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -67,12 +68,21 @@ class LoanEvidenceIntegrationTest {
     private String borrowerToken;
     private String outsiderToken;
 
-    @BeforeEach
-    void setUp() {
+    private void cleanDatabase() {
         evidenceProofRepository.deleteAll();
         transactionRepository.deleteAll();
         borrowRequestRepository.deleteAll();
         itemRepository.deleteAll();
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanDatabase();
+    }
+
+    @BeforeEach
+    void setUp() {
+        cleanDatabase();
 
         User lender = userRepository.findById(LENDER_ID).orElseThrow();
         User borrower = userRepository.findById(BORROWER_ID).orElseThrow();
