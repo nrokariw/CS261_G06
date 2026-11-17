@@ -1,6 +1,7 @@
 package com.example.demo.model;
 
 import com.example.demo.constant.RequestStatus;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.UUID;
 import java.time.LocalDateTime;
@@ -112,6 +113,13 @@ public class BorrowRequest {
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public Transaction getTransaction() { return transaction; }
+
+    @JsonProperty("transactionStatus")
+    public String getTransactionStatus() {
+        return transaction != null && transaction.getStatus() != null
+                ? transaction.getStatus().name()
+                : null;
+    }
     
     public void setId(String id) { this.id = id; }
     public void setItemId(String itemId) { this.itemId = itemId; }

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Search, Plus, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
 import { CATEGORIES, getCategoryLabel, normalizeCategoryKey } from "../data";
 import { ItemCard, PageHeading, EmptyState } from "../components/UI";
+import { isReturned } from "../components/HandoverModal";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvailableItems } from "../api/itemsApi";
 
@@ -48,6 +49,7 @@ export default function Browse({ items: propItems, requests = [], loading: propL
               (user?.name && r.borrower === user.name)
             );
             if (!matchesBorrower) return false;
+            if (isReturned(r) || r.status === "cancelled") return false;
             const matchesItem = String(r.itemId) === String(item.id);
             return matchesItem;
           });

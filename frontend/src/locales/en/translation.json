@@ -270,5 +270,18 @@
     "pendingReturnDesc": "Currently borrowed (return evidence not recorded yet)",
     "forbiddenTitle": "Access Denied (403 Forbidden)",
     "forbiddenDesc": "Only the borrower or item owner can view this loan's evidence."
+  },
+  "returnEvidence": {
+    "button": "Record return evidence",
+    "title": "Record return evidence",
+    "photoLabel": "Photo of the item's returned condition",
+    "noteLabel": "Return condition note (optional)",
+    "notePlaceholder": "e.g. good condition, working normally, all accessories returned",
+    "imageRequired": "Please attach a photo of the returned item before confirming",
+    "confirm": "Confirm return",
+    "saving": "Saving...",
+    "close": "Close dialog",
+    "done": "Item returned, evidence recorded",
+    "success": "Return evidence for \"{{name}}\" saved. Status is now Returned and item is Available again"
   }
 }

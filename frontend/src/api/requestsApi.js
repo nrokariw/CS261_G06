@@ -11,6 +11,9 @@ export function normalizeBorrowRequest(raw, items = []) {
   if (!raw) return null;
   const itemId = raw.itemId || raw.item_id || "";
   const matchedItem = items.find((i) => String(i.id) === String(itemId));
+  const txStatus = raw.transactionStatus
+    ? String(raw.transactionStatus).toLowerCase()
+    : "";
   return {
     id: raw.id || raw.requestId,
     itemId,
@@ -25,6 +28,8 @@ export function normalizeBorrowRequest(raw, items = []) {
     reason: raw.reason || "",
     responseReason: raw.responseReason || raw.response_reason || "",
     status: String(raw.status || "pending").toLowerCase(),
+    transactionStatus: txStatus,
+    returned: Boolean(raw.returned || txStatus === "completed"),
   };
 }
 

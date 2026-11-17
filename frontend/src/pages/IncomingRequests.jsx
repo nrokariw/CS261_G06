@@ -3,7 +3,8 @@ import { Check, X, AlertCircle, PackageCheck, MessageSquare, History } from "luc
 import { useTranslation } from "react-i18next";
 import { PageHeading, StatusBadge, EmptyState, Avatar } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
-import HandoverModal, { isHandedOver } from "../components/HandoverModal";
+import HandoverModal, { isHandedOver, isReturned } from "../components/HandoverModal";
+import ReturnModal from "../components/ReturnModal";
 import LoanEvidenceTimelineModal from "../components/LoanEvidenceTimelineModal";
 import {
   updateBorrowRequestStatus,
@@ -28,6 +29,7 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
   // T-6.3: คำขอที่กำลังเปิดโมดอลบันทึกหลักฐานการส่งมอบ + ข้อความแจ้งผลสำเร็จ
   const [handoverReq, setHandoverReq] = useState(null);
   const [evidenceRequestId, setEvidenceRequestId] = useState(null);
+  const [returnReq, setReturnReq] = useState(null);
   const [successMsg, setSuccessMsg] = useState("");
   const [activeResponseReq, setActiveResponseReq] = useState(null);
   const [responseReason, setResponseReason] = useState("");
@@ -105,6 +107,22 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
     setHandoverReq(null);
     setActionError("");
     setSuccessMsg(t("handover.success", { name: target.itemName }));
+  }
+
+  // US-07.2: บันทึกหลักฐานการส่งคืนสำเร็จ → สถานะคำขอเป็น returned และสิ่งของกลับมา available
+  function handleReturnSuccess(returned) {
+    const target = returnReq;
+    setRequests((prev) =>
+      prev.map((r) => (r.id === target.id ? { ...r, returned } : r)),
+    );
+    if (setItems) {
+      setItems((prev) =>
+        prev.map((i) => (i.id === target.itemId ? { ...i, status: "available" } : i)),
+      );
+    }
+    setReturnReq(null);
+    setActionError("");
+    setSuccessMsg(t("returnEvidence.success", { name: target.itemName }));
   }
 
   function openResponseModal(req) {
@@ -192,12 +210,13 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
       {myIncomingRequests.length ? (
         <div className="requests-list requests-list-updated">
           {myIncomingRequests.map((req) => {
-            // T-6.3: ส่งมอบแล้ว แสดงสถานะ "กำลังยืม"
+            // T-6.3 / US-07.2: ส่งมอบแล้ว แสดง "กำลังยืม" / ส่งคืนแล้ว แสดง "คืนแล้ว"
             const matchedItem = items.find((i) => i.id === req.itemId);
+            const returned = isReturned(req);
             const handedOver = isHandedOver(req, matchedItem);
             const canViewEvidence = Boolean(
               handedOver ||
-                req?.returned ||
+                returned ||
                 (req?.status === "accepted" && matchedItem?.status === "available"),
             );
             return (
@@ -211,7 +230,7 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                       {t("incomingRequests.requestedBy")} <strong>{req.borrower}</strong>
                     </p>
                   </div>
-                  <StatusBadge status={handedOver ? "borrowed" : req.status} />
+                  <StatusBadge status={returned ? "returned" : handedOver ? "borrowed" : req.status} />
                 </div>
                 <p className="request-reason">{req.reason}</p>
                 {req.responseReason && (
@@ -272,9 +291,30 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                     </div>
                   ) : (
                     <div className="request-status-updated">
-                      {handedOver ? (
+                      {returned ? (
+                        <>
+                          <small className="status-hint">{t("returnEvidence.done")}</small>
+                          <button
+                            type="button"
+                            className="button button-outline button-sm"
+                            onClick={() => setEvidenceRequestId(req.id)}
+                          >
+                            <History size={15} /> {t("evidenceTimeline.button")}
+                          </button>
+                        </>
+                      ) : handedOver ? (
                         <>
                           <small className="status-hint">{t("handover.done")}</small>
+                          <button
+                            type="button"
+                            className="button button-primary button-sm"
+                            onClick={() => {
+                              setSuccessMsg("");
+                              setReturnReq(req);
+                            }}
+                          >
+                            <PackageCheck size={16} /> {t("returnEvidence.button")}
+                          </button>
                           <button
                             type="button"
                             className="button button-outline button-sm"
@@ -343,6 +383,15 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
         <LoanEvidenceTimelineModal
           requestId={evidenceRequestId}
           onClose={() => setEvidenceRequestId(null)}
+        />
+      )}
+
+      {/* US-07.2: โมดอลบันทึกหลักฐานการส่งคืน */}
+      {returnReq && (
+        <ReturnModal
+          request={returnReq}
+          onClose={() => setReturnReq(null)}
+          onSuccess={handleReturnSuccess}
         />
       )}
 
