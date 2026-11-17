@@ -1,3 +1,10 @@
+export const DEFAULT_CATEGORY_DEFINITIONS = [
+  { code: "STUDY", nameTh: "อุปกรณ์การเรียน", nameEn: "Study Materials", sortOrder: 1, active: true },
+  { code: "ELECTRONICS", nameTh: "อุปกรณ์อิเล็กทรอนิกส์", nameEn: "Electronics", sortOrder: 2, active: true },
+  { code: "SPORTS", nameTh: "อุปกรณ์กีฬา", nameEn: "Sports Gear", sortOrder: 3, active: true },
+  { code: "GENERAL", nameTh: "ของใช้ทั่วไป", nameEn: "General Items", sortOrder: 4, active: true },
+];
+
 export const CATEGORIES = ["STUDY", "ELECTRONICS", "SPORTS", "GENERAL"];
 
 export const CATEGORY_LABELS = {
@@ -15,14 +22,68 @@ const REVERSE_CATEGORY_MAP = {
   ของใช้ทั่วไป: "GENERAL",
 };
 
-export function normalizeCategoryKey(category) {
-  if (!category) return "";
-  if (CATEGORY_LABELS[category]) return category;
-  return REVERSE_CATEGORY_MAP[category] || category;
+let runtimeCategories = [...DEFAULT_CATEGORY_DEFINITIONS];
+
+export function setRuntimeCategories(list) {
+  if (!Array.isArray(list)) {
+    runtimeCategories = [...DEFAULT_CATEGORY_DEFINITIONS];
+    return;
+  }
+  runtimeCategories = list
+    .filter((item) => item && item.code)
+    .map((item) => ({
+      code: String(item.code).trim().toUpperCase(),
+      nameTh: item.nameTh || String(item.code).trim(),
+      nameEn: item.nameEn || item.nameTh || String(item.code).trim(),
+      sortOrder: Number.isFinite(Number(item.sortOrder)) ? Number(item.sortOrder) : 0,
+      active: item.active !== false,
+    }));
 }
 
-export function getCategoryLabel(category) {
+export function getRuntimeCategories({ includeInactive = false } = {}) {
+  return includeInactive
+    ? [...runtimeCategories]
+    : runtimeCategories.filter((item) => item.active !== false);
+}
+
+export function getActiveCategoryCodes() {
+  return getRuntimeCategories({ includeInactive: false }).map((item) => item.code);
+}
+
+export function normalizeCategoryKey(category) {
+  if (!category) return "";
+  const raw = String(category).trim();
+  if (!raw) return "";
+  if (raw.toUpperCase() === "ALL") return "ALL";
+
+  const matchedRuntime = runtimeCategories.find(
+    (c) =>
+      c.code.toUpperCase() === raw.toUpperCase() ||
+      c.nameTh === raw ||
+      (c.nameEn && c.nameEn.toLowerCase() === raw.toLowerCase()),
+  );
+  if (matchedRuntime) return matchedRuntime.code;
+
+  const upper = raw.toUpperCase();
+  if (CATEGORY_LABELS[upper]) return upper;
+  return REVERSE_CATEGORY_MAP[raw] || upper;
+}
+
+export function getCategoryDefinition(category) {
+  if (!category) return null;
   const key = normalizeCategoryKey(category);
+  return runtimeCategories.find((c) => c.code === key) || null;
+}
+
+export function getCategoryLabel(category, language = "th") {
+  if (!category) return "";
+  const key = normalizeCategoryKey(category);
+  if (key === "ALL") return CATEGORY_LABELS.ALL;
+  const def = getCategoryDefinition(key);
+  if (def) {
+    const isEn = String(language || "th").toLowerCase().startsWith("en");
+    return isEn ? def.nameEn || def.nameTh : def.nameTh || def.nameEn;
+  }
   return CATEGORY_LABELS[key] || category || "";
 }
 

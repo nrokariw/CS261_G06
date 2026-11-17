@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Check, X, AlertCircle, PackageCheck, MessageSquare, History } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { PageHeading, StatusBadge, EmptyState, Avatar } from "../components/UI";
+import { PageHeading, EmptyState, RequestCard, AlertBanner } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import HandoverModal, { isHandedOver, isReturned } from "../components/HandoverModal";
 import ReturnModal from "../components/ReturnModal";
@@ -12,19 +12,9 @@ import {
   respondToBorrowRequest,
 } from "../api/requestsApi";
 
-function formatDate(date, language = "th") {
-  if (!date) return "—";
-  const locale = language.startsWith("en") ? "en-US" : "th-TH";
-  return new Date(`${date}T12:00:00`).toLocaleDateString(locale, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 export default function IncomingRequests({ requests = [], setRequests, setItems, items = [] }) {
   const { user, token } = useAuth();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [actionError, setActionError] = useState("");
   // T-6.3: คำขอที่กำลังเปิดโมดอลบันทึกหลักฐานการส่งมอบ + ข้อความแจ้งผลสำเร็จ
   const [handoverReq, setHandoverReq] = useState(null);
@@ -165,38 +155,30 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
   }
 
   return (
-    <div className="page-stack">
+    <div className="flex flex-col gap-6">
       <PageHeading
         eyebrow={t("incomingRequests.eyebrow")}
         title={t("incomingRequests.title")}
         subtitle={t("incomingRequests.subtitle")}
         action={
-          <div className="request-summary">
-            <div className="request-summary-item">
-              <small>{t("incomingRequests.totalRequests")}</small>
-              <strong>{myIncomingRequests.length}</strong>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="px-3.5 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex flex-col min-w-[82px]">
+              <small className="text-[11px] text-[var(--muted)]">{t("incomingRequests.totalRequests")}</small>
+              <strong className="text-base font-bold text-[var(--text)]">{myIncomingRequests.length}</strong>
             </div>
-            <div className="request-summary-item request-summary-pending">
-              <small>{t("incomingRequests.pendingRequests")}</small>
-              <strong>{pending}</strong>
+            <div className="px-3.5 py-2 rounded-xl bg-[#FFF0C7]/70 dark:bg-[#3A2A14] border border-[#F5D782]/70 dark:border-[#5C4119] flex flex-col min-w-[82px]">
+              <small className="text-[11px] text-[#8A5A08] dark:text-[#FBBF24]">{t("incomingRequests.pendingRequests")}</small>
+              <strong className="text-base font-bold text-[#8A5A08] dark:text-[#FBBF24]">{pending}</strong>
             </div>
-            <div className="request-summary-item request-summary-accepted">
-              <small>{t("incomingRequests.acceptedRequests")}</small>
-              <strong>{accepted}</strong>
+            <div className="px-3.5 py-2 rounded-xl bg-[#E4F3E8]/80 dark:bg-[#1B3526] border border-[#C3E6CB] dark:border-[#275238] flex flex-col min-w-[82px]">
+              <small className="text-[11px] text-[#247A4B] dark:text-[#4ADE80]">{t("incomingRequests.acceptedRequests")}</small>
+              <strong className="text-base font-bold text-[#247A4B] dark:text-[#4ADE80]">{accepted}</strong>
             </div>
           </div>
         }
       />
 
-      {actionError && (
-        <div className="alert alert-error" style={{ background: "#FCE8E4", color: "#B9382B" }}>
-          <AlertCircle size={17} />
-          <span>{actionError}</span>
-          <button onClick={() => setActionError("")} className="alert-close">
-            {t("myListings.closeAlert")}
-          </button>
-        </div>
-      )}
+      <AlertBanner message={actionError} onClose={() => setActionError("")} />
 
       {successMsg && (
         <div className="alert alert-success" role="status">
@@ -208,10 +190,10 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
       )}
 
       {myIncomingRequests.length ? (
-        <div className="requests-list requests-list-updated">
+        <div className="flex flex-col gap-4">
           {myIncomingRequests.map((req) => {
-            // T-6.3 / US-07.2: ส่งมอบแล้ว แสดง "กำลังยืม" / ส่งคืนแล้ว แสดง "คืนแล้ว"
-            const matchedItem = items.find((i) => i.id === req.itemId);
+            // T-6.3 / US-07.2 / US-08.2: ส่งมอบแล้ว แสดง "กำลังยืม" / ส่งคืนแล้ว แสดง "คืนแล้ว"
+            const matchedItem = items.find((i) => String(i.id) === String(req.itemId));
             const returned = isReturned(req);
             const handedOver = isHandedOver(req, matchedItem);
             const canViewEvidence = Boolean(
@@ -220,145 +202,111 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                 (req?.status === "accepted" && matchedItem?.status === "available"),
             );
             return (
-            <article className="request-card request-card-updated" key={req.id}>
-              <div className="request-main">
-                <div className="request-card-top">
-                  <Avatar name={req.borrower} />
-                  <div className="request-title">
-                    <h3>{req.itemName}</h3>
-                    <p>
-                      {t("incomingRequests.requestedBy")} <strong>{req.borrower}</strong>
-                    </p>
-                  </div>
-                  <StatusBadge status={returned ? "returned" : handedOver ? "borrowed" : req.status} />
-                </div>
-                <p className="request-reason">{req.reason}</p>
-                {req.responseReason && (
-                  <p
-                    className="request-response-note"
-                    style={{
-                      fontSize: "0.85rem",
-                      color: "var(--muted, #64748b)",
-                      marginTop: "6px",
-                      background: "var(--surface-muted, #f8fafc)",
-                      padding: "6px 10px",
-                      borderRadius: "6px",
-                      borderLeft: "3px solid #0284c7",
-                    }}
-                  >
-                    <strong>{t("incomingRequests.ownerFeedbackLabel")}</strong>
-                    {req.responseReason}
-                  </p>
-                )}
-              </div>
-
-              <div className="request-side">
-                <dl className="request-dates">
-                  <div>
-                    <dt>{t("incomingRequests.borrowDate")}</dt>
-                    <dd>{formatDate(req.borrowDate, i18n.language)}</dd>
-                  </div>
-                  <div>
-                    <dt>{t("incomingRequests.returnDate")}</dt>
-                    <dd>{formatDate(req.returnDate, i18n.language)}</dd>
-                  </div>
-                </dl>
-
-                {checkIsItemOwner(req) && (
-                  req.status === "pending" ? (
-                    <div className="request-actions" style={{ flexDirection: "column", alignItems: "stretch" }}>
-                      <div style={{ display: "flex", gap: "8px" }}>
-                        <button
-                          className="button button-primary"
-                          disabled={isItemReservedByOther(req)}
-                          title={isItemReservedByOther(req) ? t("incomingRequests.itemAlreadyReserved") : ""}
-                          onClick={() => updateStatus(req.id, "accepted")}
-                        >
-                          <Check size={16} /> {t("incomingRequests.accept")}
-                        </button>
-                        <button
-                          className="button button-danger-outline"
-                          onClick={() => openResponseModal(req)}
-                        >
-                          <MessageSquare size={16} /> {t("incomingRequests.respond")}
-                        </button>
-                      </div>
-                      {isItemReservedByOther(req) && (
-                        <small style={{ color: "#b45309", fontSize: "0.8rem", marginTop: "4px" }}>
-                          {t("incomingRequests.itemAlreadyReserved")}
-                        </small>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="request-status-updated">
-                      {returned ? (
-                        <>
-                          <small className="status-hint">{t("returnEvidence.done")}</small>
+              <RequestCard
+                key={req.id}
+                request={req}
+                role="owner"
+                status={returned ? "returned" : handedOver ? "borrowed" : req.status}
+                actions={
+                  checkIsItemOwner(req) && (
+                    req.status === "pending" ? (
+                      <div className="flex flex-col gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <button
-                            type="button"
-                            className="button button-outline button-sm"
-                            onClick={() => setEvidenceRequestId(req.id)}
-                          >
-                            <History size={15} /> {t("evidenceTimeline.button")}
-                          </button>
-                        </>
-                      ) : handedOver ? (
-                        <>
-                          <small className="status-hint">{t("handover.done")}</small>
-                          <button
-                            type="button"
                             className="button button-primary button-sm"
-                            onClick={() => {
-                              setSuccessMsg("");
-                              setReturnReq(req);
-                            }}
+                            disabled={isItemReservedByOther(req)}
+                            title={isItemReservedByOther(req) ? t("incomingRequests.itemAlreadyReserved") : ""}
+                            onClick={() => updateStatus(req.id, "accepted")}
                           >
-                            <PackageCheck size={16} /> {t("returnEvidence.button")}
+                            <Check size={16} /> {t("incomingRequests.accept")}
                           </button>
                           <button
-                            type="button"
-                            className="button button-outline button-sm"
-                            onClick={() => setEvidenceRequestId(req.id)}
+                            className="button button-danger-outline button-sm"
+                            onClick={() => openResponseModal(req)}
                           >
-                            <History size={15} /> {t("evidenceTimeline.button")}
+                            <MessageSquare size={16} /> {t("incomingRequests.respond")}
                           </button>
-                        </>
-                      ) : canViewEvidence ? (
-                        <button
-                          type="button"
-                          className="button button-outline button-sm"
-                          onClick={() => setEvidenceRequestId(req.id)}
-                        >
-                          <History size={15} /> {t("evidenceTimeline.button")}
-                        </button>
-                      ) : (
-                        <>
-                          {/* T-6.3: ปุ่มบันทึกหลักฐานการส่งมอบ เฉพาะคำขอ accepted ที่ยังไม่ส่งมอบ */}
-                          {req.status === "accepted" && (
+                        </div>
+                        {isItemReservedByOther(req) && (
+                          <small className="text-[11px] font-medium text-[#8A5A08] dark:text-[#FBBF24] leading-snug">
+                            {t("incomingRequests.itemAlreadyReserved")}
+                          </small>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-stretch sm:items-end gap-2">
+                        {returned ? (
+                          <>
+                            <small className="text-[13px] text-[var(--muted)] text-center sm:text-right">
+                              {t("returnEvidence.done")}
+                            </small>
+                            <button
+                              type="button"
+                              className="button button-outline button-sm"
+                              onClick={() => setEvidenceRequestId(req.id)}
+                            >
+                              <History size={15} /> {t("evidenceTimeline.button")}
+                            </button>
+                          </>
+                        ) : handedOver ? (
+                          <>
+                            <small className="text-[13px] text-[var(--muted)] text-center sm:text-right">
+                              {t("handover.done")}
+                            </small>
                             <button
                               type="button"
                               className="button button-primary button-sm"
                               onClick={() => {
                                 setSuccessMsg("");
-                                setHandoverReq(req);
+                                setReturnReq(req);
                               }}
                             >
-                              <PackageCheck size={16} /> {t("handover.button")}
+                              <PackageCheck size={16} /> {t("returnEvidence.button")}
                             </button>
-                          )}
+                            <button
+                              type="button"
+                              className="button button-outline button-sm"
+                              onClick={() => setEvidenceRequestId(req.id)}
+                            >
+                              <History size={15} /> {t("evidenceTimeline.button")}
+                            </button>
+                          </>
+                        ) : canViewEvidence ? (
                           <button
-                            className="text-button"
-                            onClick={() => updateStatus(req.id, "pending")}
+                            type="button"
+                            className="button button-outline button-sm"
+                            onClick={() => setEvidenceRequestId(req.id)}
                           >
-                            {t("incomingRequests.resetToPending")}
+                            <History size={15} /> {t("evidenceTimeline.button")}
                           </button>
-                        </>
-                      )}
-                    </div>
+                        ) : (
+                          <>
+                            {/* T-6.3: ปุ่มบันทึกหลักฐานการส่งมอบ เฉพาะคำขอ accepted ที่ยังไม่ส่งมอบ */}
+                            {req.status === "accepted" && (
+                              <button
+                                type="button"
+                                className="button button-primary button-sm"
+                                onClick={() => {
+                                  setSuccessMsg("");
+                                  setHandoverReq(req);
+                                }}
+                              >
+                                <PackageCheck size={16} /> {t("handover.button")}
+                              </button>
+                            )}
+                            <button
+                              className="text-button"
+                              onClick={() => updateStatus(req.id, "pending")}
+                            >
+                              {t("incomingRequests.resetToPending")}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )
                   )
-                )}
-              </div>
-            </article>
+                }
+              />
             );
           })}
         </div>
@@ -401,11 +349,13 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
           onClick={() => setActiveResponseReq(null)}
         >
           <div
-            className="modal-card"
+            className="modal-card flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="modal-header">
-              <h3 className="modal-title">{t("incomingRequests.responseModalTitle")}</h3>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <h3 className="m-0 text-lg font-semibold text-[var(--text)]">
+                {t("incomingRequests.responseModalTitle")}
+              </h3>
               <button
                 type="button"
                 className="modal-close-btn"
@@ -415,16 +365,18 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                 <X size={20} />
               </button>
             </div>
-            <p className="modal-desc">
+            <p className="m-0 mb-4 text-[13px] leading-relaxed text-[var(--muted)]">
               {t("incomingRequests.responseModalDesc")}
             </p>
-            <div className="modal-item-summary">
-              <strong>{activeResponseReq.itemName}</strong>
-              <div className="modal-borrower-meta">
+            <div className="mb-4 p-3.5 rounded-[10px] bg-[var(--surface-subtle)] border border-[var(--border)]">
+              <strong className="block text-sm font-semibold text-[var(--text)]">
+                {activeResponseReq.itemName}
+              </strong>
+              <div className="mt-1 text-xs text-[var(--muted)]">
                 {t("incomingRequests.requestedBy")}: {activeResponseReq.borrower}
               </div>
             </div>
-            <div className="field" style={{ marginBottom: "16px" }}>
+            <div className="field">
               <label htmlFor="responseReason">
                 {t("incomingRequests.reasonLabel")}
               </label>
@@ -436,16 +388,16 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                 placeholder={t("incomingRequests.reasonPlaceholder")}
               />
               {modalError && (
-                <small className="field-error" style={{ marginTop: "4px" }}>
+                <small className="field-error">
                   <AlertCircle size={13} />
                   {modalError}
                 </small>
               )}
             </div>
-            <div className="modal-actions-grid">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <button
                 type="button"
-                className="button button-outline modal-btn-change"
+                className="button button-outline button-info-outline"
                 onClick={() => handleModalResponse("request_change")}
               >
                 {t("incomingRequests.requestChange")}

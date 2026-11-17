@@ -13,11 +13,15 @@ import {
   Send,
   ShieldCheck,
   Trash2,
-  UserRound,
   XCircle,
 } from "lucide-react";
-import { getCategoryLabel, normalizeCategoryKey } from "../data";
-import { Avatar, EmptyState, StatusBadge } from "../components/UI";
+import {
+  Avatar,
+  CategoryBadge,
+  EmptyState,
+  StatusBadge,
+  getLocalizedCategoryLabel,
+} from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { BORROW_REASON_MAX_LENGTH } from "../constants/config";
 import {
@@ -241,19 +245,15 @@ export default function WantedPostDetails({
 
   if (loading) {
     return (
-      <div className="page-stack">
-        <div className="detail-main">
-          <div className="detail-info">
-            <p>{t("common.loading")}</p>
-          </div>
-        </div>
+      <div className="flex flex-col gap-6 text-sm text-[var(--muted)]">
+        {t("common.loading")}
       </div>
     );
   }
 
   if (!post) {
     return (
-      <div className="page-stack">
+      <div className="flex flex-col gap-6">
         <EmptyState
           title={t("wanted.notFoundTitle")}
           description={error || t("wanted.notFoundDesc")}
@@ -269,10 +269,6 @@ export default function WantedPostDetails({
 
   const offers = Array.isArray(post.offers) ? post.offers : [];
   const isOpen = String(post.status).toLowerCase() === "open";
-  const categoryKey = normalizeCategoryKey(post.category);
-  const categoryLabel = t(`categories.${categoryKey}`, {
-    defaultValue: getCategoryLabel(post.category),
-  });
 
   const dateText =
     post.neededFrom || post.neededUntil
@@ -283,8 +279,8 @@ export default function WantedPostDetails({
       : t("wanted.flexibleDates");
 
   return (
-    <div className="page-stack">
-      <div className="detail-page-heading">
+    <div className="flex flex-col gap-5">
+      <div>
         <div className="eyebrow">{t("wanted.eyebrow")}</div>
       </div>
       <button
@@ -296,19 +292,19 @@ export default function WantedPostDetails({
       </button>
 
       {error && (
-        <div className="alert alert-error wanted-alert-error">
-          <AlertCircle size={18} />
+        <div className="alert alert-error">
+          <AlertCircle size={18} className="shrink-0" />
           <span>{error}</span>
         </div>
       )}
       {actionMsg && (
-        <div className="alert alert-success wanted-alert-success">
-          <CheckCircle2 size={18} />
+        <div className="alert alert-success flex-wrap">
+          <CheckCircle2 size={18} className="shrink-0" />
           <span>{actionMsg}</span>
           {borrowRequestId && (
             <Link
               to="/my-borrows"
-              className="button button-primary button-sm wanted-alert-action"
+              className="button button-primary button-sm ml-auto"
             >
               {t("wanted.goToMyBorrows")}
             </Link>
@@ -316,41 +312,49 @@ export default function WantedPostDetails({
         </div>
       )}
 
-      <div className="detail-layout">
-        <section className="detail-main">
-          <div className="detail-info">
-            <div className="wanted-detail-badges">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.85fr)] gap-7 items-start">
+        <section className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-xs">
+          <div className="p-6 sm:p-7 flex flex-col">
+            <div className="flex flex-wrap items-center gap-2">
               <StatusBadge status={post.status} />
-              <span className="category-label">{categoryLabel}</span>
+              <CategoryBadge category={post.category} />
             </div>
-            <h1>{post.title}</h1>
-            <div className="owner-row">
-              <span className="owner-avatar avatar">
-                <UserRound size={20} />
-              </span>
-              <div>
-                <strong>{post.requesterName || "—"}</strong>
-                <small>{post.requesterFaculty || t("wanted.requesterLabel")}</small>
+            <h1 className="mt-3 mb-0 text-2xl sm:text-[26px] font-bold leading-snug text-[var(--text)]">
+              {post.title}
+            </h1>
+            <div className="mt-5 flex flex-wrap items-center gap-3 p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border)]">
+              <Avatar name={post.requesterName || "—"} size="md" />
+              <div className="min-w-0 flex-1 flex flex-col">
+                <strong className="text-sm font-semibold text-[var(--text)] truncate">
+                  {post.requesterName || "—"}
+                </strong>
+                <small className="text-[11px] text-[var(--muted)] truncate">
+                  {post.requesterFaculty || t("wanted.requesterLabel")}
+                </small>
               </div>
-              <span className="verified">
-                <ShieldCheck size={15} /> {t("itemDetails.verifiedMember")}
+              <span className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#E4F3E8] text-[#247A4B] dark:bg-[#1B3526] dark:text-[#4ADE80] text-[11px] font-semibold shrink-0">
+                <ShieldCheck size={14} /> {t("itemDetails.verifiedMember")}
               </span>
             </div>
 
-            <hr />
+            <hr className="my-5 border-0 border-t border-[var(--border)]" />
 
-            <h2>{t("wanted.descriptionLabel")}</h2>
-            <p>{post.description || t("wanted.noDescription")}</p>
+            <h2 className="m-0 text-[15px] font-semibold text-[var(--text)]">
+              {t("wanted.descriptionLabel")}
+            </h2>
+            <p className="mt-2 mb-0 text-[13.5px] leading-relaxed text-[var(--muted)] whitespace-pre-line">
+              {post.description || t("wanted.noDescription")}
+            </p>
 
-            <div className="wanted-date-pill">
-              <CalendarDays size={16} />
+            <div className="mt-4 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--surface-tint)] border border-[var(--border)] text-xs font-medium text-[var(--text)] w-fit">
+              <CalendarDays size={15} className="text-[var(--primary)] shrink-0" />
               <span>
                 {t("wanted.neededDatesLabel")}: {dateText}
               </span>
             </div>
 
             {isOwner && isOpen && (
-              <div className="wanted-owner-actions">
+              <div className="mt-5 pt-4 border-t border-[var(--border)] flex flex-wrap items-center gap-2.5">
                 <Link
                   to={`/create?tab=wanted&edit=${post.id}`}
                   className="button button-outline button-sm"
@@ -371,32 +375,40 @@ export default function WantedPostDetails({
           </div>
 
           {user && (isOwner || offers.length > 0) && (
-            <div className="wanted-offers-section">
-              <div className="wanted-offers-heading">
-                <h2>
-                  {isOwner
-                    ? t("wanted.incomingOffersTitle", { count: offers.length })
-                    : t("wanted.myOffersTitle")}
-                </h2>
-              </div>
+            <div className="px-6 sm:px-7 py-5 border-t border-[var(--border)] bg-[var(--surface-subtle)]/50">
+              <h2 className="m-0 mb-3.5 text-base font-semibold text-[var(--text)]">
+                {isOwner
+                  ? t("wanted.incomingOffersTitle", { count: offers.length })
+                  : t("wanted.myOffersTitle")}
+              </h2>
               {offers.length === 0 ? (
-                <p className="wanted-empty-hint">{t("wanted.noOffersYet")}</p>
+                <p className="m-0 text-[13px] text-[var(--muted)]">
+                  {t("wanted.noOffersYet")}
+                </p>
               ) : (
-                <div className="wanted-offers-list">
+                <div className="flex flex-col gap-3">
                   {offers.map((offer) => {
                     const isPending =
                       String(offer.status).toLowerCase() === "pending";
                     return (
-                      <article key={offer.id} className="wanted-offer-card">
-                        <div className="wanted-offer-header">
-                          <div className="wanted-offer-lender">
+                      <article
+                        key={offer.id}
+                        className="flex flex-col gap-3 p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-xs"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
                             <Avatar name={offer.lenderName} size="sm" />
-                            <div>
-                              <strong>{offer.lenderName}</strong>
+                            <div className="min-w-0">
+                              <strong className="block text-[13.5px] font-semibold text-[var(--text)] truncate">
+                                {offer.lenderName}
+                              </strong>
                               {offer.offeredItemTitle && (
-                                <div className="wanted-offer-item">
-                                  <Package size={14} />
-                                  <Link to={`/items/${offer.offeredItemId}`}>
+                                <div className="mt-0.5 flex items-center gap-1.5 text-xs text-[var(--muted)]">
+                                  <Package size={13} className="shrink-0 text-[var(--primary)]" />
+                                  <Link
+                                    to={`/items/${offer.offeredItemId}`}
+                                    className="font-medium text-[var(--primary)] hover:underline truncate"
+                                  >
                                     {offer.offeredItemTitle}
                                   </Link>
                                 </div>
@@ -407,11 +419,13 @@ export default function WantedPostDetails({
                         </div>
 
                         {offer.message && (
-                          <p className="wanted-offer-message">{offer.message}</p>
+                          <p className="m-0 text-[13px] leading-relaxed text-[var(--text)] bg-[var(--surface-subtle)] border border-[var(--border)] rounded-lg px-3 py-2">
+                            {offer.message}
+                          </p>
                         )}
 
                         {isOwner && isOpen && isPending && (
-                          <div className="wanted-offer-actions">
+                          <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
                               className="button button-primary button-sm"
@@ -439,18 +453,18 @@ export default function WantedPostDetails({
           )}
         </section>
 
-        <aside className="borrow-panel">
-          <div className="borrow-panel-heading">
-            <span className="panel-icon">
+        <aside className="lg:sticky lg:top-24 bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-xs flex flex-col gap-4">
+          <div className="flex items-start gap-3">
+            <span className="w-10 h-10 rounded-xl bg-[var(--peach)] text-[var(--primary)] grid place-items-center shrink-0">
               <HandHeart size={20} />
             </span>
             <div>
-              <h2>
+              <h2 className="m-0 text-base font-semibold text-[var(--text)]">
                 {isOwner
                   ? t("wanted.ownerPanelTitle")
                   : t("wanted.offerFormTitle")}
               </h2>
-              <p>
+              <p className="m-0 mt-0.5 text-xs text-[var(--muted)] leading-snug">
                 {isOwner
                   ? t("wanted.ownerPanelDesc")
                   : t("wanted.offerFormSubtitle")}
@@ -459,9 +473,9 @@ export default function WantedPostDetails({
           </div>
 
           {!user ? (
-            <div className="wanted-panel-stack">
-              <div className="borrow-note borrow-note-flush">
-                <ShieldCheck size={17} />
+            <div className="grid gap-3">
+              <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border)] text-xs leading-relaxed text-[var(--muted)]">
+                <ShieldCheck size={17} className="shrink-0 mt-0.5 text-[var(--primary)]" />
                 <span>{t("wanted.loginToOffer")}</span>
               </div>
               <Link
@@ -473,9 +487,9 @@ export default function WantedPostDetails({
               </Link>
             </div>
           ) : isOwner ? (
-            <div className="wanted-panel-stack">
-              <div className="borrow-note borrow-note-flush">
-                <ShieldCheck size={17} />
+            <div className="grid gap-3">
+              <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border)] text-xs leading-relaxed text-[var(--muted)]">
+                <ShieldCheck size={17} className="shrink-0 mt-0.5 text-[var(--primary)]" />
                 <span>
                   {String(post.status).toLowerCase() === "fulfilled"
                     ? t("wanted.offerAccepted")
@@ -492,8 +506,8 @@ export default function WantedPostDetails({
               )}
             </div>
           ) : !isOpen ? (
-            <div className="borrow-note borrow-note-flush">
-              <AlertCircle size={17} />
+            <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border)] text-xs leading-relaxed text-[var(--muted)]">
+              <AlertCircle size={17} className="shrink-0 mt-0.5 text-[var(--primary)]" />
               <span>{t(`status.${post.status}`, post.status)}</span>
             </div>
           ) : (
@@ -514,10 +528,11 @@ export default function WantedPostDetails({
                 >
                   <option value="">{t("wanted.selectItemPlaceholder")}</option>
                   {myAvailableItems.map((item) => {
-                    const catKey = normalizeCategoryKey(item.category);
-                    const catLabel = t(`categories.${catKey}`, {
-                      defaultValue: getCategoryLabel(item.category),
-                    });
+                    const catLabel = getLocalizedCategoryLabel(
+                      item.category,
+                      t,
+                      i18n.language
+                    );
                     const itemLabel = item.name || item.title || item.id;
                     return (
                       <option key={item.id} value={item.id}>
@@ -533,7 +548,7 @@ export default function WantedPostDetails({
                   </small>
                 )}
                 {myAvailableItems.length === 0 && (
-                  <div className="wanted-no-items-callout">
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2.5 px-3 py-2.5 rounded-[9px] bg-[var(--surface-subtle)] border border-dashed border-[var(--border)] text-xs text-[var(--muted)]">
                     <span>{t("wanted.noAvailableItemsHint")}</span>
                     <Link
                       to="/create"
@@ -562,8 +577,8 @@ export default function WantedPostDetails({
                 </small>
               </div>
 
-              <div className="borrow-note">
-                <ShieldCheck size={17} />
+              <div className="mb-4 flex items-start gap-2.5 p-3.5 rounded-xl bg-[var(--surface-subtle)] border border-[var(--border)] text-xs leading-relaxed text-[var(--muted)]">
+                <ShieldCheck size={17} className="shrink-0 mt-0.5 text-[var(--primary)]" />
                 <span>{t("wanted.offerNote")}</span>
               </div>
 

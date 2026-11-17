@@ -2,31 +2,18 @@ import React, { useState } from "react";
 import { PackageCheck, History } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { PageHeading, StatusBadge, EmptyState, Avatar } from "../components/UI";
+import { PageHeading, EmptyState, RequestCard } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import HandoverModal, { isHandedOver, isReturned } from "../components/HandoverModal";
 import LoanEvidenceTimelineModal from "../components/LoanEvidenceTimelineModal";
 
-function formatDate(date, locale = "th-TH") {
-  if (!date) return "—";
-  const dateStr = String(date);
-  const parsed = dateStr.includes("T") ? new Date(dateStr) : new Date(`${dateStr}T12:00:00`);
-  if (isNaN(parsed.getTime())) return dateStr;
-  return parsed.toLocaleDateString(locale, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 // T-6.3: รับ items/setItems/setRequests เพิ่ม เพื่ออัปเดตสถานะหลังบันทึกหลักฐานสำเร็จ
 export default function MyBorrows({ requests = [], items = [], setItems, setRequests }) {
   const { user } = useAuth();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [handoverReq, setHandoverReq] = useState(null);
   const [evidenceRequestId, setEvidenceRequestId] = useState(null);
   const [successMsg, setSuccessMsg] = useState("");
-  const dateLocale = i18n.language === "en" ? "en-US" : "th-TH";
   
   const myBorrows = (requests || []).filter((r) =>
     Boolean(
@@ -54,7 +41,7 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
   }
 
   return (
-    <div className="page-stack">
+    <div className="flex flex-col gap-6">
       <PageHeading
         eyebrow={t("myBorrows.eyebrow", { defaultValue: "MY BORROWS" })}
         title={t("myBorrows.title", { defaultValue: "การยืมของฉัน" })}
@@ -71,10 +58,10 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
       )}
 
       {myBorrows.length ? (
-        <div className="requests-list">
+        <div className="flex flex-col gap-4">
           {myBorrows.map((req) => {
-            // T-6.3 / US-07.3: ส่งมอบแล้วแสดง "กำลังยืม" / คืนแล้วแสดง "คืนแล้ว" (คงประวัติการยืมไว้)
-            const matchedItem = items.find((i) => i.id === req.itemId);
+            // T-6.3 / US-07.3 / US-08.2: ส่งมอบแล้วแสดง "กำลังยืม" / คืนแล้วแสดง "คืนแล้ว"
+            const matchedItem = items.find((i) => String(i.id) === String(req.itemId));
             const returned = isReturned(req);
             const handedOver = isHandedOver(req, matchedItem);
             const canViewEvidence = Boolean(
@@ -83,103 +70,56 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
                 (req?.status === "accepted" && matchedItem?.status === "available"),
             );
             return (
-            <article className="request-card" key={req.id}>
-              <div className="request-main">
-                <div className="request-card-top">
-                  <Avatar name={req.itemName} />
-                  <div className="request-title">
-                    <h3>{req.itemName}</h3>
-                    <p>
-                      {t("myBorrows.requestedAt", {
-                        date: formatDate(req.borrowDate, dateLocale),
-                        defaultValue: `ส่งคำขอถึงเจ้าของเมื่อ ${formatDate(req.borrowDate, dateLocale)}`,
-                      })}
-                    </p>
-                  </div>
-                  <StatusBadge status={returned ? "returned" : handedOver ? "borrowed" : req.status} />
-                </div>
-                <p className="request-reason">
-                  {t("myBorrows.reasonPrefix", { defaultValue: "เหตุผล: " })}{req.reason}
-                </p>
-                {req.responseReason && (
-                  <p
-                    className="request-feedback"
-                    style={{
-                      fontSize: "0.85rem",
-                      color: req.status === "rejected" ? "#B9382B" : "#0369A1",
-                      marginTop: "6px",
-                      background: req.status === "rejected" ? "#FCE8E4" : "#E0F2FE",
-                      borderLeft: req.status === "rejected" ? "3px solid #B9382B" : "3px solid #0284c7",
-                      padding: "6px 10px",
-                      borderRadius: "6px",
-                    }}
-                  >
-                    <strong>{t("myBorrows.ownerFeedback", { defaultValue: "ข้อความจากเจ้าของ: " })}</strong>
-                    {req.responseReason}
-                  </p>
-                )}
-              </div>
-
-              <div className="request-side">
-                <dl className="request-dates">
-                  <div>
-                    <dt>{t("myBorrows.borrowDate", { defaultValue: "วันที่ต้องการยืม" })}</dt>
-                    <dd>{formatDate(req.borrowDate, dateLocale)}</dd>
-                  </div>
-                  <div>
-                    <dt>{t("myBorrows.returnDate", { defaultValue: "วันที่กำหนดคืน" })}</dt>
-                    <dd>{formatDate(req.returnDate, dateLocale)}</dd>
-                  </div>
-                </dl>
-                {/* T-6.3 / US-07.3: ปุ่มบันทึกหลักฐานการส่งมอบ เฉพาะคำขอ accepted ที่ยังไม่ส่งมอบและยังไม่คืน */}
-                {returned ? (
-                  <div className="request-status-updated">
-                    <small className="status-hint">{t("returnEvidence.done")}</small>
-                  </div>
-                ) : handedOver ? (
-                  <div className="request-status-updated">
-                    <small className="status-hint">{t("handover.done")}</small>
-                  </div>
-                ) : (
-                  req.status === "accepted" && !canViewEvidence && (
-                    <div className="request-status-updated">
+              <RequestCard
+                key={req.id}
+                request={req}
+                role="borrower"
+                status={returned ? "returned" : handedOver ? "borrowed" : req.status}
+                actions={
+                  <div className="flex flex-col items-stretch sm:items-end gap-2">
+                    {/* T-6.3 / US-07.3: ปุ่มบันทึกหลักฐานการส่งมอบ เฉพาะคำขอ accepted ที่ยังไม่ส่งมอบและยังไม่คืน */}
+                    {returned ? (
+                      <small className="text-[13px] text-[var(--muted)] text-center sm:text-right">
+                        {t("returnEvidence.done")}
+                      </small>
+                    ) : handedOver ? (
+                      <small className="text-[13px] text-[var(--muted)] text-center sm:text-right">
+                        {t("handover.done")}
+                      </small>
+                    ) : (
+                      req.status === "accepted" && !canViewEvidence && (
+                        <button
+                          type="button"
+                          className="button button-primary button-sm"
+                          onClick={() => {
+                            setSuccessMsg("");
+                            setHandoverReq(req);
+                          }}
+                        >
+                          <PackageCheck size={16} /> {t("handover.button")}
+                        </button>
+                      )
+                    )}
+                    {canViewEvidence && (
                       <button
                         type="button"
-                        className="button button-primary button-sm"
-                        onClick={() => {
-                          setSuccessMsg("");
-                          setHandoverReq(req);
-                        }}
+                        className="button button-outline button-sm"
+                        onClick={() => setEvidenceRequestId(req.id)}
                       >
-                        <PackageCheck size={16} /> {t("handover.button")}
+                        <History size={15} /> {t("evidenceTimeline.button")}
                       </button>
-                    </div>
-                  )
-                )}
-                {canViewEvidence && (
-                  <div className="request-status-updated">
-                    <button
-                      type="button"
-                      className="button button-outline button-sm"
-                      onClick={() => setEvidenceRequestId(req.id)}
-                    >
-                      <History size={15} /> {t("evidenceTimeline.button")}
-                    </button>
+                    )}
+                    {req.status === "change_requested" && (
+                      <Link
+                        to={`/items/${req.itemId}`}
+                        className="button button-outline button-info-outline button-sm button-full mt-1"
+                      >
+                        {t("myBorrows.editRequest", { defaultValue: "แก้ไขคำขอยืม" })}
+                      </Link>
+                    )}
                   </div>
-                )}
-                {req.status === "change_requested" && (
-                  <div style={{ marginTop: "12px" }}>
-                    <Link
-                      to={`/items/${req.itemId}`}
-                      className="button button-outline button-sm button-full"
-                      style={{ borderColor: "#0284c7", color: "#0284c7" }}
-                    >
-                      {t("myBorrows.editRequest", { defaultValue: "แก้ไขคำขอยืม" })}
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </article>
+                }
+              />
             );
           })}
         </div>

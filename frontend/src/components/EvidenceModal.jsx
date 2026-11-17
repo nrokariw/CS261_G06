@@ -220,7 +220,7 @@ export default function EvidenceModal({
               {preview && (
                 <button
                   type="button"
-                  className="button button-danger-outline button-sm"
+                  className="button button-danger-outline button-sm mt-2 self-start"
                   onClick={removeImage}
                   disabled={submitting}
                 >

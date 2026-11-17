@@ -11,6 +11,7 @@ const DEFAULT_API_PATHS = {
   transactions:
     import.meta.env.VITE_API_TRANSACTIONS_PATH || "/api/transactions",
   evidence: import.meta.env.VITE_API_EVIDENCE_PATH || "/api/evidence",
+  categories: import.meta.env.VITE_API_CATEGORIES_PATH || "/api/categories",
   wantedPosts:
     import.meta.env.VITE_API_WANTED_POSTS_PATH || "/api/wanted-posts",
 };
@@ -53,6 +54,7 @@ export async function loadRuntimeConfig() {
           transactions:
             data.api.transactions || DEFAULT_API_PATHS.transactions,
           evidence: data.api.evidence || DEFAULT_API_PATHS.evidence,
+          categories: data.api.categories || DEFAULT_API_PATHS.categories,
           wantedPosts: data.api.wantedPosts || DEFAULT_API_PATHS.wantedPosts,
         };
       }

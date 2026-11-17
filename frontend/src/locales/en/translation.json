@@ -82,7 +82,11 @@
     "emptyDesc": "Try adjusting your search keywords or selecting another category",
     "ctaTitle": "Have something to share?",
     "ctaDesc": "List your item so classmates on campus can borrow it",
-    "ctaButton": "Create Listing"
+    "ctaButton": "Create Listing",
+    "prevPage": "Previous",
+    "nextPage": "Next",
+    "pageInfo": "Page {{page}} of {{total}}",
+    "paginationLabel": "Pagination"
   },
   "createListing": {
     "eyebrowCreate": "CREATE LISTING",

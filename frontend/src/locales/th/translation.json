@@ -82,7 +82,11 @@
     "emptyDesc": "ลองเปลี่ยนคำค้นหาหรือเลือกหมวดหมู่อื่น",
     "ctaTitle": "ลงประกาศของที่ให้ยืม",
     "ctaDesc": "เพิ่มรายละเอียดของที่อยากให้เพื่อนยืมได้เลย",
-    "ctaButton": "สร้างประกาศ"
+    "ctaButton": "สร้างประกาศ",
+    "prevPage": "ก่อนหน้า",
+    "nextPage": "ถัดไป",
+    "pageInfo": "หน้า {{page}} จาก {{total}}",
+    "paginationLabel": "เลือกหน้าแสดงผล"
   },
   "createListing": {
     "eyebrowCreate": "CREATE LISTING",

@@ -7,6 +7,7 @@ import com.example.demo.model.User;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.UserRepository;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -17,7 +18,11 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service 
 public class ItemService {
@@ -26,14 +31,24 @@ public class ItemService {
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService; // เพิ่ม Service สำหรับจัดการไฟล์รูปภาพ
+    private final CategoryService categoryService;
 
     //define constructor
-    public ItemService(ItemRepository itemRepository, 
-                       UserRepository userRepository, 
+    public ItemService(ItemRepository itemRepository,
+                       UserRepository userRepository,
                        FileStorageService fileStorageService) {
+        this(itemRepository, userRepository, fileStorageService, null);
+    }
+
+    @Autowired
+    public ItemService(ItemRepository itemRepository,
+                       UserRepository userRepository,
+                       FileStorageService fileStorageService,
+                       CategoryService categoryService) {
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
         this.fileStorageService = fileStorageService;
+        this.categoryService = categoryService;
     }
 
     // 1. สร้างไอเท็มใหม่จาก User Model พร้อมรองรับการอัปโหลดรูปภาพ 
@@ -50,10 +65,13 @@ public class ItemService {
         }
 
         // สร้าง item และกำหนด ownerId
+        String resolvedCategory = categoryService != null
+                ? categoryService.validateAndNormalizeCategory(itemCreateDto.getCategory())
+                : itemCreateDto.getCategory();
         Item item = new Item();
         item.setOwnerId(studentId);
         item.setTitle(itemCreateDto.getTitle());
-        item.setCategory(itemCreateDto.getCategory());
+        item.setCategory(resolvedCategory);
         item.setDescription(itemCreateDto.getDescription());
         item.setImageUrl(imageUrl);
 
@@ -64,31 +82,71 @@ public class ItemService {
         item.setAvailableUntil(availUntil);
 
         // บันทึกลง MSSQL Database
-        return itemRepository.save(item);
+        return populateOwnerName(itemRepository.save(item));
     }
 
     // 2.1. ดึงรายการไอเท็มทั้งหมด
     public List<Item> getAllItems() {
-        return itemRepository.findAll()
+        return populateOwnerNames(itemRepository.findAll()
                 .stream()
                 .filter(item -> item.getDeletedAt() == null)
-                .toList();
+                .toList());
     }
 
     // 2.2. ค้นหาไอเท็มตาม ID
     public Optional<Item> getItemById(String id) {
-        return itemRepository.findById(id);
+        return itemRepository.findById(id).map(this::populateOwnerName);
     }
 
     // 2.3. ค้นหาไอเท็มของ User คนนี้
     public List<Item> getItemsByOwner(String ownerId) {
-        return itemRepository.findByOwnerId(ownerId);
+        return populateOwnerNames(itemRepository.findByOwnerId(ownerId));
     }
 
     // 2.4. ดึงรายการตามสถานะที่ยังไม่ถูกลบ เรียงจากใหม่ไปเก่า
     public List<Item> getAvailableItems(ItemStatus status) {
-        return itemRepository.findByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(status);
-    }  
+        return populateOwnerNames(itemRepository.findByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(status));
+    }
+
+    private Item populateOwnerName(Item item) {
+        if (item == null) return null;
+        if (item.getOwnerId() == null || item.getOwnerId().isBlank()) return item;
+        userRepository.findById(item.getOwnerId()).ifPresent(user -> {
+            String displayName = (user.getFullName() != null && !user.getFullName().isBlank())
+                    ? user.getFullName()
+                    : user.getUsername();
+            if (displayName != null && !displayName.isBlank()) {
+                item.setOwnerName(displayName);
+            }
+        });
+        return item;
+    }
+
+    private List<Item> populateOwnerNames(List<Item> items) {
+        if (items == null || items.isEmpty()) return items;
+        Set<String> ownerIds = items.stream()
+                .map(Item::getOwnerId)
+                .filter(Objects::nonNull)
+                .filter(id -> !id.isBlank())
+                .collect(Collectors.toSet());
+        if (ownerIds.isEmpty()) return items;
+
+        Map<String, String> ownerNameMap = userRepository.findAllById(ownerIds).stream()
+                .collect(Collectors.toMap(
+                        User::getStudentId,
+                        user -> (user.getFullName() != null && !user.getFullName().isBlank())
+                                ? user.getFullName()
+                                : (user.getUsername() != null ? user.getUsername() : user.getStudentId()),
+                        (a, b) -> a
+                ));
+        for (Item item : items) {
+            String name = ownerNameMap.get(item.getOwnerId());
+            if (name != null && !name.isBlank()) {
+                item.setOwnerName(name);
+            }
+        }
+        return items;
+    }
 
     // 3.1. อัพเดทไอเท็ม
     public Item updateItem(String itemId, ItemCreateDto dto) {
@@ -120,7 +178,10 @@ public class ItemService {
             item.setTitle(requestDto.getTitle().trim());
         }
         if (requestDto.getCategory() != null && !requestDto.getCategory().trim().isEmpty()) {
-            item.setCategory(requestDto.getCategory().trim());
+            String resolvedCategory = categoryService != null
+                    ? categoryService.validateAndNormalizeCategory(requestDto.getCategory())
+                    : requestDto.getCategory().trim();
+            item.setCategory(resolvedCategory);
         }
         if (requestDto.getDescription() != null) {
             item.setDescription(requestDto.getDescription().trim());
@@ -143,7 +204,7 @@ public class ItemService {
         }
 
         item.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
-        return itemRepository.save(item);
+        return populateOwnerName(itemRepository.save(item));
     }
 
     private void validateAvailabilityWindow(LocalDateTime availFrom, LocalDateTime availUntil) {

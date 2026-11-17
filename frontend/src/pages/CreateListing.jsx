@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -10,11 +10,10 @@ import {
   HandHeart,
 } from "lucide-react";
 import {
-  CATEGORIES,
-  getCategoryLabel,
+  getActiveCategoryCodes,
   normalizeCategoryKey,
 } from "../data";
-import { PageHeading } from "../components/UI";
+import { PageHeading, getLocalizedCategoryLabel } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { createItem, updateItem, normalizeItem } from "../api/itemsApi";
 import {
@@ -36,9 +35,25 @@ function toLocalDateTimePayload(dateValue, isEndOfDay = false) {
   return `${dateValue}T${isEndOfDay ? "23:59:59" : "00:00:00"}`;
 }
 
-export default function CreateListing({ items = [], setItems, initialTab = "items" }) {
+function buildCategoryOptions(propCategories, currentCategory) {
+  const base = Array.isArray(propCategories)
+    ? propCategories
+    : getActiveCategoryCodes();
+  const editKey = normalizeCategoryKey(currentCategory);
+  if (editKey && !base.includes(editKey)) {
+    return [...base, editKey];
+  }
+  return base;
+}
+
+export default function CreateListing({
+  items = [],
+  setItems,
+  categories: propCategories,
+  initialTab = "items",
+}) {
   const { user, token } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const activeTab =
@@ -60,6 +75,10 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
   const [name, setName] = useState(editingItem?.name || "");
   const [category, setCategory] = useState(
     normalizeCategoryKey(editingItem?.category) || "",
+  );
+  const categoryOptions = useMemo(
+    () => buildCategoryOptions(propCategories, editingItem?.category),
+    [propCategories, editingItem?.category],
   );
   const [detail, setDetail] = useState(editingItem?.detail || "");
   const [availableFrom, setAvailableFrom] = useState(
@@ -83,6 +102,10 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
 
   const [wantedTitle, setWantedTitle] = useState("");
   const [wantedCategory, setWantedCategory] = useState("");
+  const wantedCategoryOptions = useMemo(
+    () => buildCategoryOptions(propCategories, wantedCategory),
+    [propCategories, wantedCategory],
+  );
   const [wantedDescription, setWantedDescription] = useState("");
   const [neededFrom, setNeededFrom] = useState("");
   const [neededUntil, setNeededUntil] = useState("");
@@ -317,7 +340,7 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
   }
 
   return (
-    <div className="page-stack narrow-page">
+    <div className="flex flex-col gap-6 max-w-3xl mx-auto w-full">
       <button className="back-link" onClick={() => navigate(-1)}>
         <ArrowLeft size={16} /> {t("common.back")}
       </button>
@@ -344,12 +367,19 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
             : t("createListing.subtitle")
         }
       />
-      <div className="tab-bar" role="tablist">
+      <div
+        className="flex items-center gap-2 border-b border-[var(--border)] pb-3 overflow-x-auto"
+        role="tablist"
+      >
         <button
           type="button"
           role="tab"
           aria-selected={activeTab === "items"}
-          className={`tab-btn ${activeTab === "items" ? "tab-btn-active" : ""}`}
+          className={`inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-[13.5px] font-medium border cursor-pointer transition-colors ${
+            activeTab === "items"
+              ? "bg-[var(--primary)] border-[var(--primary)] text-white shadow-xs"
+              : "bg-[var(--surface)] border-[var(--border)] text-[var(--muted)] hover:border-[var(--primary)] hover:text-[var(--text)]"
+          }`}
           onClick={() => handleTabChange("items")}
         >
           {t("wanted.tabLendItems")}
@@ -358,7 +388,11 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
           type="button"
           role="tab"
           aria-selected={activeTab === "wanted"}
-          className={`tab-btn ${activeTab === "wanted" ? "tab-btn-active" : ""}`}
+          className={`inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-[13.5px] font-medium border cursor-pointer transition-colors ${
+            activeTab === "wanted"
+              ? "bg-[var(--primary)] border-[var(--primary)] text-white shadow-xs"
+              : "bg-[var(--surface)] border-[var(--border)] text-[var(--muted)] hover:border-[var(--primary)] hover:text-[var(--text)]"
+          }`}
           onClick={() => handleTabChange("wanted")}
         >
           <HandHeart size={16} /> {t("wanted.tabWantedPosts")}
@@ -366,22 +400,32 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
       </div>
       {activeTab === "wanted" ? (
         wantedLoading ? (
-          <div className="form-card">
-            <p>{t("common.loading")}</p>
+          <div className="p-6 sm:p-8 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs text-sm text-[var(--muted)]">
+            {t("common.loading")}
           </div>
         ) : (
-          <form className="form-card" onSubmit={submitWanted} noValidate>
+          <form
+            className="flex flex-col p-6 sm:p-8 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs"
+            onSubmit={submitWanted}
+            noValidate
+          >
             {wantedSuccess && (
-              <div className="alert alert-success">
+              <div className="alert alert-success mb-5">
                 <CheckCircle2 size={18} />
                 {wantedSuccess}
               </div>
             )}
-            <div className="form-section-title">
-              <span className="section-number">01</span>
+            <div className="flex items-start gap-3.5 mb-5 pb-4 border-b border-[var(--border)]">
+              <span className="w-8 h-8 rounded-lg bg-[var(--peach)] text-[var(--primary)] text-xs font-bold grid place-items-center shrink-0 mt-0.5">
+                01
+              </span>
               <div>
-                <h2>{t("wanted.eyebrow")}</h2>
-                <p>{t("wanted.createSubtitle")}</p>
+                <h2 className="m-0 text-base font-semibold text-[var(--text)]">
+                  {t("wanted.eyebrow")}
+                </h2>
+                <p className="m-0 mt-0.5 text-xs text-[var(--muted)]">
+                  {t("wanted.createSubtitle")}
+                </p>
               </div>
             </div>
             <div className="field">
@@ -419,9 +463,9 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
                 aria-invalid={!!wantedErrors.category}
               >
                 <option value="">{t("createListing.categoryPlaceholder")}</option>
-                {CATEGORIES.map((c) => (
+                {wantedCategoryOptions.map((c) => (
                   <option key={c} value={c}>
-                    {t(`categories.${c}`, { defaultValue: getCategoryLabel(c) })}
+                    {getLocalizedCategoryLabel(c, t, i18n.language)}
                   </option>
                 ))}
               </select>
@@ -450,7 +494,7 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
                 placeholder={t("wanted.fieldDescriptionPlaceholder")}
               />
             </div>
-            <div className="field-group two-col-responsive">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="field">
                 <label htmlFor="wanted-from">{t("wanted.fieldNeededFrom")}</label>
                 <input
@@ -490,12 +534,12 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
               </div>
             </div>
             {wantedSubmitError && (
-              <div className="alert alert-error wanted-alert-error">
+              <div className="alert alert-error mb-4">
                 <AlertCircle size={18} />
                 <span>{wantedSubmitError}</span>
               </div>
             )}
-            <div className="form-actions">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-5 border-t border-[var(--border)]">
               <button
                 type="button"
                 className="button button-outline"
@@ -519,18 +563,28 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
           </form>
         )
       ) : (
-      <form className="form-card" onSubmit={submit} noValidate>
+        <form
+          className="flex flex-col p-6 sm:p-8 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs"
+          onSubmit={submit}
+          noValidate
+        >
         {success && (
-          <div className="alert alert-success">
+          <div className="alert alert-success mb-5">
             <CheckCircle2 size={18} />
             {success}
           </div>
         )}
-        <div className="form-section-title">
-          <span className="section-number">01</span>
+        <div className="flex items-start gap-3.5 mb-5 pb-4 border-b border-[var(--border)]">
+          <span className="w-8 h-8 rounded-lg bg-[var(--peach)] text-[var(--primary)] text-xs font-bold grid place-items-center shrink-0 mt-0.5">
+            01
+          </span>
           <div>
-            <h2>{t("createListing.section1Title")}</h2>
-            <p>{t("createListing.section1Desc")}</p>
+            <h2 className="m-0 text-base font-semibold text-[var(--text)]">
+              {t("createListing.section1Title")}
+            </h2>
+            <p className="m-0 mt-0.5 text-xs text-[var(--muted)]">
+              {t("createListing.section1Desc")}
+            </p>
           </div>
         </div>
         <div className="field">
@@ -562,9 +616,9 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
             aria-invalid={!!errors.category}
           >
             <option value="">{t("createListing.categoryPlaceholder")}</option>
-            {CATEGORIES.map((c) => (
+            {categoryOptions.map((c) => (
               <option key={c} value={c}>
-                {t(`categories.${c}`, { defaultValue: getCategoryLabel(c) })}
+                {getLocalizedCategoryLabel(c, t, i18n.language)}
               </option>
             ))}
           </select>
@@ -598,7 +652,7 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
             </small>
           )}
         </div>
-        <div className="field-group two-col-responsive">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="field">
             <label htmlFor="availableFrom">
               {t("createListing.availableFromLabel")}
@@ -652,11 +706,17 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
             )}
           </div>
         </div>
-        <div className="form-section-title section-spaced">
-          <span className="section-number">02</span>
+        <div className="flex items-start gap-3.5 mt-4 mb-5 pb-4 border-b border-[var(--border)]">
+          <span className="w-8 h-8 rounded-lg bg-[var(--peach)] text-[var(--primary)] text-xs font-bold grid place-items-center shrink-0 mt-0.5">
+            02
+          </span>
           <div>
-            <h2>{t("createListing.section2Title")}</h2>
-            <p>{t("createListing.section2Desc")}</p>
+            <h2 className="m-0 text-base font-semibold text-[var(--text)]">
+              {t("createListing.section2Title")}
+            </h2>
+            <p className="m-0 mt-0.5 text-xs text-[var(--muted)]">
+              {t("createListing.section2Desc")}
+            </p>
           </div>
         </div>
         <input
@@ -693,21 +753,21 @@ export default function CreateListing({ items = [], setItems, initialTab = "item
             </span>
           )}
         </button>
-        {errors.image && <small className="field-error">{errors.image}</small>}
-        <div className="form-note">
-          <AlertCircle size={16} />
+        {errors.image && <small className="field-error mt-2">{errors.image}</small>}
+        <div className="my-5 flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border)] text-xs text-[var(--muted)]">
+          <AlertCircle size={16} className="shrink-0 text-[var(--primary)]" />
           <span>
-            {t("createListing.requiredNotePrefix")} <b>*</b> {t("createListing.requiredNoteSuffix")}
+            {t("createListing.requiredNotePrefix")} <b className="text-[#B9382B] dark:text-[#F87171]">*</b> {t("createListing.requiredNoteSuffix")}
           </span>
         </div>
         {/* Inline Alert สำหรับแสดง Error ตอนกดบันทึก */}
         {submitError && (
-          <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', padding: '12px', background: '#ffebee', color: '#c62828', borderRadius: '6px' }}>
+          <div className="alert alert-error mb-4">
             <AlertCircle size={18} />
             <span>{submitError}</span>
           </div>
         )}
-        <div className="form-actions">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-5 border-t border-[var(--border)]">
           <button
             type="button"
             className="button button-outline"

@@ -186,7 +186,7 @@ class WantedPostIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "title", "ขาตั้งกล้อง",
-                                "category", "equipment"
+                                "category", "electronics"
                         ))))
                 .andExpect(status().isCreated())
                 .andReturn();
@@ -198,7 +198,7 @@ class WantedPostIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "title", "แก้ไขโดยคนอื่น",
-                                "category", "equipment"
+                                "category", "electronics"
                         ))))
                 .andExpect(status().isForbidden());
 

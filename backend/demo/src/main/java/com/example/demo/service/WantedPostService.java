@@ -16,6 +16,7 @@ import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.LendOfferRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.repository.WantedPostRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +41,7 @@ public class WantedPostService {
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;
     private final BorrowRequestRepository borrowRequestRepository;
+    private final CategoryService categoryService;
 
     public WantedPostService(
             WantedPostRepository wantedPostRepository,
@@ -47,11 +49,23 @@ public class WantedPostService {
             UserRepository userRepository,
             ItemRepository itemRepository,
             BorrowRequestRepository borrowRequestRepository) {
+        this(wantedPostRepository, lendOfferRepository, userRepository, itemRepository, borrowRequestRepository, null);
+    }
+
+    @Autowired
+    public WantedPostService(
+            WantedPostRepository wantedPostRepository,
+            LendOfferRepository lendOfferRepository,
+            UserRepository userRepository,
+            ItemRepository itemRepository,
+            BorrowRequestRepository borrowRequestRepository,
+            CategoryService categoryService) {
         this.wantedPostRepository = wantedPostRepository;
         this.lendOfferRepository = lendOfferRepository;
         this.userRepository = userRepository;
         this.itemRepository = itemRepository;
         this.borrowRequestRepository = borrowRequestRepository;
+        this.categoryService = categoryService;
     }
 
     public List<Map<String, Object>> listOpenPosts(String category, String query) {
@@ -87,11 +101,15 @@ public class WantedPostService {
     public Map<String, Object> createPost(String requesterId, WantedPostDto dto) {
         validatePostDto(dto);
 
+        String resolvedCategory = categoryService != null
+                ? categoryService.validateAndNormalizeCategory(dto.getCategory())
+                : dto.getCategory().trim();
+
         WantedPost post = new WantedPost();
         post.setId(UUID.randomUUID().toString());
         post.setRequesterId(requesterId);
         post.setTitle(dto.getTitle().trim());
-        post.setCategory(dto.getCategory().trim());
+        post.setCategory(resolvedCategory);
         post.setDescription(dto.getDescription() != null ? dto.getDescription().trim() : "");
         post.setNeededFrom(dto.getNeededFrom());
         post.setNeededUntil(dto.getNeededUntil());
@@ -110,8 +128,12 @@ public class WantedPostService {
         }
         validatePostDto(dto);
 
+        String resolvedCategory = categoryService != null
+                ? categoryService.validateAndNormalizeCategory(dto.getCategory())
+                : dto.getCategory().trim();
+
         post.setTitle(dto.getTitle().trim());
-        post.setCategory(dto.getCategory().trim());
+        post.setCategory(resolvedCategory);
         post.setDescription(dto.getDescription() != null ? dto.getDescription().trim() : "");
         post.setNeededFrom(dto.getNeededFrom());
         post.setNeededUntil(dto.getNeededUntil());
