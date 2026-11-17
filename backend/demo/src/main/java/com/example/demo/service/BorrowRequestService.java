@@ -166,7 +166,31 @@ public class BorrowRequestService {
         }
 
         itemRepository.save(item);
-        return borrowRequestRepository.save(request);
+        BorrowRequest savedRequest = borrowRequestRepository.save(request);
+
+        // Sync pending lend offers for this item + same requester: accept matching offer and fulfill post
+        if (lendOfferRepository != null && wantedPostRepository != null) {
+            for (LendOffer offer : lendOfferRepository.findByOfferedItemIdAndStatus(item.getId(), LendOfferStatus.PENDING)) {
+                wantedPostRepository.findById(offer.getWantedPostId()).ifPresent(post -> {
+                    if (post.getDeletedAt() == null && post.getRequesterId().equals(request.getBorrowerId())) {
+                        offer.setStatus(LendOfferStatus.ACCEPTED);
+                        lendOfferRepository.save(offer);
+                        if (post.getStatus() == WantedPostStatus.OPEN) {
+                            post.setStatus(WantedPostStatus.FULFILLED);
+                            wantedPostRepository.save(post);
+                        }
+                        for (LendOffer postOffer : lendOfferRepository.findByWantedPostIdOrderByCreatedAtDesc(post.getId())) {
+                            if (!postOffer.getId().equals(offer.getId()) && postOffer.getStatus() == LendOfferStatus.PENDING) {
+                                postOffer.setStatus(LendOfferStatus.REJECTED);
+                                lendOfferRepository.save(postOffer);
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        return savedRequest;
     }
 
     // 3.2. เจ้าของปฏิเสธคำขอ
@@ -222,7 +246,21 @@ public class BorrowRequestService {
         }
 
         itemRepository.save(item);
-        return borrowRequestRepository.save(request);
+        BorrowRequest savedRequest = borrowRequestRepository.save(request);
+
+        // Sync-reject any pending lend offer for the same item and requester when owner rejects
+        if ("reject".equals(normalized) && lendOfferRepository != null && wantedPostRepository != null) {
+            for (LendOffer offer : lendOfferRepository.findByOfferedItemIdAndStatus(item.getId(), LendOfferStatus.PENDING)) {
+                wantedPostRepository.findById(offer.getWantedPostId()).ifPresent(post -> {
+                    if (post.getDeletedAt() == null && post.getRequesterId().equals(request.getBorrowerId())) {
+                        offer.setStatus(LendOfferStatus.REJECTED);
+                        lendOfferRepository.save(offer);
+                    }
+                });
+            }
+        }
+
+        return savedRequest;
     }
 
     // 4.3 ผู้ยืมแก้ไขข้อมูลคำขอและส่งกลับมาให้เจ้าของพิจารณาใหม่
