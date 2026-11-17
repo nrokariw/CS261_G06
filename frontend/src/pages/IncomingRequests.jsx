@@ -3,7 +3,8 @@ import { Check, X, AlertCircle, PackageCheck, MessageSquare } from "lucide-react
 import { useTranslation } from "react-i18next";
 import { PageHeading, StatusBadge, EmptyState, Avatar } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
-import HandoverModal, { isHandedOver } from "../components/HandoverModal";
+import HandoverModal, { isHandedOver, isReturned } from "../components/HandoverModal";
+import ReturnModal from "../components/ReturnModal";
 import {
   updateBorrowRequestStatus,
   cancelBorrowRequest,
@@ -26,6 +27,7 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
   const [actionError, setActionError] = useState("");
   // T-6.3: คำขอที่กำลังเปิดโมดอลบันทึกหลักฐานการส่งมอบ + ข้อความแจ้งผลสำเร็จ
   const [handoverReq, setHandoverReq] = useState(null);
+  const [returnReq, setReturnReq] = useState(null);
   const [successMsg, setSuccessMsg] = useState("");
   const [activeResponseReq, setActiveResponseReq] = useState(null);
   const [responseReason, setResponseReason] = useState("");
@@ -103,6 +105,22 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
     setHandoverReq(null);
     setActionError("");
     setSuccessMsg(t("handover.success", { name: target.itemName }));
+  }
+
+  // US-07.2: บันทึกหลักฐานการส่งคืนสำเร็จ → สถานะคำขอเป็น returned และสิ่งของกลับมา available
+  function handleReturnSuccess(returned) {
+    const target = returnReq;
+    setRequests((prev) =>
+      prev.map((r) => (r.id === target.id ? { ...r, returned } : r)),
+    );
+    if (setItems) {
+      setItems((prev) =>
+        prev.map((i) => (i.id === target.itemId ? { ...i, status: "available" } : i)),
+      );
+    }
+    setReturnReq(null);
+    setActionError("");
+    setSuccessMsg(t("returnEvidence.success", { name: target.itemName }));
   }
 
   function openResponseModal(req) {
@@ -190,7 +208,8 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
       {myIncomingRequests.length ? (
         <div className="requests-list requests-list-updated">
           {myIncomingRequests.map((req) => {
-            // T-6.3: ส่งมอบแล้ว แสดงสถานะ "กำลังยืม"
+            // T-6.3 / US-07.2: ส่งมอบแล้ว แสดง "กำลังยืม" / ส่งคืนแล้ว แสดง "คืนแล้ว"
+            const returned = isReturned(req);
             const handedOver = isHandedOver(
               req,
               items.find((i) => i.id === req.itemId),
@@ -206,7 +225,7 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                       {t("incomingRequests.requestedBy")} <strong>{req.borrower}</strong>
                     </p>
                   </div>
-                  <StatusBadge status={handedOver ? "borrowed" : req.status} />
+                  <StatusBadge status={returned ? "returned" : handedOver ? "borrowed" : req.status} />
                 </div>
                 <p className="request-reason">{req.reason}</p>
                 {req.responseReason && (
@@ -267,8 +286,22 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                     </div>
                   ) : (
                     <div className="request-status-updated">
-                      {handedOver ? (
-                        <small className="status-hint">{t("handover.done")}</small>
+                      {returned ? (
+                        <small className="status-hint">{t("returnEvidence.done")}</small>
+                      ) : handedOver ? (
+                        <>
+                          <small className="status-hint">{t("handover.done")}</small>
+                          <button
+                            type="button"
+                            className="button button-primary button-sm"
+                            onClick={() => {
+                              setSuccessMsg("");
+                              setReturnReq(req);
+                            }}
+                          >
+                            <PackageCheck size={16} /> {t("returnEvidence.button")}
+                          </button>
+                        </>
                       ) : (
                         <>
                           {/* T-6.3: ปุ่มบันทึกหลักฐานการส่งมอบ เฉพาะคำขอ accepted ที่ยังไม่ส่งมอบ */}
@@ -313,6 +346,15 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
           request={handoverReq}
           onClose={() => setHandoverReq(null)}
           onSuccess={handleHandoverSuccess}
+        />
+      )}
+
+      {/* US-07.2: โมดอลบันทึกหลักฐานการส่งคืน */}
+      {returnReq && (
+        <ReturnModal
+          request={returnReq}
+          onClose={() => setReturnReq(null)}
+          onSuccess={handleReturnSuccess}
         />
       )}
 

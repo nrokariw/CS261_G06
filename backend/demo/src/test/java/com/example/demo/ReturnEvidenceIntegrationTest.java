@@ -36,7 +36,9 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -217,5 +219,50 @@ class ReturnEvidenceIntegrationTest {
                 .andExpect(status().isConflict());
 
         assertThat(evidenceProofRepository.findByTransactionId(testTransaction.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("US-07.3 Re-borrow after return: preserves COMPLETED history and allows same borrower to borrow AVAILABLE item again")
+    void submitReturnEvidence_AllowsSameBorrowerToBorrowAgainWhilePreservingHistory() throws Exception {
+        User borrower = userRepository.findById(BORROWER_ID).orElseThrow();
+        String borrowerToken = jwtService.generateAccessToken(borrower);
+
+        MockMultipartFile imageFile = new MockMultipartFile(
+                "imageFile",
+                "return-photo.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                "return-evidence-bytes".getBytes()
+        );
+
+        mockMvc.perform(multipart("/api/transactions/request/" + testRequest.getId() + "/return-evidence")
+                        .file(imageFile)
+                        .param("note", "คืนเรียบร้อย")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + lenderToken))
+                .andExpect(status().isOk());
+
+        // 1. Historical request remains in borrower history with transactionStatus = COMPLETED
+        mockMvc.perform(get("/api/requests/borrower/" + BORROWER_ID)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + borrowerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(testRequest.getId()))
+                .andExpect(jsonPath("$[0].transactionStatus").value("COMPLETED"));
+
+        // 2. Same borrower can borrow the returned AVAILABLE item again
+        String newBorrowPayload = String.format(
+                "{\"itemId\":\"%s\",\"borrowDate\":\"%s\",\"returnDate\":\"%s\",\"reason\":\"ขอยืมซ้ำรอบสอง\"}",
+                testItem.getId(),
+                LocalDateTime.now().plusDays(1).toLocalDate(),
+                LocalDateTime.now().plusDays(2).toLocalDate()
+        );
+
+        mockMvc.perform(post("/api/requests")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + borrowerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(newBorrowPayload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.itemId").value(testItem.getId()))
+                .andExpect(jsonPath("$.status").value("PENDING"));
+
+        assertThat(borrowRequestRepository.findByItemIdAndBorrowerId(testItem.getId(), BORROWER_ID)).hasSize(2);
     }
 }
