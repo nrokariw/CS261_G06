@@ -9,9 +9,11 @@ export function normalizeItem(raw, fallbackOwner = "") {
     category: normalizeCategoryKey(raw.category),
     detail: raw.description ?? raw.detail ?? "",
     image: raw.imageUrl ?? raw.image ?? "",
-    owner: raw.owner ?? fallbackOwner ?? raw.ownerId ?? "",
+    owner: raw.ownerName ?? raw.owner ?? fallbackOwner ?? raw.ownerId ?? "",
     ownerId: raw.ownerId ?? "",
     status: String(raw.status || "available").toLowerCase(),
+    availableFrom: raw.availableFrom ?? raw.available_from ?? null,
+    availableUntil: raw.availableUntil ?? raw.available_until ?? null,
   };
 }
 

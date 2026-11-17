@@ -36,6 +36,12 @@ public class Item {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "available_from", columnDefinition = "DATETIME2")
+    private LocalDateTime availableFrom;
+
+    @Column(name = "available_until", columnDefinition = "DATETIME2")
+    private LocalDateTime availableUntil;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -44,6 +50,9 @@ public class Item {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
+
+    @Transient
+    private String ownerName;
 
     
     // สั่งให้สุ่มสร้าง UUID และกำหนด วันที่ เวลา เป็น UTC+0 อัตโนมัติก่อนบันทึกลง Database
@@ -110,9 +119,12 @@ public class Item {
     public String getCategory() { return category; }
     public ItemStatus getStatus() { return status; }
     public String getImageUrl() { return imageUrl; }
+    public LocalDateTime getAvailableFrom() { return availableFrom; }
+    public LocalDateTime getAvailableUntil() { return availableUntil; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public LocalDateTime getDeletedAt() { return deletedAt; }
+    public String getOwnerName() { return ownerName; }
 
     public void setId(String id) { this.id = id; }
     public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
@@ -121,9 +133,12 @@ public class Item {
     public void setCategory(String category) { this.category = category; }
     public void setStatus(ItemStatus status) { this.status = status; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public void setAvailableFrom(LocalDateTime availableFrom) { this.availableFrom = availableFrom; }
+    public void setAvailableUntil(LocalDateTime availableUntil) { this.availableUntil = availableUntil; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
+    public void setOwnerName(String ownerName) { this.ownerName = ownerName; }
 
     //define methods
     public void updateDetails(String title, String description) {

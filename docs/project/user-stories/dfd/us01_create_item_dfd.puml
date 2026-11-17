@@ -1,0 +1,21 @@
+@startuml
+title US-01 DFD: Create Item Listing
+left to right direction
+skinparam roundcorner 12
+
+rectangle "Lender" as User
+usecase "1.1\nValidate Form\n& File" as P1
+usecase "1.2\nStore Image" as P2
+usecase "1.3\nCreate Item\nRecord" as P3
+database "D5: File Storage" as D5
+database "D2: Items" as D2
+
+User --> P1 : Item data + image
+P1 --> P2 : Valid image
+P2 --> D5 : Image file
+D5 --> P2 : imageUrl
+P1 --> P3 : Valid fields
+P2 --> P3 : imageUrl
+P3 --> D2 : Insert Item (AVAILABLE)
+P3 --> User : 201 Created / Error
+@enduml

@@ -10,7 +10,10 @@ function toDateOnly(value) {
 export function normalizeBorrowRequest(raw, items = []) {
   if (!raw) return null;
   const itemId = raw.itemId || raw.item_id || "";
-  const matchedItem = items.find((i) => i.id === itemId);
+  const matchedItem = items.find((i) => String(i.id) === String(itemId));
+  const txStatus = raw.transactionStatus
+    ? String(raw.transactionStatus).toLowerCase()
+    : "";
   return {
     id: raw.id || raw.requestId,
     itemId,
@@ -23,7 +26,10 @@ export function normalizeBorrowRequest(raw, items = []) {
     borrowDate: toDateOnly(raw.borrowDate || raw.startDate),
     returnDate: toDateOnly(raw.returnDate || raw.endDate),
     reason: raw.reason || "",
+    responseReason: raw.responseReason || raw.response_reason || "",
     status: String(raw.status || "pending").toLowerCase(),
+    transactionStatus: txStatus,
+    returned: Boolean(raw.returned || txStatus === "completed"),
   };
 }
 
@@ -95,17 +101,23 @@ export async function updateBorrowRequestStatus(
 ) {
   const { requests } = getApiPaths();
   const normalizedStatus = String(status || "").toLowerCase();
-  const action = normalizedStatus === "accepted" ? "ACCEPT" : "REJECT";
+  const subAction =
+    normalizedStatus === "accepted"
+      ? "approve"
+      : normalizedStatus === "pending"
+        ? "reset"
+        : "reject";
+
+  const body = reason ? { reason } : undefined;
 
   try {
-    return await apiRequest(`${requests}/${encodeURIComponent(id)}/status`, {
-      method: "PATCH",
-      body: { action, status: normalizedStatus.toUpperCase(), ownerId, reason },
+    return await apiRequest(`${requests}/${encodeURIComponent(id)}/${subAction}`, {
+      method: "POST",
+      body,
       token,
     });
   } catch (err) {
     if (err.status === 404) {
-      const subAction = normalizedStatus === "accepted" ? "approve" : "reject";
       const query = ownerId
         ? `?ownerId=${encodeURIComponent(ownerId)}`
         : "";
@@ -113,12 +125,31 @@ export async function updateBorrowRequestStatus(
         `${LEGACY_REQUESTS_PATH}/${encodeURIComponent(id)}/${subAction}${query}`,
         {
           method: "POST",
+          body,
           token,
         },
       );
     }
     throw err;
   }
+}
+
+export async function respondToBorrowRequest(id, action, reason, token) {
+  const { requests } = getApiPaths();
+  return apiRequest(`${requests}/${encodeURIComponent(id)}/response`, {
+    method: "POST",
+    body: { action, reason },
+    token,
+  });
+}
+
+export async function resubmitBorrowRequest(id, payload, token) {
+  const { requests } = getApiPaths();
+  return apiRequest(`${requests}/${encodeURIComponent(id)}/resubmit`, {
+    method: "PUT",
+    body: payload,
+    token,
+  });
 }
 
 export async function cancelBorrowRequest(id, token) {

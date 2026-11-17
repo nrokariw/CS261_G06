@@ -8,18 +8,21 @@ services:
         DB_IMAGE: ${DB_IMAGE:-mcr.microsoft.com/mssql/server:2022-latest}
     platform: ${DB_PLATFORM:-linux/amd64}
     container_name: cs261-database
+    env_file:
+      - .env.example
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-StrongPassw0rd!}
       MSSQL_PID: ${MSSQL_PID:-Developer}
+      DB_NAME: ${DB_NAME:-our_project_db}
     ports:
       - "${DB_PORT:-1433}:1433"
     volumes:
       - mssql_data:/var/opt/mssql
       - ./database/scripts:/scripts
     healthcheck:
-      # MSSQL 2022 relocated sqlcmd to mssql-tools18 and enforces TLS (-C); fallback to /dev/tcp if tools differ
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" || bash -c '</dev/tcp/localhost/1433'"]
+      # MSSQL 2022 relocated sqlcmd to mssql-tools18 and enforces TLS (-C); check sqlcmd execution and ensure database exists
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"IF DB_ID('$$DB_NAME') IS NULL CREATE DATABASE [$$DB_NAME]; SELECT 1;\" || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"IF DB_ID('$$DB_NAME') IS NULL CREATE DATABASE [$$DB_NAME]; SELECT 1;\""]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -37,10 +40,23 @@ services:
       - .env.example
     environment:
       # Spring Boot relaxed binding overrides application.properties keys without changing source code
+      APP_ENV: "${APP_ENV:-demo}"
+      APP_SEED_DEMO_ACCOUNTS_PATH: "${DEMO_ACCOUNTS_FILE:-classpath:seeds/demo-accounts.json}"
       APP_CORS_ALLOWED_ORIGINS: "${LOCAL_WEB_URL:-http://localhost:3000},${PUBLIC_WEB_URL:-https://your-production-domain.com}"
-      APP_EXTERNAL_SERVICES_TU_API_BASE_URL: "${TU_API_BASE_URL:-https://api.tu.ac.th/v1}"
+      APP_EXTERNAL_SERVICES_TU_API_BASE_URL: "${TU_API_BASE_URL:-https://restapi.tu.ac.th/api/v1}"
+      APP_EXTERNAL_SERVICES_TU_API_VERIFY_PATH: "${TU_API_VERIFY_PATH:-/auth/Ad/verify}"
       APP_EXTERNAL_SERVICES_TU_API_TOKEN: "${TU_API_TOKEN:-TU80bc4cfe53981bd7140bb8d46ec714c4c4902999f65cd78faea7afb11263cad6f23b29387e7002f5eb51ed360b177e87}"
-      SPRING_DATASOURCE_URL: "jdbc:sqlserver://database:1433;databaseName=${DB_NAME:-master};encrypt=true;trustServerCertificate=true"
+      APP_AUTH_MODE: "${AUTH_MODE:-AUTO}"
+      APP_AUTH_DEMO_PASSWORD: "${DEMO_DEFAULT_PASSWORD:-password123}"
+      APP_AUTH_RATE_LIMIT_MAX_ATTEMPTS: "${AUTH_RATE_LIMIT_MAX_ATTEMPTS:-5}"
+      APP_AUTH_RATE_LIMIT_WINDOW_MINUTES: "${AUTH_RATE_LIMIT_WINDOW_MINUTES:-10}"
+      APP_AUTH_RATE_LIMIT_MAX_TRACKED_IPS: "${AUTH_RATE_LIMIT_MAX_TRACKED_IPS:-10000}"
+      APP_AUTH_TU_CACHE_TTL_SECONDS: "${TU_AUTH_CACHE_TTL_SECONDS:-300}"
+      APP_AUTH_TU_CACHE_MAX_ENTRIES: "${TU_AUTH_CACHE_MAX_ENTRIES:-5000}"
+      APP_JWT_SECRET: "${JWT_SECRET:-CampusShareSuperSecretJwtKeyForHS256Signing2026!CS261G06}"
+      APP_JWT_ACCESS_EXPIRATION_MS: "${JWT_ACCESS_EXPIRATION_MS:-900000}"
+      APP_JWT_REFRESH_EXPIRATION_MS: "${JWT_REFRESH_EXPIRATION_MS:-604800000}"
+      SPRING_DATASOURCE_URL: "jdbc:sqlserver://database:1433;databaseName=${DB_NAME:-our_project_db};encrypt=true;trustServerCertificate=true"
       SPRING_DATASOURCE_USERNAME: "${DB_USER:-sa}"
       SPRING_DATASOURCE_PASSWORD: "${MSSQL_SA_PASSWORD:-StrongPassw0rd!}"
       SPRING_JPA_HIBERNATE_DDL_AUTO: "${HIBERNATE_DDL_AUTO:-update}"
@@ -51,11 +67,13 @@ services:
       API_USERS_PATH: "${API_USERS_PATH:-/api/users}"
       API_TRANSACTIONS_PATH: "${API_TRANSACTIONS_PATH:-/api/transactions}"
       API_EVIDENCE_PATH: "${API_EVIDENCE_PATH:-/api/evidence}"
+      API_WANTED_POSTS_PATH: "${API_WANTED_POSTS_PATH:-/api/wanted-posts}"
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:
       - ./backend/demo/uploads:/app/uploads
       - ./storage/products:/app/uploads/products
+      - ./storage/evidence:/app/uploads/evidence
       - ./storage/temporary:/app/uploads/temporary
       - ./storage:/app/storage
     depends_on:
@@ -70,22 +88,25 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
+        VITE_APP_ENV: ${APP_ENV:-demo}
         VITE_PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-https://your-production-domain.com}
         VITE_API_BASE_PATH: ${API_BASE_PATH:-/api}
-        VITE_TU_API_BASE_URL: ${TU_API_BASE_URL:-https://api.tu.ac.th/v1}
+        VITE_TU_API_BASE_URL: ${TU_API_BASE_URL:-https://restapi.tu.ac.th/api/v1}
         VITE_API_AUTH_PATH: ${API_AUTH_PATH:-/api/auth}
         VITE_API_ITEMS_PATH: ${API_ITEMS_PATH:-/api/items}
         VITE_API_REQUESTS_PATH: ${API_REQUESTS_PATH:-/api/requests}
         VITE_API_USERS_PATH: ${API_USERS_PATH:-/api/users}
         VITE_API_TRANSACTIONS_PATH: ${API_TRANSACTIONS_PATH:-/api/transactions}
         VITE_API_EVIDENCE_PATH: ${API_EVIDENCE_PATH:-/api/evidence}
+        VITE_API_WANTED_POSTS_PATH: ${API_WANTED_POSTS_PATH:-/api/wanted-posts}
     container_name: cs261-frontend
     env_file:
       - .env.example
     environment:
+      APP_ENV: ${APP_ENV:-demo}
       PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-https://your-production-domain.com}
       BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-http://backend:8080}
-      TU_API_BASE_URL: ${TU_API_BASE_URL:-https://api.tu.ac.th/v1}
+      TU_API_BASE_URL: ${TU_API_BASE_URL:-https://restapi.tu.ac.th/api/v1}
       API_BASE_PATH: ${API_BASE_PATH:-/api}
       API_AUTH_PATH: ${API_AUTH_PATH:-/api/auth}
       API_ITEMS_PATH: ${API_ITEMS_PATH:-/api/items}
@@ -93,6 +114,7 @@ services:
       API_USERS_PATH: ${API_USERS_PATH:-/api/users}
       API_TRANSACTIONS_PATH: ${API_TRANSACTIONS_PATH:-/api/transactions}
       API_EVIDENCE_PATH: ${API_EVIDENCE_PATH:-/api/evidence}
+      API_WANTED_POSTS_PATH: ${API_WANTED_POSTS_PATH:-/api/wanted-posts}
     ports:
       - "${FRONTEND_PORT:-3000}:80"
     depends_on:

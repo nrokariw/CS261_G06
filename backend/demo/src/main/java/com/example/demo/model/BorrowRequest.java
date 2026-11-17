@@ -1,6 +1,7 @@
 package com.example.demo.model;
 
 import com.example.demo.constant.RequestStatus;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.UUID;
 import java.time.LocalDateTime;
@@ -13,34 +14,40 @@ public class BorrowRequest {
  
     //define attributes
     @Id
-    @Column(name = "request_id", length = 36)
+    @Column(name = "request_id", length = 36, updatable = false, nullable = false)
     private String id;
 
     @Column(name = "item_id", nullable = false, length = 36)
     private String itemId;
 
-    @Column(name = "borrower_id", nullable = false)
+    @Column(name = "borrower_id", nullable = false, length = 50)
     private String borrowerId;
 
-    @Column(columnDefinition = "DATETIME2")
+    @Column(name = "start_date", columnDefinition = "DATETIME2")
     private LocalDateTime startDate;
 
-    @Column(columnDefinition = "DATETIME2")
+    @Column(name = "end_date", columnDefinition = "DATETIME2")
     private LocalDateTime endDate;
 
-    @Column(columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "reason", columnDefinition = "NVARCHAR(MAX)")
     private String reason;
+
+    @Column(name = "response_reason", columnDefinition = "NVARCHAR(MAX)")
+    private String responseReason;
     
     @Enumerated(EnumType.STRING)
     @Column(name = "request_status", nullable = false)
     private RequestStatus status = RequestStatus.PENDING;
 
-    @Column(columnDefinition = "DATETIME2")
+    @Column(name = "created_at", columnDefinition = "DATETIME2")
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "DATETIME2")
     private LocalDateTime updatedAt;
 
+    // (Option เพิ่มเติม) เชื่อมโยงแบบ OneToOne กลับมาที่ Transaction เพื่อความสมบูรณ์ของ JPA Mappings
+    @OneToOne(mappedBy = "borrowRequest", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Transaction transaction;
 
     // สั่งให้สุ่มสร้าง UUID และกำหนดเวลาเป็น UTC+0 อัตโนมัติก่อนบันทึกลง Database
     @PrePersist
@@ -101,9 +108,18 @@ public class BorrowRequest {
     public LocalDateTime getStartDate() { return startDate; }
     public LocalDateTime getEndDate() { return endDate; }
     public String getReason() { return reason; }
+    public String getResponseReason() { return responseReason; }
     public RequestStatus getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public Transaction getTransaction() { return transaction; }
+
+    @JsonProperty("transactionStatus")
+    public String getTransactionStatus() {
+        return transaction != null && transaction.getStatus() != null
+                ? transaction.getStatus().name()
+                : null;
+    }
     
     public void setId(String id) { this.id = id; }
     public void setItemId(String itemId) { this.itemId = itemId; }
@@ -111,9 +127,11 @@ public class BorrowRequest {
     public void setStartDate(LocalDateTime startDate) { this.startDate = startDate; }
     public void setEndDate(LocalDateTime endDate) { this.endDate = endDate; }
     public void setReason(String reason) { this.reason = reason; }
+    public void setResponseReason(String responseReason) { this.responseReason = responseReason; }
     public void setStatus(RequestStatus status) { this.status = status; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public void setTransaction(Transaction transaction) { this.transaction = transaction; }
 
     //define methods
     public void approve() {
@@ -124,10 +142,25 @@ public class BorrowRequest {
     }
 
     public void reject() {
-        if (this.status != RequestStatus.PENDING) {
-            throw new IllegalStateException("Cannot reject request that is not pending");
+        reject(null);
+    }
+
+    public void reject(String reason) {
+        if (this.status != RequestStatus.PENDING && this.status != RequestStatus.CHANGE_REQUESTED) {
+            throw new IllegalStateException("Cannot reject request that is not pending or change_requested");
         }
         this.status = RequestStatus.REJECTED;
+        if (reason != null && !reason.trim().isEmpty()) {
+            this.responseReason = reason.trim();
+        }
+    }
+
+    public void requestChange(String reason) {
+        if (this.status != RequestStatus.PENDING && this.status != RequestStatus.CHANGE_REQUESTED) {
+            throw new IllegalStateException("Cannot request change on request that is not pending");
+        }
+        this.status = RequestStatus.CHANGE_REQUESTED;
+        this.responseReason = reason != null ? reason.trim() : null;
     }
 
     public void resetToPending() {

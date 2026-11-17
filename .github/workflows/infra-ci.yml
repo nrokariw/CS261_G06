@@ -1,0 +1,35 @@
+name: Infra & Docker CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+      - "release/**"
+    paths:
+      - "docker-compose.yml"
+      - "**/Dockerfile"
+      - "Makefile"
+      - ".env.example"
+      - "database/**"
+      - ".github/workflows/infra-ci.yml"
+
+jobs:
+  infra-check:
+    name: Docker Compose & Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate Docker Compose and Makefile syntax
+        run: |
+          docker compose --env-file .env.example config -q
+          make -n all >/dev/null
+
+      - name: Build backend and frontend Docker images
+        run: |
+          docker compose --env-file .env.example build backend frontend

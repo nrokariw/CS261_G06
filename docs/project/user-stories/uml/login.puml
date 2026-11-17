@@ -1,54 +1,49 @@
 @startuml
+title US-09: Login with TU Account
+skinparam style strictuml
 autonumber
 
-actor "ผู้ใช้งาน\n(Student / Staff)" as User
-participant "Frontend Web\n(Client)" as FE
-participant "Backend API\n(Server)" as BE
-database "Database\n(TU Borrow DB)" as DB
-participant "TU Open API\n(Active Directory)" as TUAPI
+actor User
+participant Frontend
+participant Backend
+participant "Cache & RateLimit" as Guard
+participant "TU REST API" as TU
+database DB
 
-User -> FE : กรอก Username & Password\nและกดยืนยัน Login
-activate FE
+User -> Frontend : Submit username & password
+Frontend -> Backend : POST /api/auth/login
 
-FE -> BE : POST /api/v1/auth/login
-activate BE
-
-BE -> TUAPI : POST /api/v1/auth/Ad/verify
-activate TUAPI
-
-alt กรณีที่ 1: ข้อมูลบัญชีไม่ถูกต้อง หรือระบบภายนอกปฏิเสธ
-    TUAPI --> BE : 200 OK
-    BE --> FE : 401 Unauthorized
-    FE --> User : แสดงข้อความแจ้งเตือนข้อผิดพลาด
-
-else กรณีที่ 2: บัญชีถูกต้อง แต่สถานะบัญชีไม่ปกติ (Not Active)
-    TUAPI --> BE : 200 OK
-    BE --> FE : 403 Forbidden
-    FE --> User : แจ้งเตือนสถานะบัญชีไม่พร้อมใช้งาน
-
-else กรณีที่ 3: ตรวจสอบสำเร็จ (Active Account)
-    TUAPI --> BE : 200 OK
-    deactivate TUAPI
-
-    BE -> DB : ค้นหา User ด้วย userName
-    activate DB
-
-    alt ยังไม่มีข้อมูล User ในระบบ (First-time Login)
-        BE -> DB : INSERT User (userName, displayname_th, email, type, role)
-    else มีข้อมูล User อยู่แล้ว
-        BE -> DB : UPDATE ข้อมูลโปรไฟล์ล่าสุด (displayname_th, email, department)
+alt Invalid format
+    Backend --> Frontend : 400 Bad Request
+    Frontend --> User : Show format error
+else Cache hit
+    Guard --> Backend : Cached TuUserProfile
+    Backend -> DB : Upsert user (no passwordHash)
+    Backend --> Frontend : 200 OK {JWT, user}
+    Frontend --> User : Redirect home
+else Cache miss
+    Backend -> Guard : Check IP limit (5 / 10m)
+    alt Exceeded
+        Guard --> Backend : 429 Too Many Requests
+        Backend --> Frontend : 429 Rate Limit
+        Frontend --> User : Show retry later
+    else Allowed
+        Backend -> TU : POST /auth/Ad/verify
+        alt Invalid credentials
+            TU --> Backend : 400 Invalid
+            Backend --> Frontend : 401 Unauthorized
+            Frontend --> User : Invalid credentials
+        else Inactive account
+            TU --> Backend : 200 (Inactive)
+            Backend --> Frontend : 403 Forbidden
+            Frontend --> User : Account inactive
+        else Active account
+            TU --> Backend : 200 {profile, role}
+            Backend -> Guard : Cache profile (5m TTL)
+            Backend -> DB : Upsert user (STUDENT / STAFF)
+            Backend --> Frontend : 200 OK {JWT, user}
+            Frontend --> User : Redirect home & show role
+        end
     end
-    DB --> BE : บันทึกข้อมูลสำเร็จ
-    deactivate DB
-
-    BE -> BE : ออก Session Token / JWT\n(กำหนด Payload: userId, role, permissions)
-    
-    BE --> FE : 200 OK\nSet-Cookie หรือ Response Body { token, userProfile }
-    deactivate BE
-
-    FE -> FE : จัดเก็บ Session ใน Client Storage
-    FE --> User : แสดงผลหน้าจอหลักตามสิทธิ์ (Role) สำเร็จ
-    deactivate FE
 end
-
 @enduml

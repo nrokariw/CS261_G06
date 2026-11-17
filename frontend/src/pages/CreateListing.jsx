@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -7,35 +7,88 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowLeft,
+  HandHeart,
 } from "lucide-react";
 import {
-  CATEGORIES,
-  getCategoryLabel,
+  getActiveCategoryCodes,
   normalizeCategoryKey,
 } from "../data";
-import { PageHeading } from "../components/UI";
+import { PageHeading, getLocalizedCategoryLabel } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import { createItem, updateItem, normalizeItem } from "../api/itemsApi";
+import {
+  createWantedPost,
+  getWantedPost,
+  updateWantedPost,
+} from "../api/wantedPostsApi";
 import {
   ALLOWED_IMAGE_TYPES,
   ITEM_DETAIL_MAX_LENGTH,
   MAX_IMAGE_SIZE_BYTES,
   MAX_IMAGE_SIZE_MB,
   REDIRECT_DELAY_MS,
+  WANTED_TITLE_MAX_LENGTH,
 } from "../constants/config";
 
-export default function CreateListing({ items, setItems }) {
+function toLocalDateTimePayload(dateValue, isEndOfDay = false) {
+  if (!dateValue) return null;
+  return `${dateValue}T${isEndOfDay ? "23:59:59" : "00:00:00"}`;
+}
+
+function buildCategoryOptions(propCategories, currentCategory) {
+  const base = Array.isArray(propCategories)
+    ? propCategories
+    : getActiveCategoryCodes();
+  const editKey = normalizeCategoryKey(currentCategory);
+  if (editKey && !base.includes(editKey)) {
+    return [...base, editKey];
+  }
+  return base;
+}
+
+export default function CreateListing({
+  items = [],
+  setItems,
+  categories: propCategories,
+  initialTab = "items",
+}) {
   const { user, token } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const activeTab =
+    params.get("tab") === "wanted" || initialTab === "wanted"
+      ? "wanted"
+      : "items";
   const editId = params.get("edit");
-  const editingItem = items.find((i) => i.id === editId);
+  const editingItem = activeTab === "items" ? items.find((i) => i.id === editId) : null;
+
+  const handleTabChange = (nextTab) => {
+    const next = new URLSearchParams(params);
+    next.delete("edit");
+    if (nextTab === "wanted") next.set("tab", "wanted");
+    else next.delete("tab");
+    navigate(`/create${next.toString() ? `?${next.toString()}` : ""}`, {
+      replace: true,
+    });
+  };
   const [name, setName] = useState(editingItem?.name || "");
   const [category, setCategory] = useState(
     normalizeCategoryKey(editingItem?.category) || "",
   );
+  const categoryOptions = useMemo(
+    () => buildCategoryOptions(propCategories, editingItem?.category),
+    [propCategories, editingItem?.category],
+  );
   const [detail, setDetail] = useState(editingItem?.detail || "");
+  const [availableFrom, setAvailableFrom] = useState(
+    editingItem?.availableFrom ? String(editingItem.availableFrom).slice(0, 10) : "",
+  );
+  const [availableUntil, setAvailableUntil] = useState(
+    editingItem?.availableUntil ? String(editingItem.availableUntil).slice(0, 10) : "",
+  );
+  const today = new Date().toLocaleDateString("en-CA");
+  const minUntilDate = availableFrom && availableFrom > today ? availableFrom : today;
   
   // เปลี่ยนเก็บเป็น File Object แทน Base64 String
   const [imageFile, setImageFile] = useState(null);
@@ -47,11 +100,82 @@ export default function CreateListing({ items, setItems }) {
   const [submitError, setSubmitError] = useState("");
   const fileRef = useRef(null);
 
+  const [wantedTitle, setWantedTitle] = useState("");
+  const [wantedCategory, setWantedCategory] = useState("");
+  const wantedCategoryOptions = useMemo(
+    () => buildCategoryOptions(propCategories, wantedCategory),
+    [propCategories, wantedCategory],
+  );
+  const [wantedDescription, setWantedDescription] = useState("");
+  const [neededFrom, setNeededFrom] = useState("");
+  const [neededUntil, setNeededUntil] = useState("");
+  const [wantedLoading, setWantedLoading] = useState(false);
+  const [wantedSubmitting, setWantedSubmitting] = useState(false);
+  const [wantedErrors, setWantedErrors] = useState({});
+  const [wantedSubmitError, setWantedSubmitError] = useState("");
+  const [wantedSuccess, setWantedSuccess] = useState("");
+
+  useEffect(() => {
+    const authToken = token || user?.token;
+    if (activeTab !== "wanted") return;
+    if (!editId) {
+      setWantedTitle("");
+      setWantedCategory("");
+      setWantedDescription("");
+      setNeededFrom("");
+      setNeededUntil("");
+      setWantedLoading(false);
+      return;
+    }
+    if (!authToken) return;
+
+    let cancelled = false;
+    setWantedLoading(true);
+    setWantedSubmitError("");
+    getWantedPost(editId, authToken)
+      .then((post) => {
+        if (cancelled) return;
+        setWantedTitle(post.title || "");
+        setWantedCategory(normalizeCategoryKey(post.category) || "");
+        setWantedDescription(post.description || "");
+        setNeededFrom(post.neededFrom ? String(post.neededFrom).slice(0, 10) : "");
+        setNeededUntil(
+          post.neededUntil ? String(post.neededUntil).slice(0, 10) : "",
+        );
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setWantedSubmitError(err.message || t("wanted.loadError"));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setWantedLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, editId, token, user?.token, t]);
+
   function validate() {
     const next = {};
     if (!name.trim()) next.name = t("validation.itemNameRequired");
     if (!category) next.category = t("validation.categoryRequired");
     if (!detail.trim()) next.detail = t("validation.detailRequired");
+    if (availableFrom && availableFrom < today) {
+      next.availableFrom = t("validation.availableFromPast", {
+        defaultValue: "วันเริ่มต้นเปิดให้ยืมต้องไม่เป็นวันในอดีต",
+      });
+    }
+    if (availableUntil && availableUntil < today) {
+      next.availableUntil = t("validation.availableUntilPast", {
+        defaultValue: "วันสิ้นสุดการให้ยืมต้องไม่เป็นวันในอดีต",
+      });
+    } else if (availableFrom && availableUntil && availableUntil < availableFrom) {
+      next.availableUntil = t("validation.returnDateBeforeBorrow", {
+        defaultValue: "วันสิ้นสุดต้องไม่มาก่อนวันเริ่มต้น",
+      });
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -102,6 +226,12 @@ export default function CreateListing({ items, setItems }) {
     formData.append("title", name.trim());
     formData.append("category", category);
     formData.append("description", detail.trim());
+    if (availableFrom) {
+      formData.append("availableFrom", `${availableFrom}T00:00:00`);
+    }
+    if (availableUntil) {
+      formData.append("availableUntil", `${availableUntil}T23:59:59`);
+    }
 
     // แนบไฟล์จริงไปกับ Key ที่ Backend รอรับ 
     if (imageFile) {
@@ -110,7 +240,7 @@ export default function CreateListing({ items, setItems }) {
 
     try {
       // ส่ง Request หรือ ยิง API ไปหา Backend
-      const studentId = user?.studentId || "6400000001"; // ดึงจาก Auth หรือค่าเริ่มต้น
+      const studentId = user?.studentId || user?.id;
       const authToken = token || user?.token;
       const result = editingItem
         ? await updateItem(
@@ -121,6 +251,8 @@ export default function CreateListing({ items, setItems }) {
                   title: name.trim(),
                   category,
                   description: detail.trim(),
+                  availableFrom: availableFrom ? `${availableFrom}T00:00:00` : null,
+                  availableUntil: availableUntil ? `${availableUntil}T23:59:59` : null,
                 },
             authToken,
           )
@@ -141,6 +273,8 @@ export default function CreateListing({ items, setItems }) {
           studentId ||
           user?.id,
         status: normalized?.status || "available",
+        availableFrom: normalized?.availableFrom || (availableFrom ? `${availableFrom}T00:00:00` : null),
+        availableUntil: normalized?.availableUntil || (availableUntil ? `${availableUntil}T23:59:59` : null),
       };
       if (editingItem)
         setItems((prev) =>
@@ -157,29 +291,300 @@ export default function CreateListing({ items, setItems }) {
     }
 }
 
+  async function submitWanted(e) {
+    e.preventDefault();
+    setWantedSuccess("");
+    setWantedSubmitError("");
+
+    const next = {};
+    if (!wantedTitle.trim()) {
+      next.title = t("wanted.titleRequired");
+    }
+    if (!wantedCategory) {
+      next.category = t("validation.categoryRequired");
+    }
+    if (neededFrom && neededUntil && neededUntil < neededFrom) {
+      next.neededUntil = t("wanted.dateRangeInvalid");
+    }
+    setWantedErrors(next);
+    if (Object.keys(next).length > 0) return;
+
+    const authToken = token || user?.token;
+    const payload = {
+      title: wantedTitle.trim(),
+      category: wantedCategory,
+      description: wantedDescription.trim() || null,
+      neededFrom: toLocalDateTimePayload(neededFrom, false),
+      neededUntil: toLocalDateTimePayload(neededUntil, true),
+    };
+
+    setWantedSubmitting(true);
+    try {
+      if (editId) {
+        await updateWantedPost(editId, payload, authToken);
+      } else {
+        await createWantedPost(payload, authToken);
+      }
+      setWantedSuccess(
+        editId ? t("wanted.updateSuccess") : t("wanted.createSuccess"),
+      );
+      window.setTimeout(
+        () => navigate("/my-listings?tab=wanted"),
+        REDIRECT_DELAY_MS,
+      );
+    } catch (err) {
+      setWantedSubmitError(err.message || t("wanted.saveError"));
+    } finally {
+      setWantedSubmitting(false);
+    }
+  }
+
   return (
-    <div className="page-stack narrow-page">
+    <div className="flex flex-col gap-6 max-w-3xl mx-auto w-full">
       <button className="back-link" onClick={() => navigate(-1)}>
         <ArrowLeft size={16} /> {t("common.back")}
       </button>
       <PageHeading
-        eyebrow={editingItem ? t("createListing.eyebrowEdit") : t("createListing.eyebrowCreate")}
-        title={editingItem ? t("createListing.titleEdit") : t("createListing.titleCreate")}
-        subtitle={t("createListing.subtitle")}
-      />{" "}
-      {/* หัวประกาศ */}
-      <form className="form-card" onSubmit={submit} noValidate>
+        eyebrow={
+          activeTab === "wanted"
+            ? t("wanted.eyebrow")
+            : editingItem
+            ? t("createListing.eyebrowEdit")
+            : t("createListing.eyebrowCreate")
+        }
+        title={
+          activeTab === "wanted"
+            ? editId
+              ? t("wanted.editTitle")
+              : t("wanted.createTitle")
+            : editingItem
+            ? t("createListing.titleEdit")
+            : t("createListing.titleCreate")
+        }
+        subtitle={
+          activeTab === "wanted"
+            ? t("wanted.createSubtitle")
+            : t("createListing.subtitle")
+        }
+      />
+      <div
+        className="flex items-center gap-2 border-b border-[var(--border)] pb-3 overflow-x-auto"
+        role="tablist"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "items"}
+          className={`inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-[13.5px] font-medium border cursor-pointer transition-colors ${
+            activeTab === "items"
+              ? "bg-[var(--primary)] border-[var(--primary)] text-white shadow-xs"
+              : "bg-[var(--surface)] border-[var(--border)] text-[var(--muted)] hover:border-[var(--primary)] hover:text-[var(--text)]"
+          }`}
+          onClick={() => handleTabChange("items")}
+        >
+          {t("wanted.tabLendItems")}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "wanted"}
+          className={`inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-[13.5px] font-medium border cursor-pointer transition-colors ${
+            activeTab === "wanted"
+              ? "bg-[var(--primary)] border-[var(--primary)] text-white shadow-xs"
+              : "bg-[var(--surface)] border-[var(--border)] text-[var(--muted)] hover:border-[var(--primary)] hover:text-[var(--text)]"
+          }`}
+          onClick={() => handleTabChange("wanted")}
+        >
+          <HandHeart size={16} /> {t("wanted.tabWantedPosts")}
+        </button>
+      </div>
+      {activeTab === "wanted" ? (
+        wantedLoading ? (
+          <div className="p-6 sm:p-8 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs text-sm text-[var(--muted)]">
+            {t("common.loading")}
+          </div>
+        ) : (
+          <form
+            className="flex flex-col p-6 sm:p-8 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs"
+            onSubmit={submitWanted}
+            noValidate
+          >
+            {wantedSuccess && (
+              <div className="alert alert-success mb-5">
+                <CheckCircle2 size={18} />
+                {wantedSuccess}
+              </div>
+            )}
+            <div className="flex items-start gap-3.5 mb-5 pb-4 border-b border-[var(--border)]">
+              <span className="w-8 h-8 rounded-lg bg-[var(--peach)] text-[var(--primary)] text-xs font-bold grid place-items-center shrink-0 mt-0.5">
+                01
+              </span>
+              <div>
+                <h2 className="m-0 text-base font-semibold text-[var(--text)]">
+                  {t("wanted.eyebrow")}
+                </h2>
+                <p className="m-0 mt-0.5 text-xs text-[var(--muted)]">
+                  {t("wanted.createSubtitle")}
+                </p>
+              </div>
+            </div>
+            <div className="field">
+              <label htmlFor="wanted-title">
+                {t("wanted.fieldTitle")} <span className="required">*</span>
+              </label>
+              <input
+                id="wanted-title"
+                maxLength={WANTED_TITLE_MAX_LENGTH}
+                value={wantedTitle}
+                onChange={(e) => setWantedTitle(e.target.value)}
+                placeholder={t("wanted.fieldTitlePlaceholder")}
+                aria-invalid={!!wantedErrors.title}
+              />
+              {wantedErrors.title && (
+                <small className="field-error">
+                  <AlertCircle size={13} />
+                  {wantedErrors.title}
+                </small>
+              )}
+            </div>
+            <div className="field">
+              <label htmlFor="wanted-category">
+                {t("wanted.fieldCategory")} <span className="required">*</span>
+              </label>
+              <select
+                id="wanted-category"
+                value={wantedCategory}
+                onChange={(e) => {
+                  setWantedCategory(e.target.value);
+                  if (wantedErrors.category) {
+                    setWantedErrors((prev) => ({ ...prev, category: "" }));
+                  }
+                }}
+                aria-invalid={!!wantedErrors.category}
+              >
+                <option value="">{t("createListing.categoryPlaceholder")}</option>
+                {wantedCategoryOptions.map((c) => (
+                  <option key={c} value={c}>
+                    {getLocalizedCategoryLabel(c, t, i18n.language)}
+                  </option>
+                ))}
+              </select>
+              {wantedErrors.category && (
+                <small className="field-error">
+                  <AlertCircle size={13} />
+                  {wantedErrors.category}
+                </small>
+              )}
+            </div>
+            <div className="field">
+              <div className="label-row">
+                <label htmlFor="wanted-description">
+                  {t("wanted.fieldDescription")}
+                </label>
+                <span className="character-count">
+                  {wantedDescription.length}/{ITEM_DETAIL_MAX_LENGTH}
+                </span>
+              </div>
+              <textarea
+                id="wanted-description"
+                maxLength={ITEM_DETAIL_MAX_LENGTH}
+                rows={4}
+                value={wantedDescription}
+                onChange={(e) => setWantedDescription(e.target.value)}
+                placeholder={t("wanted.fieldDescriptionPlaceholder")}
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="field">
+                <label htmlFor="wanted-from">{t("wanted.fieldNeededFrom")}</label>
+                <input
+                  id="wanted-from"
+                  type="date"
+                  value={neededFrom}
+                  onChange={(e) => {
+                    const nextFrom = e.target.value;
+                    setNeededFrom(nextFrom);
+                    if (neededUntil && nextFrom && neededUntil < nextFrom) {
+                      setNeededUntil(nextFrom);
+                    }
+                  }}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="wanted-until">{t("wanted.fieldNeededUntil")}</label>
+                <input
+                  id="wanted-until"
+                  type="date"
+                  min={neededFrom || undefined}
+                  value={neededUntil}
+                  onChange={(e) => {
+                    setNeededUntil(e.target.value);
+                    if (wantedErrors.neededUntil) {
+                      setWantedErrors((prev) => ({ ...prev, neededUntil: "" }));
+                    }
+                  }}
+                  aria-invalid={!!wantedErrors.neededUntil}
+                />
+                {wantedErrors.neededUntil && (
+                  <small className="field-error">
+                    <AlertCircle size={13} />
+                    {wantedErrors.neededUntil}
+                  </small>
+                )}
+              </div>
+            </div>
+            {wantedSubmitError && (
+              <div className="alert alert-error mb-4">
+                <AlertCircle size={18} />
+                <span>{wantedSubmitError}</span>
+              </div>
+            )}
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-5 border-t border-[var(--border)]">
+              <button
+                type="button"
+                className="button button-outline"
+                onClick={() => navigate(-1)}
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="submit"
+                className="button button-primary"
+                disabled={wantedSubmitting || Boolean(wantedSuccess)}
+              >
+                <CheckCircle2 size={17} />
+                {wantedSubmitting
+                  ? t("common.saving")
+                  : editId
+                  ? t("wanted.saveChanges")
+                  : t("wanted.submitCreate")}
+              </button>
+            </div>
+          </form>
+        )
+      ) : (
+        <form
+          className="flex flex-col p-6 sm:p-8 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs"
+          onSubmit={submit}
+          noValidate
+        >
         {success && (
-          <div className="alert alert-success">
+          <div className="alert alert-success mb-5">
             <CheckCircle2 size={18} />
             {success}
           </div>
         )}
-        <div className="form-section-title">
-          <span className="section-number">01</span>
+        <div className="flex items-start gap-3.5 mb-5 pb-4 border-b border-[var(--border)]">
+          <span className="w-8 h-8 rounded-lg bg-[var(--peach)] text-[var(--primary)] text-xs font-bold grid place-items-center shrink-0 mt-0.5">
+            01
+          </span>
           <div>
-            <h2>{t("createListing.section1Title")}</h2>
-            <p>{t("createListing.section1Desc")}</p>
+            <h2 className="m-0 text-base font-semibold text-[var(--text)]">
+              {t("createListing.section1Title")}
+            </h2>
+            <p className="m-0 mt-0.5 text-xs text-[var(--muted)]">
+              {t("createListing.section1Desc")}
+            </p>
           </div>
         </div>
         <div className="field">
@@ -211,9 +616,9 @@ export default function CreateListing({ items, setItems }) {
             aria-invalid={!!errors.category}
           >
             <option value="">{t("createListing.categoryPlaceholder")}</option>
-            {CATEGORIES.map((c) => (
+            {categoryOptions.map((c) => (
               <option key={c} value={c}>
-                {t(`categories.${c}`, { defaultValue: getCategoryLabel(c) })}
+                {getLocalizedCategoryLabel(c, t, i18n.language)}
               </option>
             ))}
           </select>
@@ -247,11 +652,71 @@ export default function CreateListing({ items, setItems }) {
             </small>
           )}
         </div>
-        <div className="form-section-title section-spaced">
-          <span className="section-number">02</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="field">
+            <label htmlFor="availableFrom">
+              {t("createListing.availableFromLabel")}
+            </label>
+            <input
+              id="availableFrom"
+              type="date"
+              min={today}
+              value={availableFrom}
+              onChange={(e) => {
+                const nextFrom = e.target.value;
+                setAvailableFrom(nextFrom);
+                if (availableUntil && nextFrom && availableUntil < nextFrom) {
+                  setAvailableUntil(nextFrom);
+                }
+                if (errors.availableFrom) {
+                  setErrors((prev) => ({ ...prev, availableFrom: "" }));
+                }
+              }}
+              aria-invalid={!!errors.availableFrom}
+            />
+            {errors.availableFrom && (
+              <small className="field-error">
+                <AlertCircle size={13} />
+                {errors.availableFrom}
+              </small>
+            )}
+          </div>
+          <div className="field">
+            <label htmlFor="availableUntil">
+              {t("createListing.availableUntilLabel")}
+            </label>
+            <input
+              id="availableUntil"
+              type="date"
+              min={minUntilDate}
+              value={availableUntil}
+              onChange={(e) => {
+                setAvailableUntil(e.target.value);
+                if (errors.availableUntil) {
+                  setErrors((prev) => ({ ...prev, availableUntil: "" }));
+                }
+              }}
+              aria-invalid={!!errors.availableUntil}
+            />
+            {errors.availableUntil && (
+              <small className="field-error">
+                <AlertCircle size={13} />
+                {errors.availableUntil}
+              </small>
+            )}
+          </div>
+        </div>
+        <div className="flex items-start gap-3.5 mt-4 mb-5 pb-4 border-b border-[var(--border)]">
+          <span className="w-8 h-8 rounded-lg bg-[var(--peach)] text-[var(--primary)] text-xs font-bold grid place-items-center shrink-0 mt-0.5">
+            02
+          </span>
           <div>
-            <h2>{t("createListing.section2Title")}</h2>
-            <p>{t("createListing.section2Desc")}</p>
+            <h2 className="m-0 text-base font-semibold text-[var(--text)]">
+              {t("createListing.section2Title")}
+            </h2>
+            <p className="m-0 mt-0.5 text-xs text-[var(--muted)]">
+              {t("createListing.section2Desc")}
+            </p>
           </div>
         </div>
         <input
@@ -288,21 +753,21 @@ export default function CreateListing({ items, setItems }) {
             </span>
           )}
         </button>
-        {errors.image && <small className="field-error">{errors.image}</small>}
-        <div className="form-note">
-          <AlertCircle size={16} />
+        {errors.image && <small className="field-error mt-2">{errors.image}</small>}
+        <div className="my-5 flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-[var(--surface-subtle)] border border-[var(--border)] text-xs text-[var(--muted)]">
+          <AlertCircle size={16} className="shrink-0 text-[var(--primary)]" />
           <span>
-            {t("createListing.requiredNotePrefix")} <b>*</b> {t("createListing.requiredNoteSuffix")}
+            {t("createListing.requiredNotePrefix")} <b className="text-[#B9382B] dark:text-[#F87171]">*</b> {t("createListing.requiredNoteSuffix")}
           </span>
         </div>
         {/* Inline Alert สำหรับแสดง Error ตอนกดบันทึก */}
         {submitError && (
-          <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', padding: '12px', background: '#ffebee', color: '#c62828', borderRadius: '6px' }}>
+          <div className="alert alert-error mb-4">
             <AlertCircle size={18} />
             <span>{submitError}</span>
           </div>
         )}
-        <div className="form-actions">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-5 border-t border-[var(--border)]">
           <button
             type="button"
             className="button button-outline"
@@ -316,6 +781,7 @@ export default function CreateListing({ items, setItems }) {
           </button>
         </div>
       </form>
+      )}
     </div>
   );
 }

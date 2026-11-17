@@ -7,15 +7,22 @@ import com.example.demo.model.User;
 import com.example.demo.repository.ItemRepository;
 import com.example.demo.repository.UserRepository;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service 
 public class ItemService {
@@ -24,14 +31,24 @@ public class ItemService {
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService; // เพิ่ม Service สำหรับจัดการไฟล์รูปภาพ
+    private final CategoryService categoryService;
 
     //define constructor
-    public ItemService(ItemRepository itemRepository, 
-                       UserRepository userRepository, 
+    public ItemService(ItemRepository itemRepository,
+                       UserRepository userRepository,
                        FileStorageService fileStorageService) {
+        this(itemRepository, userRepository, fileStorageService, null);
+    }
+
+    @Autowired
+    public ItemService(ItemRepository itemRepository,
+                       UserRepository userRepository,
+                       FileStorageService fileStorageService,
+                       CategoryService categoryService) {
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
         this.fileStorageService = fileStorageService;
+        this.categoryService = categoryService;
     }
 
     // 1. สร้างไอเท็มใหม่จาก User Model พร้อมรองรับการอัปโหลดรูปภาพ 
@@ -48,39 +65,88 @@ public class ItemService {
         }
 
         // สร้าง item และกำหนด ownerId
+        String resolvedCategory = categoryService != null
+                ? categoryService.validateAndNormalizeCategory(itemCreateDto.getCategory())
+                : itemCreateDto.getCategory();
         Item item = new Item();
         item.setOwnerId(studentId);
         item.setTitle(itemCreateDto.getTitle());
-        item.setCategory(itemCreateDto.getCategory());
+        item.setCategory(resolvedCategory);
         item.setDescription(itemCreateDto.getDescription());
         item.setImageUrl(imageUrl);
 
+        LocalDateTime availFrom = parseDate(itemCreateDto.getAvailableFrom(), false);
+        LocalDateTime availUntil = parseDate(itemCreateDto.getAvailableUntil(), true);
+        validateAvailabilityWindow(availFrom, availUntil);
+        item.setAvailableFrom(availFrom);
+        item.setAvailableUntil(availUntil);
+
         // บันทึกลง MSSQL Database
-        return itemRepository.save(item);
+        return populateOwnerName(itemRepository.save(item));
     }
 
     // 2.1. ดึงรายการไอเท็มทั้งหมด
     public List<Item> getAllItems() {
-        return itemRepository.findAll()
+        return populateOwnerNames(itemRepository.findAll()
                 .stream()
                 .filter(item -> item.getDeletedAt() == null)
-                .toList();
+                .toList());
     }
 
     // 2.2. ค้นหาไอเท็มตาม ID
     public Optional<Item> getItemById(String id) {
-        return itemRepository.findById(id);
+        return itemRepository.findById(id).map(this::populateOwnerName);
     }
 
     // 2.3. ค้นหาไอเท็มของ User คนนี้
     public List<Item> getItemsByOwner(String ownerId) {
-        return itemRepository.findByOwnerId(ownerId);
+        return populateOwnerNames(itemRepository.findByOwnerId(ownerId));
     }
 
     // 2.4. ดึงรายการตามสถานะที่ยังไม่ถูกลบ เรียงจากใหม่ไปเก่า
     public List<Item> getAvailableItems(ItemStatus status) {
-        return itemRepository.findByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(status);
-    }  
+        return populateOwnerNames(itemRepository.findByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(status));
+    }
+
+    private Item populateOwnerName(Item item) {
+        if (item == null) return null;
+        if (item.getOwnerId() == null || item.getOwnerId().isBlank()) return item;
+        userRepository.findById(item.getOwnerId()).ifPresent(user -> {
+            String displayName = (user.getFullName() != null && !user.getFullName().isBlank())
+                    ? user.getFullName()
+                    : user.getUsername();
+            if (displayName != null && !displayName.isBlank()) {
+                item.setOwnerName(displayName);
+            }
+        });
+        return item;
+    }
+
+    private List<Item> populateOwnerNames(List<Item> items) {
+        if (items == null || items.isEmpty()) return items;
+        Set<String> ownerIds = items.stream()
+                .map(Item::getOwnerId)
+                .filter(Objects::nonNull)
+                .filter(id -> !id.isBlank())
+                .collect(Collectors.toSet());
+        if (ownerIds.isEmpty()) return items;
+
+        Map<String, String> ownerNameMap = userRepository.findAllById(ownerIds).stream()
+                .collect(Collectors.toMap(
+                        User::getStudentId,
+                        user -> (user.getFullName() != null && !user.getFullName().isBlank())
+                                ? user.getFullName()
+                                : (user.getUsername() != null ? user.getUsername() : user.getStudentId()),
+                        (a, b) -> a
+                ));
+        for (Item item : items) {
+            String name = ownerNameMap.get(item.getOwnerId());
+            if (name != null && !name.isBlank()) {
+                item.setOwnerName(name);
+            }
+        }
+        return items;
+    }
 
     // 3.1. อัพเดทไอเท็ม
     public Item updateItem(String itemId, ItemCreateDto dto) {
@@ -98,7 +164,7 @@ public class ItemService {
         }
 
         // ตรวจสอบสิทธิ์ความเป็นเจ้าของ (403 Forbidden หากไม่ใช่เจ้าของ)
-        if (userId != null && !userId.isBlank() && !item.getOwnerId().equals(userId)) {
+        if (userId == null || userId.isBlank() || !item.getOwnerId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to edit this notice");
         }
 
@@ -112,7 +178,10 @@ public class ItemService {
             item.setTitle(requestDto.getTitle().trim());
         }
         if (requestDto.getCategory() != null && !requestDto.getCategory().trim().isEmpty()) {
-            item.setCategory(requestDto.getCategory().trim());
+            String resolvedCategory = categoryService != null
+                    ? categoryService.validateAndNormalizeCategory(requestDto.getCategory())
+                    : requestDto.getCategory().trim();
+            item.setCategory(resolvedCategory);
         }
         if (requestDto.getDescription() != null) {
             item.setDescription(requestDto.getDescription().trim());
@@ -124,8 +193,50 @@ public class ItemService {
             item.setImageUrl(newImageUrl);
         }
 
+        if (requestDto.getAvailableFrom() != null) {
+            item.setAvailableFrom(parseDate(requestDto.getAvailableFrom(), false));
+        }
+        if (requestDto.getAvailableUntil() != null) {
+            item.setAvailableUntil(parseDate(requestDto.getAvailableUntil(), true));
+        }
+        if (requestDto.getAvailableFrom() != null || requestDto.getAvailableUntil() != null) {
+            validateAvailabilityWindow(item.getAvailableFrom(), item.getAvailableUntil());
+        }
+
         item.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
-        return itemRepository.save(item);
+        return populateOwnerName(itemRepository.save(item));
+    }
+
+    private void validateAvailabilityWindow(LocalDateTime availFrom, LocalDateTime availUntil) {
+        LocalDate today = LocalDate.now();
+        if (availFrom != null && availFrom.toLocalDate().isBefore(today)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "วันเริ่มต้นเปิดให้ยืมต้องไม่เป็นวันในอดีต (Available from date cannot be in the past)");
+        }
+        if (availUntil != null && availUntil.toLocalDate().isBefore(today)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "วันสิ้นสุดการให้ยืมต้องไม่เป็นวันในอดีต (Available until date cannot be in the past)");
+        }
+        if (availFrom != null && availUntil != null && availUntil.isBefore(availFrom)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Available until date cannot be before available from date");
+        }
+    }
+
+    private LocalDateTime parseDate(String str, boolean endOfDay) {
+        if (str == null || str.trim().isEmpty()) return null;
+        String trimmed = str.trim();
+        try {
+            return OffsetDateTime.parse(trimmed).withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
+        } catch (Exception ignored) {
+            try {
+                return LocalDateTime.parse(trimmed);
+            } catch (Exception ignored2) {
+                try {
+                    LocalDate d = LocalDate.parse(trimmed.substring(0, 10));
+                    return endOfDay ? d.atTime(23, 59, 59) : d.atStartOfDay();
+                } catch (Exception ignored3) {
+                    return null;
+                }
+            }
+        }
     }
 
     // 4.1. ลบไอเท็ม
@@ -144,7 +255,7 @@ public class ItemService {
         }
 
         // ตรวจสอบสิทธิ์ความเป็นเจ้าของ (403 Forbidden)
-        if (userId != null && !userId.isBlank() && !item.getOwnerId().equals(userId)) {
+        if (userId == null || userId.isBlank() || !item.getOwnerId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to delete this notice");
         }
 

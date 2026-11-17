@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig(({ mode }) => {
   const rootEnv = loadEnv(mode, "..", "");
@@ -8,9 +9,12 @@ export default defineConfig(({ mode }) => {
   const apiBasePath = rootEnv.API_BASE_PATH || "/api";
 
   return {
-    plugins: [react()],
+    plugins: [react(), tailwindcss()],
     envDir: "..",
     define: {
+      "import.meta.env.VITE_APP_ENV": JSON.stringify(
+        rootEnv.VITE_APP_ENV || rootEnv.APP_ENV || "demo",
+      ),
       "import.meta.env.VITE_API_BASE_PATH": JSON.stringify(
         rootEnv.VITE_API_BASE_PATH || rootEnv.API_BASE_PATH || "/api",
       ),
@@ -35,6 +39,19 @@ export default defineConfig(({ mode }) => {
         rootEnv.VITE_API_EVIDENCE_PATH ||
           rootEnv.API_EVIDENCE_PATH ||
           "/api/evidence",
+      ),
+      "import.meta.env.VITE_API_CATEGORIES_PATH": JSON.stringify(
+        rootEnv.VITE_API_CATEGORIES_PATH ||
+          rootEnv.API_CATEGORIES_PATH ||
+          "/api/categories",
+      ),
+      "import.meta.env.VITE_API_WANTED_POSTS_PATH": JSON.stringify(
+        rootEnv.VITE_API_WANTED_POSTS_PATH ||
+          rootEnv.API_WANTED_POSTS_PATH ||
+          "/api/wanted-posts",
+      ),
+      "import.meta.env.VITE_ITEMS_PER_PAGE": JSON.stringify(
+        rootEnv.VITE_ITEMS_PER_PAGE || rootEnv.ITEMS_PER_PAGE || "9",
       ),
     },
     server: {
