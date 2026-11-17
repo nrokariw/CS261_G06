@@ -44,14 +44,19 @@ import { loadRuntimeConfig } from "./api/client";
 import { getAllItems, getAvailableItems } from "./api/itemsApi";
 import { getBorrowRequests } from "./api/requestsApi";
 import { getCategories } from "./api/categoriesApi";
+import { getMyWantedPosts } from "./api/wantedPostsApi";
 import { getActiveCategoryCodes, setRuntimeCategories } from "./data";
 
 function BrandMark() {
   return (
-    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
-      <circle cx="12.5" cy="17" r="10" fill="var(--accent)" />
-      <circle cx="21.5" cy="17" r="10" fill="var(--primary)" fillOpacity=".92" />
-    </svg>
+    <img
+      src="/icon.png"
+      alt=""
+      width={34}
+      height={34}
+      className="w-[34px] h-[34px] rounded-lg object-contain shrink-0"
+      aria-hidden="true"
+    />
   );
 }
 
@@ -61,6 +66,7 @@ export default function App() {
   const { t, i18n } = useTranslation();
   const [items, setItems] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [myWantedPosts, setMyWantedPosts] = useState([]);
   const [categories, setCategories] = useState(() => getActiveCategoryCodes());
   const [itemsLoading, setItemsLoading] = useState(true);
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -92,15 +98,16 @@ export default function App() {
       setItems(loadedItems);
 
       if (user && token) {
-        const loadedRequests = await getBorrowRequests(
-          user,
-          token,
-          loadedItems,
-        ).catch(() => []);
+        const [loadedRequests, loadedWantedPosts] = await Promise.all([
+          getBorrowRequests(user, token, loadedItems).catch(() => []),
+          getMyWantedPosts(token).catch(() => []),
+        ]);
         if (!active) return;
         setRequests(loadedRequests);
+        setMyWantedPosts(Array.isArray(loadedWantedPosts) ? loadedWantedPosts : []);
       } else {
         setRequests([]);
+        setMyWantedPosts([]);
       }
       setItemsLoading(false);
     }
@@ -145,11 +152,18 @@ export default function App() {
         );
       }).length
     : 0;
+  const pendingOffersCount = user
+    ? myWantedPosts.reduce(
+        (sum, post) => sum + Number(post?.pendingOfferCount || 0),
+        0,
+      )
+    : 0;
+  const inboxCount = pendingCount + pendingOffersCount;
   const navItems = [
     { to: "/", label: t("nav.home"), icon: LayoutGrid, end: true },
     { to: "/create", label: t("nav.create"), icon: PlusCircle },
     { to: "/my-listings", label: t("nav.myListings"), icon: ClipboardList },
-    { to: "/requests", label: t("nav.requests"), icon: Inbox, count: pendingCount },
+    { to: "/requests", label: t("nav.requests"), icon: Inbox, count: inboxCount },
     { to: "/my-borrows", label: t("nav.myBorrows"), icon: History },
   ];
 
@@ -562,6 +576,8 @@ export default function App() {
                     setRequests={setRequests}
                     setItems={setItems}
                     items={items}
+                    myWantedPosts={myWantedPosts}
+                    setMyWantedPosts={setMyWantedPosts}
                   />
                 </ProtectedRoute>
               }

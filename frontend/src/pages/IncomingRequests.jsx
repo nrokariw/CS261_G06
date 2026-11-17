@@ -1,7 +1,25 @@
-import React, { useState } from "react";
-import { Check, X, AlertCircle, PackageCheck, MessageSquare, History } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import {
+  Check,
+  X,
+  AlertCircle,
+  PackageCheck,
+  MessageSquare,
+  History,
+  HandHeart,
+  ArrowRight,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { PageHeading, EmptyState, RequestCard, AlertBanner } from "../components/UI";
+import {
+  PageHeading,
+  EmptyState,
+  RequestCard,
+  AlertBanner,
+  CategoryBadge,
+  StatusBadge,
+  Avatar,
+} from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import HandoverModal, { isHandedOver, isReturned } from "../components/HandoverModal";
 import ReturnModal from "../components/ReturnModal";
@@ -11,10 +29,25 @@ import {
   cancelBorrowRequest,
   respondToBorrowRequest,
 } from "../api/requestsApi";
+import {
+  acceptLendOffer,
+  getMyWantedPosts,
+  getWantedPost,
+  rejectLendOffer,
+} from "../api/wantedPostsApi";
 
-export default function IncomingRequests({ requests = [], setRequests, setItems, items = [] }) {
+export default function IncomingRequests({
+  requests = [],
+  setRequests,
+  setItems,
+  items = [],
+  myWantedPosts = [],
+  setMyWantedPosts,
+}) {
   const { user, token } = useAuth();
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "offers" ? "offers" : "requests";
   const [actionError, setActionError] = useState("");
   // T-6.3: คำขอที่กำลังเปิดโมดอลบันทึกหลักฐานการส่งมอบ + ข้อความแจ้งผลสำเร็จ
   const [handoverReq, setHandoverReq] = useState(null);
@@ -24,6 +57,128 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
   const [activeResponseReq, setActiveResponseReq] = useState(null);
   const [responseReason, setResponseReason] = useState("");
   const [modalError, setModalError] = useState("");
+  const [offerItems, setOfferItems] = useState([]);
+  const [offersLoading, setOffersLoading] = useState(false);
+  const [busyOfferId, setBusyOfferId] = useState(null);
+
+  const handleTabChange = (nextTab) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextTab === "offers") next.set("tab", "offers");
+    else next.delete("tab");
+    setSearchParams(next, { replace: true });
+  };
+
+  const pendingOffersCount = useMemo(
+    () =>
+      myWantedPosts.reduce(
+        (sum, post) => sum + Number(post?.pendingOfferCount || 0),
+        0,
+      ),
+    [myWantedPosts],
+  );
+
+  useEffect(() => {
+    const authToken = token || user?.token;
+    if (activeTab !== "offers" || !authToken) return;
+
+    let cancelled = false;
+    async function loadInboxOffers() {
+      setOffersLoading(true);
+      setActionError("");
+      try {
+        const posts =
+          myWantedPosts.length > 0
+            ? myWantedPosts
+            : await getMyWantedPosts(authToken);
+        if (cancelled) return;
+        const postList = Array.isArray(posts) ? posts : [];
+        if (myWantedPosts.length === 0 && setMyWantedPosts) {
+          setMyWantedPosts(postList);
+        }
+
+        const details = await Promise.all(
+          postList.map((post) => getWantedPost(post.id, authToken).catch(() => null)),
+        );
+        if (cancelled) return;
+
+        const flattened = [];
+        for (const detail of details) {
+          if (!detail || !Array.isArray(detail.offers)) continue;
+          for (const offer of detail.offers) {
+            flattened.push({
+              ...offer,
+              postId: detail.id,
+              postTitle: detail.title,
+              postCategory: detail.category,
+              postStatus: detail.status,
+            });
+          }
+        }
+        flattened.sort((a, b) => {
+          const aPending = String(a.status).toLowerCase() === "pending" ? 0 : 1;
+          const bPending = String(b.status).toLowerCase() === "pending" ? 0 : 1;
+          if (aPending !== bPending) return aPending - bPending;
+          return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
+        });
+        setOfferItems(flattened);
+      } catch (err) {
+        if (!cancelled) {
+          setActionError(err.message || t("wanted.loadError"));
+        }
+      } finally {
+        if (!cancelled) setOffersLoading(false);
+      }
+    }
+    loadInboxOffers();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, token, user?.token, myWantedPosts, setMyWantedPosts, t]);
+
+  async function handleOfferDecision(offer, decision) {
+    const authToken = token || user?.token;
+    setActionError("");
+    setSuccessMsg("");
+    setBusyOfferId(offer.id);
+    try {
+      if (decision === "accept") {
+        await acceptLendOffer(offer.postId, offer.id, authToken);
+      } else {
+        await rejectLendOffer(offer.postId, offer.id, authToken);
+      }
+      const updatedPosts = await getMyWantedPosts(authToken).catch(() => null);
+      if (Array.isArray(updatedPosts) && setMyWantedPosts) {
+        setMyWantedPosts(updatedPosts);
+      }
+      setOfferItems((prev) =>
+        prev.map((item) => {
+          if (item.id === offer.id) {
+            return {
+              ...item,
+              status: decision === "accept" ? "accepted" : "rejected",
+            };
+          }
+          if (
+            decision === "accept" &&
+            item.postId === offer.postId &&
+            String(item.status).toLowerCase() === "pending"
+          ) {
+            return { ...item, status: "rejected" };
+          }
+          return item;
+        }),
+      );
+      setSuccessMsg(
+        decision === "accept"
+          ? t("incomingRequests.offerAcceptedNotice")
+          : t("incomingRequests.offerRejectedNotice"),
+      );
+    } catch (err) {
+      setActionError(err.message || t("validation.submitFailed"));
+    } finally {
+      setBusyOfferId(null);
+    }
+  }
 
   const checkIsItemOwner = (req) => {
     const matchedItem = (items || []).find((i) => String(i.id) === String(req.itemId));
@@ -174,9 +329,68 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
               <small className="text-[11px] text-[#247A4B] dark:text-[#4ADE80]">{t("incomingRequests.acceptedRequests")}</small>
               <strong className="text-base font-bold text-[#247A4B] dark:text-[#4ADE80]">{accepted}</strong>
             </div>
+            <div className="px-3.5 py-2 rounded-xl bg-[var(--surface-tint)] border border-[var(--border)] flex flex-col min-w-[82px]">
+              <small className="text-[11px] text-[var(--primary)]">{t("incomingRequests.pendingOffers")}</small>
+              <strong className="text-base font-bold text-[var(--primary)]">{pendingOffersCount}</strong>
+            </div>
           </div>
         }
       />
+
+      <div
+        className="flex items-center gap-2 border-b border-[var(--border)] pb-3 overflow-x-auto"
+        role="tablist"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "requests"}
+          className={`inline-flex items-center gap-2 shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-[13.5px] font-medium border cursor-pointer transition-colors ${
+            activeTab === "requests"
+              ? "bg-[var(--primary)] border-[var(--primary)] text-white shadow-xs"
+              : "bg-[var(--surface)] border-[var(--border)] text-[var(--muted)] hover:border-[var(--primary)] hover:text-[var(--text)]"
+          }`}
+          onClick={() => handleTabChange("requests")}
+        >
+          <span>{t("incomingRequests.tabBorrowRequests")}</span>
+          {pending > 0 && (
+            <span
+              className={`min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold grid place-items-center ${
+                activeTab === "requests"
+                  ? "bg-white text-[var(--primary)]"
+                  : "bg-[var(--primary)] text-white"
+              }`}
+            >
+              {pending}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "offers"}
+          className={`inline-flex items-center gap-2 shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-[13.5px] font-medium border cursor-pointer transition-colors ${
+            activeTab === "offers"
+              ? "bg-[var(--primary)] border-[var(--primary)] text-white shadow-xs"
+              : "bg-[var(--surface)] border-[var(--border)] text-[var(--muted)] hover:border-[var(--primary)] hover:text-[var(--text)]"
+          }`}
+          onClick={() => handleTabChange("offers")}
+        >
+          <HandHeart size={16} />
+          <span>{t("incomingRequests.tabLendOffers")}</span>
+          {pendingOffersCount > 0 && (
+            <span
+              className={`min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold grid place-items-center ${
+                activeTab === "offers"
+                  ? "bg-white text-[var(--primary)]"
+                  : "bg-[var(--primary)] text-white"
+              }`}
+            >
+              {pendingOffersCount}
+            </span>
+          )}
+        </button>
+      </div>
 
       <AlertBanner message={actionError} onClose={() => setActionError("")} />
 
@@ -189,7 +403,101 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
         </div>
       )}
 
-      {myIncomingRequests.length ? (
+      {activeTab === "offers" ? (
+        offersLoading ? (
+          <div className="p-6 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs text-sm text-[var(--muted)]">
+            {t("common.loading")}
+          </div>
+        ) : offerItems.length ? (
+          <div className="flex flex-col gap-4">
+            {offerItems.map((offer) => {
+              const isOfferPending = String(offer.status || "").toLowerCase() === "pending";
+              const isBusy = busyOfferId === offer.id;
+              return (
+                <article
+                  key={offer.id}
+                  className="flex flex-col md:flex-row justify-between gap-5 p-5 bg-[var(--surface)] border border-[var(--border)] rounded-[14px] shadow-xs"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start gap-3">
+                      <Avatar name={offer.lenderName || offer.lenderId} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <CategoryBadge category={offer.postCategory} />
+                          <StatusBadge status={offer.status} />
+                        </div>
+                        <h3 className="m-0 text-base font-semibold text-[var(--text)] truncate">
+                          <Link
+                            to={`/wanted/${offer.postId}`}
+                            className="text-inherit no-underline hover:text-[var(--primary)] transition-colors"
+                          >
+                            {offer.postTitle}
+                          </Link>
+                        </h3>
+                        <p className="m-0 mt-0.5 text-xs text-[var(--muted)]">
+                          {t("incomingRequests.offeredBy")}{" "}
+                          <strong className="text-[var(--text)]">
+                            {offer.lenderName || offer.lenderId}
+                          </strong>
+                        </p>
+                      </div>
+                    </div>
+
+                    {offer.offeredItemTitle && (
+                      <p className="mt-3 mb-0 text-[13px] text-[var(--text)]">
+                        <strong className="text-[var(--muted)] mr-1">
+                          {t("incomingRequests.offeredItemLabel")}
+                        </strong>
+                        {offer.offeredItemTitle}
+                      </p>
+                    )}
+
+                    {offer.message && (
+                      <p className="mt-2 mb-0 px-3 py-2 rounded-lg text-[13px] text-[var(--text)] bg-[var(--surface-subtle)] border-l-[3px] border-[var(--primary)] break-words">
+                        {offer.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row md:flex-col items-stretch sm:items-center md:items-end justify-center gap-2 shrink-0">
+                    <Link
+                      to={`/wanted/${offer.postId}`}
+                      className="button button-outline button-sm"
+                    >
+                      {t("incomingRequests.viewWantedPost")} <ArrowRight size={15} />
+                    </Link>
+                    {isOfferPending && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="button button-primary button-sm"
+                          disabled={isBusy}
+                          onClick={() => handleOfferDecision(offer, "accept")}
+                        >
+                          <Check size={15} /> {t("incomingRequests.accept")}
+                        </button>
+                        <button
+                          type="button"
+                          className="button button-danger-outline button-sm"
+                          disabled={isBusy}
+                          onClick={() => handleOfferDecision(offer, "reject")}
+                        >
+                          <X size={15} /> {t("incomingRequests.reject")}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState
+            title={t("incomingRequests.offersEmptyTitle")}
+            description={t("incomingRequests.offersEmptyDesc")}
+          />
+        )
+      ) : myIncomingRequests.length ? (
         <div className="flex flex-col gap-4">
           {myIncomingRequests.map((req) => {
             // T-6.3 / US-07.2 / US-08.2: ส่งมอบแล้ว แสดง "กำลังยืม" / ส่งคืนแล้ว แสดง "คืนแล้ว"
