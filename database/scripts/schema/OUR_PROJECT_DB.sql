@@ -150,3 +150,27 @@ BEGIN
     );
 END
 GO
+
+-- สร้างตาราง categories สำหรับจัดเก็บหมวดหมู่สิ่งของแบบไดนามิก
+IF OBJECT_ID('categories', 'U') IS NULL
+BEGIN
+    CREATE TABLE categories (
+        code VARCHAR(50) PRIMARY KEY,
+        name_th NVARCHAR(100) NOT NULL,
+        name_en NVARCHAR(100) NOT NULL,
+        sort_order INT NOT NULL DEFAULT 0,
+        is_active BIT NOT NULL DEFAULT 1
+    );
+END
+GO
+
+-- เพิ่มหมวดหมู่เริ่มต้น 4 รายการเมื่อตาราง categories ยังว่าง
+IF NOT EXISTS (SELECT 1 FROM categories)
+BEGIN
+    INSERT INTO categories (code, name_th, name_en, sort_order, is_active) VALUES
+        ('STUDY', N'อุปกรณ์การเรียน', N'Study Materials', 1, 1),
+        ('ELECTRONICS', N'อุปกรณ์อิเล็กทรอนิกส์', N'Electronics', 2, 1),
+        ('SPORTS', N'อุปกรณ์กีฬา', N'Sports Gear', 3, 1),
+        ('GENERAL', N'ของใช้ทั่วไป', N'General Items', 4, 1);
+END
+GO
