@@ -76,14 +76,18 @@ public class AuthController {
         if (request == null) {
             return "unknown";
         }
-        String realIp = request.getHeader("X-Real-IP");
-        if (realIp != null && !realIp.isBlank()) {
-            return realIp.trim();
+        String cfIp = request.getHeader("CF-Connecting-IP");
+        if (cfIp != null && !cfIp.isBlank()) {
+            return cfIp.trim();
         }
         String forwardedFor = request.getHeader("X-Forwarded-For");
         if (forwardedFor != null && !forwardedFor.isBlank()) {
             int commaIdx = forwardedFor.indexOf(',');
             return (commaIdx > 0 ? forwardedFor.substring(0, commaIdx) : forwardedFor).trim();
+        }
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
         }
         return request.getRemoteAddr() != null ? request.getRemoteAddr() : "unknown";
     }
