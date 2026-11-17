@@ -20,7 +20,7 @@ import {
   StatusBadge,
   getLocalizedCategoryLabel,
 } from "../components/UI";
-import { isReturned } from "../components/HandoverModal";
+import { isHandedOver, isReturned } from "../components/HandoverModal";
 import { useAuth } from "../contexts/AuthContext";
 import { getAvailableItems } from "../api/itemsApi";
 import { listWantedPosts } from "../api/wantedPostsApi";
@@ -150,12 +150,19 @@ export default function Browse({
             const matchesItem = String(r.itemId) === String(item.id);
             return matchesItem;
           });
+          const itemStatus = String(item.status || "").toLowerCase();
           if (myRequest) {
             const reqStatus = String(myRequest.status || "").toLowerCase();
+            if (
+              itemStatus === "borrowed" ||
+              String(myRequest.transactionStatus || "").toLowerCase() === "active" ||
+              isHandedOver(myRequest, { ...item, status: itemStatus })
+            ) {
+              return { ...item, status: "borrowed" };
+            }
             const displayStatus = reqStatus === "accepted" ? "reserved" : reqStatus;
             return { ...item, status: displayStatus };
           }
-          const itemStatus = String(item.status || "").toLowerCase();
           if (itemStatus === "accepted") {
             return { ...item, status: "reserved" };
           }
