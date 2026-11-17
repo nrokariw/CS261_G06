@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { PackageCheck } from "lucide-react";
+import { PackageCheck, History } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { PageHeading, StatusBadge, EmptyState, Avatar } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import HandoverModal, { isHandedOver } from "../components/HandoverModal";
+import LoanEvidenceTimelineModal from "../components/LoanEvidenceTimelineModal";
 
 function formatDate(date, locale = "th-TH") {
   if (!date) return "—";
@@ -23,6 +24,7 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
   const [handoverReq, setHandoverReq] = useState(null);
+  const [evidenceRequestId, setEvidenceRequestId] = useState(null);
   const [successMsg, setSuccessMsg] = useState("");
   const dateLocale = i18n.language === "en" ? "en-US" : "th-TH";
   
@@ -72,9 +74,12 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
         <div className="requests-list">
           {myBorrows.map((req) => {
             // T-6.3: ส่งมอบแล้ว  แสดงสถานะ "กำลังยืม"
-            const handedOver = isHandedOver(
-              req,
-              items.find((i) => i.id === req.itemId),
+            const matchedItem = items.find((i) => i.id === req.itemId);
+            const handedOver = isHandedOver(req, matchedItem);
+            const canViewEvidence = Boolean(
+              handedOver ||
+                req?.returned ||
+                (req?.status === "accepted" && matchedItem?.status === "available"),
             );
             return (
             <article className="request-card" key={req.id}>
@@ -131,7 +136,7 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
                     <small className="status-hint">{t("handover.done")}</small>
                   </div>
                 ) : (
-                  req.status === "accepted" && (
+                  req.status === "accepted" && !canViewEvidence && (
                     <div className="request-status-updated">
                       <button
                         type="button"
@@ -145,6 +150,17 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
                       </button>
                     </div>
                   )
+                )}
+                {canViewEvidence && (
+                  <div className="request-status-updated">
+                    <button
+                      type="button"
+                      className="button button-outline button-sm"
+                      onClick={() => setEvidenceRequestId(req.id)}
+                    >
+                      <History size={15} /> {t("evidenceTimeline.button")}
+                    </button>
+                  </div>
                 )}
                 {req.status === "change_requested" && (
                   <div style={{ marginTop: "12px" }}>
@@ -175,6 +191,14 @@ export default function MyBorrows({ requests = [], items = [], setItems, setRequ
           request={handoverReq}
           onClose={() => setHandoverReq(null)}
           onSuccess={handleHandoverSuccess}
+        />
+      )}
+
+      {/* US-08.2: โมดอล Timeline ประวัติและหลักฐานการยืม-คืน */}
+      {evidenceRequestId && (
+        <LoanEvidenceTimelineModal
+          requestId={evidenceRequestId}
+          onClose={() => setEvidenceRequestId(null)}
         />
       )}
     </div>

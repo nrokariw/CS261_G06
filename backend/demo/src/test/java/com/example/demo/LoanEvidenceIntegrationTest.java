@@ -180,4 +180,23 @@ class LoanEvidenceIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + borrowerToken))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    @DisplayName("US-08.3 Active loan: returns HANDOVER proof only when RETURN proof is not yet recorded")
+    void getLoanEvidenceActiveLoanShowsHandoverOnly() throws Exception {
+        testTransaction.setStatus(TransactionStatus.ACTIVE);
+        testTransaction.setReturnedAt(null);
+        transactionRepository.save(testTransaction);
+        evidenceProofRepository.findByTransactionId(testTransaction.getId()).stream()
+                .filter(p -> p.getProofType() == ProofType.RETURN)
+                .forEach(evidenceProofRepository::delete);
+
+        mockMvc.perform(get("/api/transactions/" + testRequest.getId() + "/evidence")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + borrowerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.transactionStatus").value("ACTIVE"))
+                .andExpect(jsonPath("$.handoverImageUrl").value("/uploads/evidence/handover.png"))
+                .andExpect(jsonPath("$.returnImageUrl").doesNotExist())
+                .andExpect(jsonPath("$.evidences", hasSize(1)));
+    }
 }

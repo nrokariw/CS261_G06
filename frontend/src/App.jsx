@@ -34,6 +34,7 @@ import ItemDetails from "./pages/ItemDetails";
 import MyListings from "./pages/MyListings";
 import IncomingRequests from "./pages/IncomingRequests";
 import MyBorrows from "./pages/MyBorrows";
+import LoanEvidenceTimelineModal from "./components/LoanEvidenceTimelineModal";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./contexts/AuthContext";
@@ -144,6 +145,8 @@ export default function App() {
   if (pathname === "/create" && search.includes("edit="))
     currentLabel = t("nav.editListing");
   if (pathname.startsWith("/items/")) currentLabel = t("nav.itemDetails");
+  if (pathname.startsWith("/transactions/"))
+    currentLabel = t("evidenceTimeline.title");
   if (pathname === "/login")
     currentLabel = t("nav.login", { defaultValue: "เข้าสู่ระบบ" });
   if (!currentLabel) currentLabel = t("nav.notFound");
@@ -469,6 +472,14 @@ export default function App() {
                     setItems={setItems}
                     setRequests={setRequests}
                   />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/transactions/:requestId/evidence"
+              element={
+                <ProtectedRoute>
+                  <LoanEvidenceTimelineModal asPage />
                 </ProtectedRoute>
               }
             />

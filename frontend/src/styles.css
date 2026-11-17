@@ -3405,3 +3405,229 @@ textarea:focus-visible {
     flex-direction: column;
     gap: 8px;
 }
+
+/* US-08.2: Loan Evidence Timeline Modal & Page */
+.modal-wide {
+    max-width: 680px;
+}
+
+.evidence-modal-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.evidence-page-subtitle {
+    margin: 4px 0 20px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.evidence-timeline-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-bottom: 12px;
+}
+
+.evidence-summary-card {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 16px;
+    border-radius: 12px;
+    background: var(--surface-subtle);
+    border: 1px solid var(--border);
+}
+
+.evidence-summary-main h3 {
+    margin: 4px 0 8px;
+    font-size: 16px;
+    color: var(--text);
+}
+
+.evidence-summary-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.evidence-summary-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.evidence-timeline {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding-left: 16px;
+}
+
+.evidence-timeline::before {
+    content: "";
+    position: absolute;
+    left: 31px;
+    top: 18px;
+    bottom: 18px;
+    width: 2px;
+    background: var(--border);
+}
+
+.evidence-step {
+    position: relative;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+}
+
+.evidence-step-marker {
+    position: relative;
+    z-index: 1;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+}
+
+.evidence-step-done .evidence-step-marker {
+    background: #E4F3E8;
+    border-color: #247A4B;
+    color: #247A4B;
+}
+
+[data-theme="dark"] .evidence-step-done .evidence-step-marker {
+    background: rgba(36, 122, 75, 0.2);
+    border-color: #4ADE80;
+    color: #4ADE80;
+}
+
+.evidence-step-body {
+    flex: 1;
+    min-width: 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.evidence-step-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.evidence-step-header h4 {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.evidence-step-header time {
+    font-size: 11.5px;
+    color: var(--muted);
+}
+
+.evidence-proof-box {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.evidence-photo-frame {
+    display: block;
+    overflow: hidden;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-subtle);
+    max-height: 280px;
+}
+
+.evidence-photo-frame img {
+    width: 100%;
+    max-height: 280px;
+    object-fit: contain;
+    display: block;
+}
+
+.evidence-note {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--surface-subtle);
+    padding: 9px 12px;
+    border-radius: 8px;
+}
+
+.evidence-pending-text {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.evidence-forbidden-card,
+.evidence-state-box {
+    text-align: center;
+    padding: 28px 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface-subtle);
+}
+
+.evidence-forbidden-icon {
+    width: 54px;
+    height: 54px;
+    margin: 0 auto 12px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: #FCE8E4;
+    color: #B9382B;
+}
+
+[data-theme="dark"] .evidence-forbidden-icon {
+    background: rgba(185, 56, 43, 0.2);
+    color: #FCA5A5;
+}
+
+.evidence-forbidden-card h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    color: var(--text);
+}
+
+.evidence-forbidden-card p {
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+@media (max-width: 600px) {
+    .evidence-timeline {
+        padding-left: 0;
+    }
+
+    .evidence-timeline::before {
+        left: 15px;
+    }
+
+    .evidence-step-body {
+        padding: 12px;
+    }
+}

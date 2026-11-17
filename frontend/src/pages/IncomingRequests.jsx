@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { Check, X, AlertCircle, PackageCheck, MessageSquare } from "lucide-react";
+import { Check, X, AlertCircle, PackageCheck, MessageSquare, History } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageHeading, StatusBadge, EmptyState, Avatar } from "../components/UI";
 import { useAuth } from "../contexts/AuthContext";
 import HandoverModal, { isHandedOver } from "../components/HandoverModal";
+import LoanEvidenceTimelineModal from "../components/LoanEvidenceTimelineModal";
 import {
   updateBorrowRequestStatus,
   cancelBorrowRequest,
@@ -26,6 +27,7 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
   const [actionError, setActionError] = useState("");
   // T-6.3: คำขอที่กำลังเปิดโมดอลบันทึกหลักฐานการส่งมอบ + ข้อความแจ้งผลสำเร็จ
   const [handoverReq, setHandoverReq] = useState(null);
+  const [evidenceRequestId, setEvidenceRequestId] = useState(null);
   const [successMsg, setSuccessMsg] = useState("");
   const [activeResponseReq, setActiveResponseReq] = useState(null);
   const [responseReason, setResponseReason] = useState("");
@@ -191,9 +193,12 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
         <div className="requests-list requests-list-updated">
           {myIncomingRequests.map((req) => {
             // T-6.3: ส่งมอบแล้ว แสดงสถานะ "กำลังยืม"
-            const handedOver = isHandedOver(
-              req,
-              items.find((i) => i.id === req.itemId),
+            const matchedItem = items.find((i) => i.id === req.itemId);
+            const handedOver = isHandedOver(req, matchedItem);
+            const canViewEvidence = Boolean(
+              handedOver ||
+                req?.returned ||
+                (req?.status === "accepted" && matchedItem?.status === "available"),
             );
             return (
             <article className="request-card request-card-updated" key={req.id}>
@@ -268,7 +273,24 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
                   ) : (
                     <div className="request-status-updated">
                       {handedOver ? (
-                        <small className="status-hint">{t("handover.done")}</small>
+                        <>
+                          <small className="status-hint">{t("handover.done")}</small>
+                          <button
+                            type="button"
+                            className="button button-outline button-sm"
+                            onClick={() => setEvidenceRequestId(req.id)}
+                          >
+                            <History size={15} /> {t("evidenceTimeline.button")}
+                          </button>
+                        </>
+                      ) : canViewEvidence ? (
+                        <button
+                          type="button"
+                          className="button button-outline button-sm"
+                          onClick={() => setEvidenceRequestId(req.id)}
+                        >
+                          <History size={15} /> {t("evidenceTimeline.button")}
+                        </button>
                       ) : (
                         <>
                           {/* T-6.3: ปุ่มบันทึกหลักฐานการส่งมอบ เฉพาะคำขอ accepted ที่ยังไม่ส่งมอบ */}
@@ -313,6 +335,14 @@ export default function IncomingRequests({ requests = [], setRequests, setItems,
           request={handoverReq}
           onClose={() => setHandoverReq(null)}
           onSuccess={handleHandoverSuccess}
+        />
+      )}
+
+      {/* US-08.2: โมดอล Timeline ประวัติและหลักฐานการยืม-คืน */}
+      {evidenceRequestId && (
+        <LoanEvidenceTimelineModal
+          requestId={evidenceRequestId}
+          onClose={() => setEvidenceRequestId(null)}
         />
       )}
 
